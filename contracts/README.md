@@ -56,12 +56,21 @@ contracts/
   goes further and drives a real `LatensPool.borrow()` call — collateral deposit, a live
   solvency check, a debt disbursement — through `NoirSolvencyVerifier` end to end, with
   `MockVerifier` only standing in for the other two proof types in that one test.
-  `script/deploy.js` still wires `MockVerifier` for all three by default (the simplest path
-  for local development); swapping in the real verifiers means deploying
-  `generated/*HonkVerifier.sol` (each needs its `RelationsLib`/`ZKTranscriptLib` libraries
-  linked — see `test/helpers/honkVerifier.js` for the pattern) and the matching
-  `Noir*Verifier.sol` adapter, then passing their addresses into `LatensPool`'s constructor
-  or `setVerifiers`. `ILiquidationVerifier`'s public-input layout below reflects the real
+  `script/deploy.js` — the testnet/production deployment path — now wires all three real
+  `Noir*Verifier.sol` adapters (deploying each `generated/*HonkVerifier.sol` with its
+  `RelationsLib`/`ZKTranscriptLib` libraries linked) by default; set `MOCK_VERIFIERS=1` to
+  fall back to the old permissive `MockVerifier` behavior for an environment that genuinely
+  needs it (never mainnet). `script/deployLocal.js` — what the frontend's local dev loop
+  actually runs against — stays on `MockVerifier` for all three on purpose: there's no
+  client-side proof generation yet (see `frontend/lib/positionStore.tsx`), so a real verifier
+  there would just make every button in the UI revert. `npm run deploy:real-verifiers`
+  (`script/deployRealVerifiers.js`) demonstrates the real path working end to end anyway,
+  independent of that gap: it deploys all three real verifiers, checks the commitment and
+  solvency ones directly against their own circuit fixtures, then reaches the liquidation
+  fixture's exact starting position (via `MockVerifier`-gated setup calls — a real solvency
+  proof cannot exist for an intentionally-insolvent intermediate state, so the setup has to
+  use the permissive path; only the final call is real) and calls `LatensPool.liquidate()`
+  gated by the REAL `LiquidationHonkVerifier`, with a genuine Barretenberg proof. `ILiquidationVerifier`'s public-input layout below reflects the real
   circuit, including `liquidationBonusBps`, which the circuit uses to cap a keeper's seized
   value at the repaid debt's value plus the configured bonus.
 - There is **no interest-rate/accrual model.** `repay`'s reserve-factor cut is a placeholder
