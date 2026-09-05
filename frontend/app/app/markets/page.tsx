@@ -89,9 +89,9 @@ export default function MarketsPage() {
           never land in the same place. One grid means the columns are sized once. */}
       <div className="grid grid-cols-[1.4fr_1.1fr_1.1fr_1fr_auto] items-center gap-4">
         <span className="border-b border-line-strong pb-4 text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Market</span>
-        <span className="border-b border-line-strong pb-4 text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total supplied</span>
-        <span className="border-b border-line-strong pb-4 text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total borrowed</span>
-        <span className="border-b border-line-strong pb-4 text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Utilization</span>
+        <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total supplied</span>
+        <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total borrowed</span>
+        <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Utilization</span>
         <span className="border-b border-line-strong pb-4"></span>
 
         {tokenList.map((t, i) => {
@@ -106,13 +106,13 @@ export default function MarketsPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-xs text-gold">{t.symbol[0]}</div>
                 <span className="font-medium">{t.symbol}</span>
               </div>
-              <div className="border-b border-line py-4.5">
+              <div className="flex justify-center border-b border-line py-4.5">
                 {assetsLoading ? <Skeleton width={70} /> : <span className="font-mono text-sm tabular-nums">{formatUnits(totalSupplied, t.decimals)}</span>}
               </div>
-              <div className="border-b border-line py-4.5">
+              <div className="flex justify-center border-b border-line py-4.5">
                 {assetsLoading ? <Skeleton width={70} /> : <span className="font-mono text-sm tabular-nums">{formatUnits(totalBorrowed, t.decimals)}</span>}
               </div>
-              <div className="border-b border-line py-4.5">{assetsLoading ? <Skeleton width={110} /> : <UtilizationMeter value={utilization} />}</div>
+              <div className="flex justify-center border-b border-line py-4.5">{assetsLoading ? <Skeleton width={110} /> : <UtilizationMeter value={utilization} />}</div>
               <div className="flex gap-2 border-b border-line py-4.5">
                 <button
                   onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "supply" })}
