@@ -12,6 +12,7 @@ import { ImportBackupModal } from "@/components/ImportBackupModal";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
 import { ActivityLog } from "@/components/ActivityLog";
 import { Skeleton } from "@/components/Skeleton";
+import { usdValueE8 } from "@/lib/valuation";
 import { makeEntry, type DisclosureEntry } from "@/lib/disclosure";
 import type { TokenSymbol } from "@/lib/contracts";
 
@@ -101,13 +102,16 @@ export default function PortfolioPage() {
   const debtPrice = reads?.[2]?.result as PriceTuple | undefined;
 
   const zone = (() => {
-    if (!debtToken || debtAmount === 0n || !collateralAsset || !collateralPrice || !debtPrice) return "safe" as const;
+    if (!collateralToken || !debtToken || debtAmount === 0n || !collateralAsset || !collateralPrice || !debtPrice) return "safe" as const;
     const { ltvBps, liquidationThresholdBps } = collateralAsset;
-    const collateralValue = collateralAmount * collateralPrice[0];
-    const debtValue = debtAmount * debtPrice[0];
-    const scaledDebt = debtValue * 10_000n;
-    if (scaledDebt <= collateralValue * BigInt(ltvBps)) return "safe" as const;
-    if (scaledDebt <= collateralValue * BigInt(liquidationThresholdBps)) return "moderate" as const;
+    // USD-normalized via usdValueE8 — collateral and debt tokens don't share decimals
+    // (ZEN/DAI=18, WBTC=8, USDC=6), so comparing raw base-unit amounts times priceE8
+    // directly (the previous approach) isn't dimensionally valid; see lib/valuation.ts.
+    const collateralValueE8 = usdValueE8(collateralAmount, collateralToken.decimals, collateralPrice[0]);
+    const debtValueE8 = usdValueE8(debtAmount, debtToken.decimals, debtPrice[0]);
+    const scaledDebt = debtValueE8 * 10_000n;
+    if (scaledDebt <= collateralValueE8 * BigInt(ltvBps)) return "safe" as const;
+    if (scaledDebt <= collateralValueE8 * BigInt(liquidationThresholdBps)) return "moderate" as const;
     return "risk" as const;
   })();
 
