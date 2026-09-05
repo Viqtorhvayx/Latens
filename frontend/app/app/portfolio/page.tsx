@@ -8,7 +8,9 @@ import { usePositionStore } from "@/lib/positionStore";
 import { MaskedValue } from "@/components/MaskedValue";
 import { HealthGauge } from "@/components/HealthGauge";
 import { ExportDisclosureModal } from "@/components/ExportDisclosureModal";
+import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
 import { makeEntry, type DisclosureEntry } from "@/lib/disclosure";
+import type { TokenSymbol } from "@/lib/contracts";
 
 // LatensPool.positions() is Solidity's auto-generated struct-mapping getter — unlike
 // AssetRegistry.getAsset() (a hand-written function returning one real `tuple`-typed
@@ -33,6 +35,7 @@ export default function PortfolioPage() {
   const chainId = useChainId();
   const { get } = usePositionStore();
   const [showExport, setShowExport] = useState(false);
+  const [actionModal, setActionModal] = useState<{ symbol: TokenSymbol; mode: ActionMode } | null>(null);
 
   const { data: position } = useReadContract({
     address: latensPool.address,
@@ -145,7 +148,15 @@ export default function PortfolioPage() {
                     </div>
                     <span className="font-medium">{collateralToken.symbol}</span>
                   </div>
-                  <MaskedValue value={formatUnits(collateralAmount, collateralToken.decimals)} fontSize={14} />
+                  <div className="flex items-center gap-3">
+                    <MaskedValue value={formatUnits(collateralAmount, collateralToken.decimals)} fontSize={14} />
+                    <button
+                      onClick={() => setActionModal({ symbol: collateralToken.symbol as TokenSymbol, mode: "withdraw" })}
+                      className="rounded-lg border border-line-strong px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+                    >
+                      Withdraw
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <p className="text-sm text-ink-faint">Nothing supplied yet.</p>
@@ -162,7 +173,15 @@ export default function PortfolioPage() {
                     </div>
                     <span className="font-medium">{debtToken.symbol}</span>
                   </div>
-                  <MaskedValue value={formatUnits(debtAmount, debtToken.decimals)} fontSize={14} />
+                  <div className="flex items-center gap-3">
+                    <MaskedValue value={formatUnits(debtAmount, debtToken.decimals)} fontSize={14} />
+                    <button
+                      onClick={() => setActionModal({ symbol: debtToken.symbol as TokenSymbol, mode: "repay" })}
+                      className="rounded-lg border border-line-strong px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+                    >
+                      Repay
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <p className="text-sm text-ink-faint">Nothing borrowed yet.</p>
@@ -180,6 +199,10 @@ export default function PortfolioPage() {
           decimalsFor={(assetId) => tokenList.find((t) => t.assetId === assetId)?.decimals ?? 18}
           onClose={() => setShowExport(false)}
         />
+      )}
+
+      {actionModal && (
+        <PositionActionModal symbol={actionModal.symbol} mode={actionModal.mode} onClose={() => setActionModal(null)} />
       )}
     </div>
   );

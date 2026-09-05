@@ -6,7 +6,7 @@ import { formatUnits } from "viem";
 import { assetRegistry, latensPool, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore } from "@/lib/positionStore";
 import { MaskedValue } from "@/components/MaskedValue";
-import { SupplyBorrowModal } from "@/components/SupplyBorrowModal";
+import { PositionActionModal } from "@/components/PositionActionModal";
 import { UtilizationMeter } from "@/components/UtilizationMeter";
 
 type AssetStruct = {
@@ -124,7 +124,7 @@ export default function MarketsPage() {
         interest/APY isn&apos;t shown because there&apos;s no accrual model in this build yet.
       </p>
 
-      {modal && <SupplyBorrowModal symbol={modal.symbol} mode={modal.mode} onClose={() => setModal(null)} />}
+      {modal && <PositionActionModal symbol={modal.symbol} mode={modal.mode} onClose={() => setModal(null)} />}
     </div>
   );
 }

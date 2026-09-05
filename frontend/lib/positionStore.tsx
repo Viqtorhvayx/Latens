@@ -84,10 +84,40 @@ function save(store: Store) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
 }
 
+// A prepared update is pure — it computes what the new commitment WOULD be without
+// touching the store. The caller must send the on-chain tx first and only call `commit`
+// with `patch` once that tx actually succeeds. This matters: applying the local mutation
+// eagerly (the earlier design) left localStorage silently ahead of chain state the moment
+// any tx reverted — every subsequent action would then also fail, since the "old
+// commitment" this module computes would permanently mismatch what LatensPool actually
+// has on-chain, with no way to recover short of clearing storage.
+export type PreparedUpdate = {
+  oldCommitment: `0x${string}`;
+  newCommitment: `0x${string}`;
+  patch: Partial<AssetPosition>;
+};
+
+function prepare(current: AssetPosition, field: "supplied" | "borrowed", delta: bigint, direction: "increase" | "decrease"): PreparedUpdate {
+  const saltField = field === "supplied" ? "suppliedSalt" : "borrowedSalt";
+  const amount = current[field];
+  const salt = current[saltField];
+  if (direction === "decrease" && delta > amount) {
+    throw new Error(field === "supplied" ? "Can't withdraw more than you've supplied." : "Can't repay more than you owe.");
+  }
+  const oldCommitment = commitment(amount, salt);
+  const newAmount = direction === "increase" ? amount + delta : amount - delta;
+  const newSalt = randomSalt();
+  const newCommitment = commitment(newAmount, newSalt);
+  return { oldCommitment, newCommitment, patch: { [field]: newAmount, [saltField]: newSalt } };
+}
+
 const PositionStoreContext = createContext<{
   get: (address: Address | undefined, assetId: number) => AssetPosition;
-  applySupply: (address: Address, assetId: number, delta: bigint) => { oldCommitment: `0x${string}`; newCommitment: `0x${string}` };
-  applyBorrow: (address: Address, assetId: number, delta: bigint) => { oldCommitment: `0x${string}`; newCommitment: `0x${string}` };
+  prepareSupply: (address: Address, assetId: number, delta: bigint) => PreparedUpdate;
+  prepareWithdraw: (address: Address, assetId: number, delta: bigint) => PreparedUpdate;
+  prepareBorrow: (address: Address, assetId: number, delta: bigint) => PreparedUpdate;
+  prepareRepay: (address: Address, assetId: number, delta: bigint) => PreparedUpdate;
+  commit: (address: Address, assetId: number, patch: Partial<AssetPosition>) => void;
 } | null>(null);
 
 export function PositionStoreProvider({ children }: { children: React.ReactNode }) {
@@ -101,43 +131,28 @@ export function PositionStoreProvider({ children }: { children: React.ReactNode 
         if (!address) return EMPTY;
         return store[address.toLowerCase()]?.[assetId] ?? EMPTY;
       },
-      applySupply(address: Address, assetId: number, delta: bigint) {
-        const key = address.toLowerCase();
-        const current = store[key]?.[assetId] ?? EMPTY;
-        const oldCommitment = commitment(current.supplied, current.suppliedSalt);
-        const newAmount = current.supplied + delta;
-        const newSalt = randomSalt();
-        const newCommitment = commitment(newAmount, newSalt);
-
-        const next: Store = {
-          ...store,
-          [key]: {
-            ...store[key],
-            [assetId]: { ...current, supplied: newAmount, suppliedSalt: newSalt },
-          },
-        };
-        setStore(next);
-        save(next);
-        return { oldCommitment, newCommitment };
+      prepareSupply(address: Address, assetId: number, delta: bigint) {
+        const current = store[address.toLowerCase()]?.[assetId] ?? EMPTY;
+        return prepare(current, "supplied", delta, "increase");
       },
-      applyBorrow(address: Address, assetId: number, delta: bigint) {
+      prepareWithdraw(address: Address, assetId: number, delta: bigint) {
+        const current = store[address.toLowerCase()]?.[assetId] ?? EMPTY;
+        return prepare(current, "supplied", delta, "decrease");
+      },
+      prepareBorrow(address: Address, assetId: number, delta: bigint) {
+        const current = store[address.toLowerCase()]?.[assetId] ?? EMPTY;
+        return prepare(current, "borrowed", delta, "increase");
+      },
+      prepareRepay(address: Address, assetId: number, delta: bigint) {
+        const current = store[address.toLowerCase()]?.[assetId] ?? EMPTY;
+        return prepare(current, "borrowed", delta, "decrease");
+      },
+      commit(address: Address, assetId: number, patch: Partial<AssetPosition>) {
         const key = address.toLowerCase();
         const current = store[key]?.[assetId] ?? EMPTY;
-        const oldCommitment = commitment(current.borrowed, current.borrowedSalt);
-        const newAmount = current.borrowed + delta;
-        const newSalt = randomSalt();
-        const newCommitment = commitment(newAmount, newSalt);
-
-        const next: Store = {
-          ...store,
-          [key]: {
-            ...store[key],
-            [assetId]: { ...current, borrowed: newAmount, borrowedSalt: newSalt },
-          },
-        };
+        const next: Store = { ...store, [key]: { ...store[key], [assetId]: { ...current, ...patch } } };
         setStore(next);
         save(next);
-        return { oldCommitment, newCommitment };
       },
     }),
     [store]

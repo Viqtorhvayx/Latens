@@ -7,7 +7,14 @@ import { parseUnits, formatUnits } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokens, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore } from "@/lib/positionStore";
 
-type Mode = "supply" | "borrow";
+export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
+
+const ACTION_LABEL: Record<ActionMode, string> = {
+  supply: "supply",
+  withdraw: "withdrawal",
+  borrow: "borrow",
+  repay: "repayment",
+};
 
 // LatensPool.positions() is Solidity's auto-generated struct-mapping getter — unlike a
 // hand-written function returning a single `tuple`-typed DataTypes.Position, the auto
@@ -17,22 +24,26 @@ type Mode = "supply" | "borrow";
 // [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, active, hasDebt]
 type PositionTuple = readonly [bigint, bigint, bigint, bigint, number, boolean, boolean];
 
-export function SupplyBorrowModal({
+export function PositionActionModal({
   symbol,
   mode,
   onClose,
 }: {
   symbol: TokenSymbol;
-  mode: Mode;
+  mode: ActionMode;
   onClose: () => void;
 }) {
   const token = tokens[symbol];
   const [amountInput, setAmountInput] = useState("");
   const { address } = useAccount();
-  const { applySupply, applyBorrow } = usePositionStore();
+  const { get, prepareSupply, prepareWithdraw, prepareBorrow, prepareRepay, commit } = usePositionStore();
   const { writeContractAsync, isPending } = useWriteContract();
   const [step, setStep] = useState<"idle" | "approving" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+
+  const needsApprove = mode === "supply" || mode === "repay";
+  const needsSolvencyContext = mode === "borrow" || mode === "withdraw";
+  const local = get(address, token.assetId);
 
   const { data: balance } = useReadContract({
     address: token.address,
@@ -47,34 +58,40 @@ export function SupplyBorrowModal({
     abi: latensPool.abi,
     functionName: "positions",
     args: address ? [address] : undefined,
-    query: { enabled: Boolean(address) && mode === "borrow" },
+    query: { enabled: Boolean(address) && needsSolvencyContext },
   });
 
-  const collateralAssetId = position ? Number((position as PositionTuple)[0]) : undefined;
-  const collateralToken = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
+  const positionTuple = position as PositionTuple | undefined;
+  const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
+  // `token` is the asset being acted on, which means different things per mode: the debt
+  // asset for borrow (the user is choosing what to borrow), but the collateral asset for
+  // withdraw. Solvency always needs the DEBT asset's price specifically, so for withdraw we
+  // must resolve it from the position's existing debtAssetId, not from `token`.
+  const debtTokenForSolvency =
+    mode === "borrow" ? token : positionTuple?.[6] ? tokenList.find((t) => t.assetId === Number(positionTuple[1])) : undefined;
 
   const { data: collateralAsset } = useReadContract({
     address: assetRegistry.address,
     abi: assetRegistry.abi,
     functionName: "getAsset",
     args: collateralAssetId !== undefined ? [BigInt(collateralAssetId)] : undefined,
-    query: { enabled: mode === "borrow" && collateralAssetId !== undefined },
+    query: { enabled: needsSolvencyContext && collateralAssetId !== undefined },
   });
 
   const { data: collateralPrice } = useReadContract({
     address: priceOracle.address,
     abi: priceOracle.abi,
     functionName: "getPrice",
-    args: collateralToken ? [collateralToken.address] : undefined,
-    query: { enabled: mode === "borrow" && Boolean(collateralToken) },
+    args: collateralAsset ? [(collateralAsset as { token: `0x${string}` }).token] : undefined,
+    query: { enabled: needsSolvencyContext && Boolean(collateralAsset) },
   });
 
   const { data: debtPrice } = useReadContract({
     address: priceOracle.address,
     abi: priceOracle.abi,
     functionName: "getPrice",
-    args: [token.address],
-    query: { enabled: mode === "borrow" },
+    args: debtTokenForSolvency ? [debtTokenForSolvency.address] : undefined,
+    query: { enabled: needsSolvencyContext && Boolean(debtTokenForSolvency) },
   });
 
   const amount = (() => {
@@ -85,21 +102,27 @@ export function SupplyBorrowModal({
     }
   })();
 
+  const available = mode === "withdraw" ? local.supplied : mode === "repay" ? local.borrowed : (balance as bigint | undefined) ?? 0n;
+  const exceedsAvailable = (mode === "withdraw" || mode === "repay") && amount > available;
+
   async function handleConfirm() {
     if (!address || amount === 0n) return;
     setErrorMessage("");
     try {
-      setStep("approving");
-      await writeContractAsync({
-        address: token.address,
-        abi: erc20Abi,
-        functionName: "approve",
-        args: [latensPool.address, amount],
-      });
+      if (needsApprove) {
+        setStep("approving");
+        await writeContractAsync({
+          address: token.address,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [latensPool.address, amount],
+        });
+      }
 
       setStep("submitting");
+
       if (mode === "supply") {
-        const { oldCommitment, newCommitment } = applySupply(address, token.assetId, amount);
+        const { oldCommitment, newCommitment, patch } = prepareSupply(address, token.assetId, amount);
         await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
@@ -112,13 +135,27 @@ export function SupplyBorrowModal({
             [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)],
           ],
         });
-      } else {
+        commit(address, token.assetId, patch);
+      } else if (mode === "repay") {
+        const { oldCommitment, newCommitment, patch } = prepareRepay(address, token.assetId, amount);
+        await writeContractAsync({
+          address: latensPool.address,
+          abi: latensPool.abi,
+          functionName: "repay",
+          args: [
+            amount,
+            BigInt(newCommitment),
+            "0x",
+            [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)],
+          ],
+        });
+        commit(address, token.assetId, patch);
+      } else if (mode === "borrow") {
         if (collateralAssetId === undefined || !collateralAsset || !collateralPrice || !debtPrice) {
           throw new Error("Supply collateral before borrowing.");
         }
-        const { oldCommitment, newCommitment } = applyBorrow(address, token.assetId, amount);
-        const positionTuple = position as PositionTuple;
-        const currentCollateralCommitment = positionTuple[2];
+        const { oldCommitment, newCommitment, patch } = prepareBorrow(address, token.assetId, amount);
+        const currentCollateralCommitment = positionTuple![2];
         const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
         const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
         const debtPriceE8 = (debtPrice as readonly [bigint, bigint])[0];
@@ -142,6 +179,34 @@ export function SupplyBorrowModal({
             [currentCollateralCommitment, BigInt(newCommitment), collateralPriceE8, debtPriceE8, BigInt(ltvBps)],
           ],
         });
+        commit(address, token.assetId, patch);
+      } else {
+        // withdraw
+        if (!positionTuple) throw new Error("No position found.");
+        const hasDebt = positionTuple[6];
+        if (hasDebt && (!collateralAsset || !collateralPrice || !debtPrice)) {
+          throw new Error("Still loading solvency data — try again in a moment.");
+        }
+        const { oldCommitment, newCommitment, patch } = prepareWithdraw(address, token.assetId, amount);
+        const debtCommitment = positionTuple[3];
+        const ltvBps = collateralAsset ? (collateralAsset as { ltvBps: number }).ltvBps : 0;
+        const collateralPriceE8 = collateralPrice ? (collateralPrice as readonly [bigint, bigint])[0] : 0n;
+        const debtPriceE8 = debtPrice ? (debtPrice as readonly [bigint, bigint])[0] : 0n;
+
+        await writeContractAsync({
+          address: latensPool.address,
+          abi: latensPool.abi,
+          functionName: "withdrawCollateral",
+          args: [
+            amount,
+            BigInt(newCommitment),
+            "0x",
+            [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)],
+            "0x",
+            [BigInt(newCommitment), debtCommitment, collateralPriceE8, debtPriceE8, BigInt(ltvBps)],
+          ],
+        });
+        commit(address, token.assetId, patch);
       }
       setStep("done");
     } catch (err) {
@@ -151,8 +216,10 @@ export function SupplyBorrowModal({
   }
 
   const canBorrow =
-    mode === "supply" ||
+    mode !== "borrow" ||
     (collateralAssetId !== undefined && Boolean(collateralAsset) && Boolean(collateralPrice) && Boolean(debtPrice));
+
+  const availableLabel = mode === "withdraw" ? "Supplied" : mode === "repay" ? "Owed" : "Balance";
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-28">
@@ -183,9 +250,9 @@ export function SupplyBorrowModal({
 
         <div className="mb-2 flex items-baseline justify-between">
           <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Amount</span>
-          {balance !== undefined && (
-            <span className="text-xs text-ink-faint">Balance: {formatUnits(balance as bigint, token.decimals)}</span>
-          )}
+          <span className="text-xs text-ink-faint">
+            {availableLabel}: {formatUnits(available, token.decimals)}
+          </span>
         </div>
         <div className="mb-6 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-4 py-3.5">
           <input
@@ -200,6 +267,11 @@ export function SupplyBorrowModal({
         {mode === "borrow" && !canBorrow && (
           <p className="mb-4 text-xs text-warning">Supply collateral in another asset first — this position has none yet.</p>
         )}
+        {exceedsAvailable && (
+          <p className="mb-4 text-xs text-warning">
+            {mode === "withdraw" ? "You can't withdraw more than you've supplied." : "You can't repay more than you owe."}
+          </p>
+        )}
 
         <AnimatePresence mode="wait">
           {step === "done" ? (
@@ -213,14 +285,14 @@ export function SupplyBorrowModal({
             <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <button
                 onClick={handleConfirm}
-                disabled={!address || amount === 0n || isPending || !canBorrow}
+                disabled={!address || amount === 0n || isPending || !canBorrow || exceedsAvailable}
                 className="w-full rounded-[10px] bg-gold py-3.5 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {step === "approving"
                   ? "Approving…"
                   : step === "submitting"
                     ? "Confirming…"
-                    : `Confirm ${mode} — sign a private proof`}
+                    : `Confirm ${ACTION_LABEL[mode]} — sign a private proof`}
               </button>
               {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}
               <p className="mt-3 text-center text-[11.5px] text-ink-faint">
