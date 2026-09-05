@@ -103,8 +103,16 @@ export function PositionActionModal({
     }
   })();
 
-  const available = mode === "withdraw" ? local.supplied : mode === "repay" ? local.borrowed : (balance as bigint | undefined) ?? 0n;
-  const exceedsAvailable = (mode === "withdraw" || mode === "repay") && amount > available;
+  const walletBalance = (balance as bigint | undefined) ?? 0n;
+  // Borrow has no hard cap here: a real max would need the position's LTV headroom, which
+  // this scaffold's health-factor math (portfolio/page.tsx) doesn't correctly normalize
+  // across different collateral/debt token decimals yet — a deeper fix, not this one.
+  const available =
+    mode === "withdraw" ? local.supplied
+    : mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance)
+    : mode === "supply" ? walletBalance
+    : undefined;
+  const exceedsAvailable = available !== undefined && amount > available;
 
   async function handleConfirm() {
     if (!address || amount === 0n) return;
@@ -251,9 +259,11 @@ export function PositionActionModal({
 
         <div className="mb-2 flex items-baseline justify-between">
           <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Amount</span>
-          <span className="text-xs text-ink-faint">
-            {availableLabel}: {formatUnits(available, token.decimals)}
-          </span>
+          {available !== undefined && (
+            <span className="text-xs text-ink-faint">
+              {availableLabel}: {formatUnits(available, token.decimals)}
+            </span>
+          )}
         </div>
         <div className="mb-6 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-4 py-3.5">
           <input
@@ -263,6 +273,14 @@ export function PositionActionModal({
             className="w-full bg-transparent font-mono text-[22px] text-ink outline-none placeholder:text-ink-faint"
           />
           <span className="font-mono text-sm text-ink-muted">{symbol}</span>
+          {available !== undefined && available > 0n && (
+            <button
+              onClick={() => setAmountInput(formatUnits(available, token.decimals))}
+              className="ml-2 rounded-md border border-line-strong px-2 py-1 text-[11px] font-semibold text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
+            >
+              Max
+            </button>
+          )}
         </div>
 
         {mode === "borrow" && !canBorrow && (
@@ -270,7 +288,11 @@ export function PositionActionModal({
         )}
         {exceedsAvailable && (
           <p className="mb-4 text-xs text-warning">
-            {mode === "withdraw" ? "You can't withdraw more than you've supplied." : "You can't repay more than you owe."}
+            {mode === "withdraw"
+              ? "You can't withdraw more than you've supplied."
+              : mode === "repay"
+                ? "You can't repay more than you owe (or hold in your wallet)."
+                : "You don't have that much in your wallet."}
           </p>
         )}
 
