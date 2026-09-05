@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Newsreader, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { DevBuildBanner } from "@/components/DevBuildBanner";
 
 const newsreader = Newsreader({
   variable: "--font-newsreader",
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${newsreader.variable} ${plexSans.variable} ${plexMono.variable} h-full`}
     >
       <body className="min-h-full bg-canvas text-ink font-ui antialiased">
+        <DevBuildBanner />
         <Providers>{children}</Providers>
       </body>
     </html>
