@@ -91,7 +91,7 @@ export default function MarketsPage() {
           table instead of blowing out the whole page — the five columns need real minimum
           widths to stay legible and don't have room to shrink further on mobile. */}
       <div className="overflow-x-auto">
-        <div className="grid min-w-[640px] grid-cols-[1.4fr_1.1fr_1.1fr_1fr_auto] items-center gap-4">
+        <div className="grid min-w-[640px] grid-cols-[1.4fr_1.1fr_1.1fr_1fr_auto] items-stretch gap-4">
           <span className="border-b border-line-strong pb-4 text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Market</span>
           <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total supplied</span>
           <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total borrowed</span>
@@ -110,14 +110,14 @@ export default function MarketsPage() {
                   <div className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-xs text-gold">{t.symbol[0]}</div>
                   <span className="font-medium">{t.symbol}</span>
                 </div>
-                <div className="flex justify-center border-b border-line py-4.5">
+                <div className="flex items-center justify-center border-b border-line py-4.5">
                   {assetsLoading ? <Skeleton width={70} /> : <span className="font-mono text-sm tabular-nums">{formatUnits(totalSupplied, t.decimals)}</span>}
                 </div>
-                <div className="flex justify-center border-b border-line py-4.5">
+                <div className="flex items-center justify-center border-b border-line py-4.5">
                   {assetsLoading ? <Skeleton width={70} /> : <span className="font-mono text-sm tabular-nums">{formatUnits(totalBorrowed, t.decimals)}</span>}
                 </div>
-                <div className="flex justify-center border-b border-line py-4.5">{assetsLoading ? <Skeleton width={110} /> : <UtilizationMeter value={utilization} />}</div>
-                <div className="flex gap-2 border-b border-line py-4.5">
+                <div className="flex items-center justify-center border-b border-line py-4.5">{assetsLoading ? <Skeleton width={110} /> : <UtilizationMeter value={utilization} />}</div>
+                <div className="flex items-center gap-2 border-b border-line py-4.5">
                   <button
                     onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "supply" })}
                     className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
