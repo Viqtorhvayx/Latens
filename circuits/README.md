@@ -86,32 +86,50 @@ writing, so this pairing was found by using the newest available `bb` nightly ra
 mapped one). If `bbup` fails to resolve a version automatically, pin both tools explicitly
 rather than trusting "latest."
 
-## Two concrete, unresolved gaps — read before wiring these into the contracts
+## Two gaps that were open, and how they closed
 
-**1. The generated verifier expects 13 public inputs; the circuit declares 5.**
-`circuits/solvency` has 5 `pub` parameters (matching `ISolvencyVerifier.sol`'s documented
-layout), and `bb prove`'s own `public_inputs` output file is exactly 5 field elements
-(160 bytes). But the generated `Verifier.sol`'s `NUMBER_OF_PUBLIC_INPUTS` constant is **13**.
-The extra 8 are believed to be Barretenberg's own ZK-Honk masking/blinding values (from its
-zero-knowledge Sumcheck), appended into the same calldata array by convention — not
-application data, and not something this scaffold has derived the exact construction of.
-Calling the generated verifier correctly needs either Barretenberg's own reference
-integration (`bb.js`'s TypeScript verifier helpers) run once against a real proof to observe
-the true calldata shape, or a close reading of UltraHonk's ZK-variant source. Guessing at the
-layout of security-critical verifier calldata would be worse than leaving this open.
+An earlier pass through this pipeline left two concrete integration gaps open rather than
+guessing at security-critical calldata. Both are now closed, with real proofs verified
+on-chain (Hardhat's local EVM) as evidence — see `contracts/README.md` for where the
+resulting verifier contracts and adapters live.
 
-**2. The generated Solidity verifier does not currently compile in this project's Hardhat
-setup.** `bb write_solidity_verifier` output for `circuits/solvency` fails Solidity's Yul
-optimizer with `YulException: Variable ... is 1 too deep in the stack` and a
-"No memoryguard was present" warning, reproducible with both `viaIR: true` and plain
-compilation, and unaffected by optimizer `runs`. This is not a config mistake on this
-project's side — Aztec's own documentation describes Barretenberg's Solidity verifier
-generation as work-in-progress and explicitly warns to expect breaking changes and rough
-edges. Because of this, no generated verifier or adapter contract is committed under
-`contracts/` yet — it would break `npx hardhat compile` for everyone. Regenerate locally with
-the commands above to see the real, current state of this gap; `circuits/*/target/` is
-gitignored precisely because it's build output, not because it's hidden.
+**1. The generated verifier's `NUMBER_OF_PUBLIC_INPUTS` (13 for `solvency`) is NOT the
+length of the `publicInputs` calldata argument.** Reading `BaseZKHonkVerifier.verify`
+directly (in the generated Solidity, and cross-checked against Aztec's own
+`barretenberg/sol` test harness in the `aztec-packages` repo) shows:
+```solidity
+require(publicInputs.length == vk.publicInputsSize - PAIRING_POINTS_SIZE, ...);
+```
+`PAIRING_POINTS_SIZE` is a fixed constant (**8**) — a BN254 pairing/aggregation object
+embedded INSIDE the proof bytes themselves, extracted internally by the verifier
+(`ZKTranscriptLib.loadProof`), never supplied by the caller. So `publicInputs` is exactly
+each circuit's own declared public inputs (5 for `solvency`, 5 for `commitment_update`, 10
+for `liquidation_eligibility`), and `proof` is bb's complete, unmodified proof blob — `bb
+prove -o <dir>`'s own file split (`public_inputs` = N elements, `proof` = the rest) was
+already exactly correct all along; no reconstruction or re-splitting needed. Confirmed by
+deploying each real generated verifier and calling `.verify()` with a real proof — see
+`test/SolvencyHonkVerifier.integration.test.js`,
+`test/CommitmentHonkVerifier.integration.test.js`, and
+`test/LiquidationHonkVerifier.integration.test.js` (each also confirms a tampered public
+input is correctly rejected, so this isn't a vacuous pass).
 
-**Net effect:** `LatensPool` is still wired to `MockVerifier` (see `contracts/README.md`).
-These two gaps — the public-input layout and the compile failure — are exactly what M1 needs
-to close before a real verifier can be swapped in via `LatensPool.setVerifiers`.
+**2. The generated Solidity now compiles**, using the exact settings Aztec's own
+`barretenberg/sol/foundry.toml` uses for this same generated code: **solc 0.8.30, `evmVersion:
+"cancun"`, `optimizer runs: 1`, no `viaIR`** — found by cloning `aztec-packages` and reading
+its own build config, not by guessing. This project's other contracts still need `viaIR` at
+0.8.24 for unrelated stack-depth reasons, so `hardhat.config.js` uses a per-file `overrides`
+entry for each generated verifier and its adapter, letting both configurations coexist. Base
+supports Cancun, so this is deployable there as-is.
+
+## Where the real verifiers live now
+
+`contracts/verifiers/generated/{Solvency,Commitment,Liquidation}HonkVerifier.sol` are the
+machine-generated verifiers (regenerate with the commands above; each file's header
+documents the exact command and what was hand-edited — only the bottom-level contract name,
+so the three can coexist in one compilation). `contracts/verifiers/Noir{Solvency,Commitment,
+Liquidation}Verifier.sol` are thin adapters implementing Latens's own `I*Verifier`
+interfaces, doing the `uint256[]` → `bytes32[]` conversion and nothing else. `LatensPool`
+itself is still deployed with `MockVerifier` by default in `script/deploy.js` (simplest path
+for local development), but `test/LatensPool.realVerifier.integration.test.js` drives a real
+`LatensPool.borrow()` call through `NoirSolvencyVerifier` end to end — proving the whole
+stack fits together, not just each piece in isolation.

@@ -21,6 +21,10 @@ contracts/
     IZenStakingPool.sol
   verifiers/
     MockVerifier.sol       dev/test stand-in — accepts any proof unless `strict` mode is set
+    NoirSolvencyVerifier.sol      adapter -> generated/SolvencyHonkVerifier.sol (real)
+    NoirCommitmentVerifier.sol    adapter -> generated/CommitmentHonkVerifier.sol (real)
+    NoirLiquidationVerifier.sol   adapter -> generated/LiquidationHonkVerifier.sol (real)
+    generated/              machine-generated Barretenberg verifiers — see file headers
   mocks/                  test-only ERC20 / oracle / staking pool, not part of the protocol
   libraries/
     DataTypes.sol, Errors.sol
@@ -44,16 +48,22 @@ contracts/
 
 - The pool's accounting, access control, pausability, and proof-binding logic are written
   and tested (`npx hardhat test`) against `MockVerifier`, which accepts any proof.
-- **The three circuits now exist** — see `../circuits/README.md`. They're written in Noir,
-  compile to real ACIR, and a full compile → prove → verify → generate-Solidity-verifier
-  pipeline has actually been run once end to end (not just described). `LatensPool` is
-  **still wired to `MockVerifier`**, though: swapping in the real verifiers needs two
-  concrete gaps closed first (a public-input layout mismatch between the generated verifier
-  and the circuit, and a Solidity compile failure in Barretenberg's generated verifier code
-  — both documented in `../circuits/README.md`, not glossed over). `ILiquidationVerifier`'s
-  public-input layout below already reflects the real circuit, including
-  `liquidationBonusBps`, which the circuit uses to cap a keeper's seized value at the repaid
-  debt's value plus the configured bonus.
+- **All three circuits exist, and real on-chain verifiers for all three are wired, tested,
+  and proven working** — see `../circuits/README.md`. Each `Noir*Verifier.sol` adapter wraps
+  a real, machine-generated Barretenberg verifier and has been called with a real proof in
+  Hardhat's local EVM (`test/*HonkVerifier.integration.test.js`), including confirming a
+  tampered public input is correctly rejected. `test/LatensPool.realVerifier.integration.test.js`
+  goes further and drives a real `LatensPool.borrow()` call — collateral deposit, a live
+  solvency check, a debt disbursement — through `NoirSolvencyVerifier` end to end, with
+  `MockVerifier` only standing in for the other two proof types in that one test.
+  `script/deploy.js` still wires `MockVerifier` for all three by default (the simplest path
+  for local development); swapping in the real verifiers means deploying
+  `generated/*HonkVerifier.sol` (each needs its `RelationsLib`/`ZKTranscriptLib` libraries
+  linked — see `test/helpers/honkVerifier.js` for the pattern) and the matching
+  `Noir*Verifier.sol` adapter, then passing their addresses into `LatensPool`'s constructor
+  or `setVerifiers`. `ILiquidationVerifier`'s public-input layout below reflects the real
+  circuit, including `liquidationBonusBps`, which the circuit uses to cap a keeper's seized
+  value at the repaid debt's value plus the configured bonus.
 - There is **no interest-rate/accrual model.** `repay`'s reserve-factor cut is a placeholder
   for real interest-based revenue, wired end-to-end (down to `ProtocolTreasury`'s
   contribution to the ZEN staking pool) so the money-flow shape is testable before accrual

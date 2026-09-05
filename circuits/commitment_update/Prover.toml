@@ -1,0 +1,8 @@
+old_amount = "0"
+old_salt = "0"
+new_salt = "42"
+old_commitment = "0"
+new_commitment = "0x29275e212299c97d20d7976931cffaa92e97d5ba04ec6c06409a7c45c29bbe4a"
+delta = "100"
+is_increase = true
+asset_id = "7"

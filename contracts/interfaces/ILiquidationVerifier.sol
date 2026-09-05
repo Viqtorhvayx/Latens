@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: MIT
+// Loose pragma (not exact-pinned like most of contracts/): this interface is imported by
+// both the 0.8.24 graph (LatensPool.sol) and the 0.8.30 graph (NoirLiquidationVerifier.sol,
+// forced by LiquidationHonkVerifier.sol's own pragma) — see hardhat.config.js's overrides.
 pragma solidity ^0.8.24;
 
 /// @notice Verifies that a position is eligible for liquidation, and the exact amounts
