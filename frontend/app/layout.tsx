@@ -22,9 +22,21 @@ const plexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
+const title = "Latens — Private lending on Horizen";
+const description = "Confidential borrow-lend market for Horizen. Collateral, borrow size, and health factor stay provably hidden, verified by zero-knowledge proofs.";
+
 export const metadata: Metadata = {
-  title: "Latens — Private lending on Horizen",
-  description: "Confidential borrow-lend market for Horizen. Collateral, borrow size, and health factor stay provably hidden, verified by zero-knowledge proofs.",
+  // Needed so the auto-generated opengraph-image/apple-icon resolve to absolute URLs in
+  // social-preview <meta> tags instead of Next's localhost fallback. Update this once this
+  // deployment has a real domain — see the homepage's own "Built for Horizen · Base L3" note
+  // about this being pre-mainnet.
+  metadataBase: new URL("https://latens.example"),
+  title,
+  description,
+  // opengraph-image.tsx and apple-icon.tsx (both under app/) are picked up automatically by
+  // Next's file convention — no need to reference them here, just the text fields.
+  openGraph: { title, description, type: "website" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
