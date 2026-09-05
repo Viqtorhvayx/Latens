@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokens, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore } from "@/lib/positionStore";
 import { humanizeError } from "@/lib/errors";
+import { explorerTxUrl } from "@/lib/chainExplorer";
+import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 
 export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
 
@@ -37,10 +39,13 @@ export function PositionActionModal({
   const token = tokens[symbol];
   const [amountInput, setAmountInput] = useState("");
   const { address } = useAccount();
+  const chainId = useChainId();
   const { get, prepareSupply, prepareWithdraw, prepareBorrow, prepareRepay, commit } = usePositionStore();
   const { writeContractAsync, isPending } = useWriteContract();
   const [step, setStep] = useState<"idle" | "approving" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
+  const { copied, copy } = useCopyToClipboard();
 
   const needsApprove = mode === "supply" || mode === "repay";
   const needsSolvencyContext = mode === "borrow" || mode === "withdraw";
@@ -132,7 +137,7 @@ export function PositionActionModal({
 
       if (mode === "supply") {
         const { oldCommitment, newCommitment, patch } = prepareSupply(address, token.assetId, amount);
-        await writeContractAsync({
+        const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
           functionName: "supplyCollateral",
@@ -145,9 +150,10 @@ export function PositionActionModal({
           ],
         });
         commit(address, token.assetId, patch);
+        setTxHash(hash);
       } else if (mode === "repay") {
         const { oldCommitment, newCommitment, patch } = prepareRepay(address, token.assetId, amount);
-        await writeContractAsync({
+        const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
           functionName: "repay",
@@ -159,6 +165,7 @@ export function PositionActionModal({
           ],
         });
         commit(address, token.assetId, patch);
+        setTxHash(hash);
       } else if (mode === "borrow") {
         if (collateralAssetId === undefined || !collateralAsset || !collateralPrice || !debtPrice) {
           throw new Error("Supply collateral before borrowing.");
@@ -174,7 +181,7 @@ export function PositionActionModal({
         // enforced, which is why the values below must genuinely match on-chain state
         // rather than being placeholders. There is no real zk solvency proof behind this
         // "0x" — see contracts/README.md for what a real deployment needs instead.
-        await writeContractAsync({
+        const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
           functionName: "borrow",
@@ -189,6 +196,7 @@ export function PositionActionModal({
           ],
         });
         commit(address, token.assetId, patch);
+        setTxHash(hash);
       } else {
         // withdraw
         if (!positionTuple) throw new Error("No position found.");
@@ -202,7 +210,7 @@ export function PositionActionModal({
         const collateralPriceE8 = collateralPrice ? (collateralPrice as readonly [bigint, bigint])[0] : 0n;
         const debtPriceE8 = debtPrice ? (debtPrice as readonly [bigint, bigint])[0] : 0n;
 
-        await writeContractAsync({
+        const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
           functionName: "withdrawCollateral",
@@ -216,6 +224,7 @@ export function PositionActionModal({
           ],
         });
         commit(address, token.assetId, patch);
+        setTxHash(hash);
       }
       setStep("done");
     } catch (err) {
@@ -299,7 +308,28 @@ export function PositionActionModal({
         <AnimatePresence mode="wait">
           {step === "done" ? (
             <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-              <p className="mb-4 text-sm text-success">Confirmed on-chain.</p>
+              <p className="mb-3 text-sm text-success">Confirmed on-chain.</p>
+              {txHash && (
+                <div className="mb-4 flex items-center justify-center gap-2">
+                  {explorerTxUrl(chainId, txHash) ? (
+                    <a
+                      href={explorerTxUrl(chainId, txHash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-xs text-gold underline decoration-gold/30 underline-offset-2 hover:decoration-gold"
+                    >
+                      {txHash.slice(0, 10)}···{txHash.slice(-8)}
+                    </a>
+                  ) : (
+                    <span className="font-mono text-xs text-ink-faint">
+                      {txHash.slice(0, 10)}···{txHash.slice(-8)}
+                    </span>
+                  )}
+                  <button onClick={() => copy(txHash)} className="text-xs text-ink-faint transition-colors hover:text-ink">
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              )}
               <button onClick={onClose} className="w-full rounded-[10px] border border-line-strong py-3.5 text-[15px] font-semibold">
                 Close
               </button>
