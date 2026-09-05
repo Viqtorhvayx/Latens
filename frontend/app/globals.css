@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #14120f;
+  --color-canvas-raised: #1a1713;
+  --color-surface: #201c18;
+  --color-surface-hover: #2b2620;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-line-strong: rgba(255, 255, 255, 0.16);
+  --color-ink: #f5f1e8;
+  --color-ink-muted: #a79e8e;
+  --color-ink-faint: #6e6658;
+  --color-gold: #c9a75c;
+  --color-gold-strong: #e0be78;
+  --color-gold-dim: rgba(201, 167, 92, 0.14);
+  --color-success: #7fae86;
+  --color-danger: #c06456;
+  --color-warning: #c98a4b;
+
+  --font-display: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --font-ui: var(--font-plex-sans), -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-plex-mono), "SFMono-Regular", Consolas, monospace;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+a {
+  color: var(--color-gold);
+}
+a:hover {
+  color: var(--color-gold-strong);
+}
+
+::selection {
+  background: var(--color-gold-dim);
+  color: var(--color-ink);
+}
