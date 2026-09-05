@@ -10,15 +10,7 @@
 // implementation.
 import { usdValueE8 } from "./valuation";
 
-export function isInsolvent(
-  collateralAmount: bigint,
-  collateralDecimals: number,
-  collateralPriceE8: bigint,
-  debtAmount: bigint,
-  debtDecimals: number,
-  debtPriceE8: bigint,
-  liquidationThresholdBps: number,
-): boolean {
+export function isInsolvent(collateralAmount: bigint, collateralDecimals: number, collateralPriceE8: bigint, debtAmount: bigint, debtDecimals: number, debtPriceE8: bigint, liquidationThresholdBps: number): boolean {
   const collateralValueE8 = usdValueE8(collateralAmount, collateralDecimals, collateralPriceE8);
   const debtValueE8 = usdValueE8(debtAmount, debtDecimals, debtPriceE8);
   return debtValueE8 * 10_000n > collateralValueE8 * BigInt(liquidationThresholdBps);

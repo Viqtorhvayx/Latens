@@ -122,11 +122,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   })();
 
   const available =
-    mode === "withdraw" ? local.supplied
-    : mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance)
-    : mode === "supply" ? walletBalance
-    : mode === "borrow" ? borrowMax
-    : undefined;
+    mode === "withdraw" ? local.supplied : mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance) : mode === "supply" ? walletBalance : mode === "borrow" ? borrowMax : undefined;
   const exceedsAvailable = available !== undefined && amount > available;
 
   async function handleConfirm() {
