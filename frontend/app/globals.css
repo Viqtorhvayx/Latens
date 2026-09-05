@@ -22,16 +22,23 @@
   --font-mono: var(--font-plex-mono), "SFMono-Regular", Consolas, monospace;
 }
 
-body {
-  background: var(--color-canvas);
-  color: var(--color-ink);
-}
+/* Scoped under Tailwind's own `base` layer so utility classes (which live in `utilities`,
+   a higher-priority layer) can override these defaults — an unlayered rule here would beat
+   ANY Tailwind utility regardless of specificity, per the CSS cascade layers spec. This bit
+   a real Link once already: a gold-background button needing dark text silently stayed
+   gold-on-gold because this rule, unlayered, overrode `.text-canvas` unconditionally. */
+@layer base {
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+  }
 
-a {
-  color: var(--color-gold);
-}
-a:hover {
-  color: var(--color-gold-strong);
+  a {
+    color: var(--color-gold);
+  }
+  a:hover {
+    color: var(--color-gold-strong);
+  }
 }
 
 ::selection {
