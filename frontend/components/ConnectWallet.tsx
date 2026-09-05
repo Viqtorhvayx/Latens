@@ -19,10 +19,7 @@ export function ConnectWallet() {
   if (isConnected && address) {
     return (
       <div className="relative">
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-2 rounded-full border border-line-strong bg-surface px-4 py-2 font-mono text-xs text-ink transition-colors hover:bg-surface-hover"
-        >
+        <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 rounded-full border border-line-strong bg-surface px-4 py-2 font-mono text-xs text-ink transition-colors hover:bg-surface-hover">
           {chain?.name && <span className="hidden text-ink-faint sm:inline">{chain.name}</span>}
           {shortenAddress(address)}
         </button>
@@ -35,10 +32,7 @@ export function ConnectWallet() {
               transition={{ duration: 0.15 }}
               className="absolute top-full right-0 z-10 mt-2 w-40 rounded-xl border border-line-strong bg-surface p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.4)]"
             >
-              <button
-                onClick={() => copy(address)}
-                className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
-              >
+              <button onClick={() => copy(address)} className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink">
                 {copied ? "Copied" : "Copy address"}
               </button>
               <button
@@ -59,10 +53,7 @@ export function ConnectWallet() {
 
   return (
     <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="rounded-[10px] bg-gold px-5 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-gold-strong"
-      >
+      <button onClick={() => setOpen((o) => !o)} className="rounded-[10px] bg-gold px-5 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-gold-strong">
         Connect Wallet
       </button>
       <AnimatePresence>

@@ -28,15 +28,7 @@ const ACTION_LABEL: Record<ActionMode, string> = {
 // [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, active, hasDebt]
 type PositionTuple = readonly [bigint, bigint, bigint, bigint, number, boolean, boolean];
 
-export function PositionActionModal({
-  symbol,
-  mode,
-  onClose,
-}: {
-  symbol: TokenSymbol;
-  mode: ActionMode;
-  onClose: () => void;
-}) {
+export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol; mode: ActionMode; onClose: () => void }) {
   const token = tokens[symbol];
   const [amountInput, setAmountInput] = useState("");
   const { address } = useAccount();
@@ -74,8 +66,7 @@ export function PositionActionModal({
   // asset for borrow (the user is choosing what to borrow), but the collateral asset for
   // withdraw. Solvency always needs the DEBT asset's price specifically, so for withdraw we
   // must resolve it from the position's existing debtAssetId, not from `token`.
-  const debtTokenForSolvency =
-    mode === "borrow" ? token : positionTuple?.[6] ? tokenList.find((t) => t.assetId === Number(positionTuple[1])) : undefined;
+  const debtTokenForSolvency = mode === "borrow" ? token : positionTuple?.[6] ? tokenList.find((t) => t.assetId === Number(positionTuple[1])) : undefined;
 
   const { data: collateralAsset } = useReadContract({
     address: assetRegistry.address,
@@ -113,11 +104,7 @@ export function PositionActionModal({
   // Borrow has no hard cap here: a real max would need the position's LTV headroom, which
   // this scaffold's health-factor math (portfolio/page.tsx) doesn't correctly normalize
   // across different collateral/debt token decimals yet — a deeper fix, not this one.
-  const available =
-    mode === "withdraw" ? local.supplied
-    : mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance)
-    : mode === "supply" ? walletBalance
-    : undefined;
+  const available = mode === "withdraw" ? local.supplied : mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance) : mode === "supply" ? walletBalance : undefined;
   const exceedsAvailable = available !== undefined && amount > available;
 
   async function handleConfirm() {
@@ -142,13 +129,7 @@ export function PositionActionModal({
           address: latensPool.address,
           abi: latensPool.abi,
           functionName: "supplyCollateral",
-          args: [
-            BigInt(token.assetId),
-            amount,
-            BigInt(newCommitment),
-            "0x",
-            [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)],
-          ],
+          args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)]],
         });
         commit(address, token.assetId, patch);
         setTxHash(hash);
@@ -158,12 +139,7 @@ export function PositionActionModal({
           address: latensPool.address,
           abi: latensPool.abi,
           functionName: "repay",
-          args: [
-            amount,
-            BigInt(newCommitment),
-            "0x",
-            [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)],
-          ],
+          args: [amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)]],
         });
         commit(address, token.assetId, patch);
         setTxHash(hash);
@@ -234,21 +210,13 @@ export function PositionActionModal({
     }
   }
 
-  const canBorrow =
-    mode !== "borrow" ||
-    (collateralAssetId !== undefined && Boolean(collateralAsset) && Boolean(collateralPrice) && Boolean(debtPrice));
+  const canBorrow = mode !== "borrow" || (collateralAssetId !== undefined && Boolean(collateralAsset) && Boolean(collateralPrice) && Boolean(debtPrice));
 
   const availableLabel = mode === "withdraw" ? "Supplied" : mode === "repay" ? "Owed" : "Balance";
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-28">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-[rgba(10,9,7,0.6)]"
-      />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-[rgba(10,9,7,0.6)]" />
       <motion.div
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -276,94 +244,77 @@ export function PositionActionModal({
           </div>
         ) : (
           <>
-        <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Amount</span>
-          {available !== undefined && (
-            <span className="text-xs text-ink-faint">
-              {availableLabel}: {formatUnits(available, token.decimals)}
-            </span>
-          )}
-        </div>
-        <div className="mb-6 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-4 py-3.5">
-          <input
-            value={amountInput}
-            onChange={(e) => setAmountInput(sanitizeAmountInput(e.target.value, token.decimals))}
-            placeholder="0.00"
-            className="w-full bg-transparent font-mono text-[22px] text-ink outline-none placeholder:text-ink-faint"
-          />
-          <span className="font-mono text-sm text-ink-muted">{symbol}</span>
-          {available !== undefined && available > 0n && (
-            <button
-              onClick={() => setAmountInput(formatUnits(available, token.decimals))}
-              className="ml-2 rounded-md border border-line-strong px-2 py-1 text-[11px] font-semibold text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
-            >
-              Max
-            </button>
-          )}
-        </div>
-
-        {mode === "borrow" && !canBorrow && (
-          <p className="mb-4 text-xs text-warning">Supply collateral in another asset first — this position has none yet.</p>
-        )}
-        {exceedsAvailable && (
-          <p className="mb-4 text-xs text-warning">
-            {mode === "withdraw"
-              ? "You can't withdraw more than you've supplied."
-              : mode === "repay"
-                ? "You can't repay more than you owe (or hold in your wallet)."
-                : "You don't have that much in your wallet."}
-          </p>
-        )}
-
-        <AnimatePresence mode="wait">
-          {step === "done" ? (
-            <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-              <p className="mb-3 text-sm text-success">Confirmed on-chain.</p>
-              {txHash && (
-                <div className="mb-4 flex items-center justify-center gap-2">
-                  {explorerTxUrl(chainId, txHash) ? (
-                    <a
-                      href={explorerTxUrl(chainId, txHash)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-xs text-gold underline decoration-gold/30 underline-offset-2 hover:decoration-gold"
-                    >
-                      {txHash.slice(0, 10)}···{txHash.slice(-8)}
-                    </a>
-                  ) : (
-                    <span className="font-mono text-xs text-ink-faint">
-                      {txHash.slice(0, 10)}···{txHash.slice(-8)}
-                    </span>
-                  )}
-                  <button onClick={() => copy(txHash)} className="text-xs text-ink-faint transition-colors hover:text-ink">
-                    {copied ? "Copied" : "Copy"}
-                  </button>
-                </div>
+            <div className="mb-2 flex items-baseline justify-between">
+              <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Amount</span>
+              {available !== undefined && (
+                <span className="text-xs text-ink-faint">
+                  {availableLabel}: {formatUnits(available, token.decimals)}
+                </span>
               )}
-              <button onClick={onClose} className="w-full rounded-[10px] border border-line-strong py-3.5 text-[15px] font-semibold">
-                Close
-              </button>
-            </motion.div>
-          ) : (
-            <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <button
-                onClick={handleConfirm}
-                disabled={!address || amount === 0n || isPending || !canBorrow || exceedsAvailable}
-                className="w-full rounded-[10px] bg-gold py-3.5 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {step === "approving"
-                  ? "Approving…"
-                  : step === "submitting"
-                    ? "Confirming…"
-                    : `Confirm ${ACTION_LABEL[mode]} — sign a private proof`}
-              </button>
-              {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}
-              <p className="mt-3 text-center text-[11.5px] text-ink-faint">
-                Your position details are never broadcast in the clear.
+            </div>
+            <div className="mb-6 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-4 py-3.5">
+              <input
+                value={amountInput}
+                onChange={(e) => setAmountInput(sanitizeAmountInput(e.target.value, token.decimals))}
+                placeholder="0.00"
+                className="w-full bg-transparent font-mono text-[22px] text-ink outline-none placeholder:text-ink-faint"
+              />
+              <span className="font-mono text-sm text-ink-muted">{symbol}</span>
+              {available !== undefined && available > 0n && (
+                <button
+                  onClick={() => setAmountInput(formatUnits(available, token.decimals))}
+                  className="ml-2 rounded-md border border-line-strong px-2 py-1 text-[11px] font-semibold text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
+                >
+                  Max
+                </button>
+              )}
+            </div>
+
+            {mode === "borrow" && !canBorrow && <p className="mb-4 text-xs text-warning">Supply collateral in another asset first — this position has none yet.</p>}
+            {exceedsAvailable && (
+              <p className="mb-4 text-xs text-warning">
+                {mode === "withdraw" ? "You can't withdraw more than you've supplied." : mode === "repay" ? "You can't repay more than you owe (or hold in your wallet)." : "You don't have that much in your wallet."}
               </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+
+            <AnimatePresence mode="wait">
+              {step === "done" ? (
+                <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
+                  <p className="mb-3 text-sm text-success">Confirmed on-chain.</p>
+                  {txHash && (
+                    <div className="mb-4 flex items-center justify-center gap-2">
+                      {explorerTxUrl(chainId, txHash) ? (
+                        <a href={explorerTxUrl(chainId, txHash)} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-gold underline decoration-gold/30 underline-offset-2 hover:decoration-gold">
+                          {txHash.slice(0, 10)}···{txHash.slice(-8)}
+                        </a>
+                      ) : (
+                        <span className="font-mono text-xs text-ink-faint">
+                          {txHash.slice(0, 10)}···{txHash.slice(-8)}
+                        </span>
+                      )}
+                      <button onClick={() => copy(txHash)} className="text-xs text-ink-faint transition-colors hover:text-ink">
+                        {copied ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                  )}
+                  <button onClick={onClose} className="w-full rounded-[10px] border border-line-strong py-3.5 text-[15px] font-semibold">
+                    Close
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <button
+                    onClick={handleConfirm}
+                    disabled={!address || amount === 0n || isPending || !canBorrow || exceedsAvailable}
+                    className="w-full rounded-[10px] bg-gold py-3.5 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {step === "approving" ? "Approving…" : step === "submitting" ? "Confirming…" : `Confirm ${ACTION_LABEL[mode]} — sign a private proof`}
+                  </button>
+                  {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}
+                  <p className="mt-3 text-center text-[11.5px] text-ink-faint">Your position details are never broadcast in the clear.</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </>
         )}
       </motion.div>

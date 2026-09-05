@@ -3,15 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
-export function MaskedValue({
-  value,
-  fontSize = 20,
-  className = "",
-}: {
-  value: string;
-  fontSize?: number;
-  className?: string;
-}) {
+export function MaskedValue({ value, fontSize = 20, className = "" }: { value: string; fontSize?: number; className?: string }) {
   const [revealed, setRevealed] = useState(false);
   const masked = value.replace(/[0-9]/g, "•");
 

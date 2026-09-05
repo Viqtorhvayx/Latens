@@ -23,11 +23,7 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
           {token ? formatUnits(entry.amount, token.decimals) : entry.amount.toString()} {token?.symbol ?? `#${entry.assetId}`}
         </span>
       </div>
-      <button
-        onClick={() => copy(entry.transactionHash)}
-        className="font-mono text-xs text-ink-faint transition-colors hover:text-ink"
-        title="Copy transaction hash"
-      >
+      <button onClick={() => copy(entry.transactionHash)} className="font-mono text-xs text-ink-faint transition-colors hover:text-ink" title="Copy transaction hash">
         {copied ? "Copied" : shortHash(entry.transactionHash)}
       </button>
     </div>

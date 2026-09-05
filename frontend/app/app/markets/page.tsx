@@ -76,11 +76,7 @@ export default function MarketsPage() {
           </div>
           <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
             <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Your debt</span>
-            {positionLoading ? (
-              <Skeleton width={120} height={22} />
-            ) : (
-              <MaskedValue value={debtToken ? `${formatUnits(debtAmount, debtToken.decimals)} ${debtToken.symbol}` : "0.00"} fontSize={22} />
-            )}
+            {positionLoading ? <Skeleton width={120} height={22} /> : <MaskedValue value={debtToken ? `${formatUnits(debtAmount, debtToken.decimals)} ${debtToken.symbol}` : "0.00"} fontSize={22} />}
           </div>
         </div>
       )}
@@ -102,21 +98,11 @@ export default function MarketsPage() {
         return (
           <div key={t.symbol} className="grid grid-cols-[1.4fr_1.1fr_1.1fr_1fr_auto] items-center gap-4 border-b border-line py-4.5">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-xs text-gold">
-                {t.symbol[0]}
-              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-xs text-gold">{t.symbol[0]}</div>
               <span className="font-medium">{t.symbol}</span>
             </div>
-            {assetsLoading ? (
-              <Skeleton width={70} />
-            ) : (
-              <span className="font-mono text-sm tabular-nums">{formatUnits(totalSupplied, t.decimals)}</span>
-            )}
-            {assetsLoading ? (
-              <Skeleton width={70} />
-            ) : (
-              <span className="font-mono text-sm tabular-nums">{formatUnits(totalBorrowed, t.decimals)}</span>
-            )}
+            {assetsLoading ? <Skeleton width={70} /> : <span className="font-mono text-sm tabular-nums">{formatUnits(totalSupplied, t.decimals)}</span>}
+            {assetsLoading ? <Skeleton width={70} /> : <span className="font-mono text-sm tabular-nums">{formatUnits(totalBorrowed, t.decimals)}</span>}
             {assetsLoading ? <Skeleton width={110} /> : <UtilizationMeter value={utilization} />}
             <div className="flex gap-2">
               <button
@@ -137,8 +123,7 @@ export default function MarketsPage() {
       })}
 
       <p className="mt-4 text-[11.5px] text-ink-faint">
-        Market totals are protocol-level aggregates and are public. Individual position sizes are never disclosed —
-        interest/APY isn&apos;t shown because there&apos;s no accrual model in this build yet.
+        Market totals are protocol-level aggregates and are public. Individual position sizes are never disclosed — interest/APY isn&apos;t shown because there&apos;s no accrual model in this build yet.
       </p>
 
       {modal && <PositionActionModal symbol={modal.symbol} mode={modal.mode} onClose={() => setModal(null)} />}

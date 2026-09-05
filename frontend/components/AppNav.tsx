@@ -23,13 +23,7 @@ export function AppNav() {
         </Link>
         <div className="flex gap-7">
           {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`text-sm font-medium transition-colors ${
-                pathname === link.href ? "text-ink" : "text-ink-muted hover:text-ink"
-              }`}
-            >
+            <Link key={link.href} href={link.href} className={`text-sm font-medium transition-colors ${pathname === link.href ? "text-ink" : "text-ink-muted hover:text-ink"}`}>
               {link.label}
             </Link>
           ))}

@@ -117,17 +117,11 @@ export default function PortfolioPage() {
         <span className="font-display text-[28px]">Portfolio</span>
         {address && (
           <div className="flex gap-2">
-            <button
-              onClick={() => setShowImport(true)}
-              className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
-            >
+            <button onClick={() => setShowImport(true)} className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover">
               Import backup
             </button>
             {disclosureEntries.length > 0 && (
-              <button
-                onClick={() => setShowExport(true)}
-                className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
-              >
+              <button onClick={() => setShowExport(true)} className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover">
                 Export for auditor
               </button>
             )}
@@ -145,15 +139,10 @@ export default function PortfolioPage() {
               {positionLoading ? (
                 <Skeleton width={120} height={22} />
               ) : (
-                <MaskedValue
-                  value={`${collateralToken ? formatUnits(collateralAmount, collateralToken.decimals) : "0"} ${collateralToken?.symbol ?? ""}`.trim()}
-                  fontSize={22}
-                />
+                <MaskedValue value={`${collateralToken ? formatUnits(collateralAmount, collateralToken.decimals) : "0"} ${collateralToken?.symbol ?? ""}`.trim()} fontSize={22} />
               )}
             </div>
-            <div className="flex flex-1 rounded-2xl border border-line bg-surface p-5">
-              {positionLoading ? <Skeleton width={200} height={22} /> : <HealthGauge zone={zone} width={240} />}
-            </div>
+            <div className="flex flex-1 rounded-2xl border border-line bg-surface p-5">{positionLoading ? <Skeleton width={200} height={22} /> : <HealthGauge zone={zone} width={240} />}</div>
           </div>
 
           <div className="flex gap-12">
@@ -164,9 +153,7 @@ export default function PortfolioPage() {
               ) : collateralToken && collateralAmount > 0n ? (
                 <div className="flex items-center justify-between border-b border-line py-4.5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-[11px] text-gold">
-                      {collateralToken.symbol[0]}
-                    </div>
+                    <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-[11px] text-gold">{collateralToken.symbol[0]}</div>
                     <span className="font-medium">{collateralToken.symbol}</span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -191,9 +178,7 @@ export default function PortfolioPage() {
               ) : debtToken && debtAmount > 0n ? (
                 <div className="flex items-center justify-between border-b border-line py-4.5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-[11px] text-gold">
-                      {debtToken.symbol[0]}
-                    </div>
+                    <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-[11px] text-gold">{debtToken.symbol[0]}</div>
                     <span className="font-medium">{debtToken.symbol}</span>
                   </div>
                   <div className="flex items-center gap-3">

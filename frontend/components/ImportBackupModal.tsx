@@ -85,13 +85,7 @@ export function ImportBackupModal({ address, onClose }: { address: `0x${string}`
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-28">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-[rgba(10,9,7,0.6)]"
-      />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-[rgba(10,9,7,0.6)]" />
       <motion.div
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -121,8 +115,7 @@ export function ImportBackupModal({ address, onClose }: { address: `0x${string}`
           ) : (
             <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <p className="mt-1 mb-4 text-[13.5px] leading-relaxed text-ink-muted">
-                Paste one of your own previously-exported disclosure files to restore your local position — useful
-                if you&apos;ve cleared browser storage or switched devices. Only entries that still match your live
+                Paste one of your own previously-exported disclosure files to restore your local position — useful if you&apos;ve cleared browser storage or switched devices. Only entries that still match your live
                 on-chain position are restored.
               </p>
               <textarea

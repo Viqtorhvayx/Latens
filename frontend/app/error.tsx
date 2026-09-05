@@ -13,16 +13,10 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
         <p className="text-sm text-ink-muted">This side stayed private, at least — nothing about your position was sent anywhere.</p>
       </div>
       <div className="flex items-center gap-3">
-        <button
-          onClick={reset}
-          className="rounded-[10px] bg-gold px-6 py-3 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong"
-        >
+        <button onClick={reset} className="rounded-[10px] bg-gold px-6 py-3 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong">
           Try again
         </button>
-        <Link
-          href="/"
-          className="rounded-[10px] border border-line-strong px-6 py-3 text-[14.5px] font-semibold transition-colors hover:bg-surface-hover"
-        >
+        <Link href="/" className="rounded-[10px] border border-line-strong px-6 py-3 text-[14.5px] font-semibold transition-colors hover:bg-surface-hover">
           Back to home
         </Link>
       </div>

@@ -22,9 +22,6 @@ export const erc20Abi = deployment.contracts.MockERC20.abi as Abi;
 
 export type TokenSymbol = keyof typeof deployment.tokens;
 
-export const tokens = deployment.tokens as Record<
-  string,
-  { address: `0x${string}`; symbol: string; decimals: number; assetId: number }
->;
+export const tokens = deployment.tokens as Record<string, { address: `0x${string}`; symbol: string; decimals: number; assetId: number }>;
 
 export const tokenList = Object.values(tokens);

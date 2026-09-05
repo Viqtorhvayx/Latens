@@ -162,7 +162,7 @@ export function PositionStoreProvider({ children }: { children: React.ReactNode 
         });
       },
     }),
-    [store]
+    [store],
   );
 
   return <PositionStoreContext.Provider value={value}>{children}</PositionStoreContext.Provider>;

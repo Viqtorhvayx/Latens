@@ -101,8 +101,7 @@ export default function VerifyPage() {
       <div className="mb-8">
         <span className="font-display text-[28px]">Verify a disclosure</span>
         <p className="mt-1.5 max-w-[560px] text-[13.5px] text-ink-muted">
-          For auditors, accountants, or regulators handed a Latens disclosure file. This checks it against live
-          on-chain state — it doesn&apos;t just trust the numbers in the file.
+          For auditors, accountants, or regulators handed a Latens disclosure file. This checks it against live on-chain state — it doesn&apos;t just trust the numbers in the file.
         </p>
       </div>
 
@@ -129,9 +128,7 @@ export default function VerifyPage() {
           <div className="flex-1 rounded-2xl border border-line bg-surface p-6">
             <div className="mb-4 flex items-center justify-between">
               <span className="font-mono text-xs text-ink-faint">{disclosure.address}</span>
-              <span className={`text-xs font-semibold ${allVerified ? "text-success" : "text-warning"}`}>
-                {allVerified ? "Verified" : "Not fully verified"}
-              </span>
+              <span className={`text-xs font-semibold ${allVerified ? "text-success" : "text-warning"}`}>{allVerified ? "Verified" : "Not fully verified"}</span>
             </div>
 
             <div className="mb-4 flex items-center gap-2 text-sm">
@@ -151,11 +148,7 @@ export default function VerifyPage() {
                   <div className="mt-1 flex items-center gap-2 text-xs">
                     <span>{r.selfConsistent && r.onChainMatch ? "✓" : "✗"}</span>
                     <span className={r.selfConsistent && r.onChainMatch ? "text-ink-faint" : "text-danger"}>
-                      {!r.selfConsistent
-                        ? "Amount/salt don't hash to the claimed commitment."
-                        : r.onChainMatch
-                          ? "Matches live on-chain state."
-                          : (r.reason ?? "Doesn't match live on-chain state.")}
+                      {!r.selfConsistent ? "Amount/salt don't hash to the claimed commitment." : r.onChainMatch ? "Matches live on-chain state." : (r.reason ?? "Doesn't match live on-chain state.")}
                     </span>
                   </div>
                 </div>

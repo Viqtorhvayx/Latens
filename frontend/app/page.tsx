@@ -88,31 +88,17 @@ export default function Home() {
 
       {/* HERO */}
       <div className="mx-auto flex max-w-[1440px] flex-col gap-16 px-8 py-24 md:flex-row md:items-center md:gap-20 md:px-16 md:py-32">
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="flex max-w-[600px] flex-1 flex-col gap-7"
-        >
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} className="flex max-w-[600px] flex-1 flex-col gap-7">
           <p className="text-xs font-semibold tracking-[0.16em] text-gold uppercase">Private lending on Horizen</p>
-          <h1 className="font-display text-5xl leading-[1.06] font-medium tracking-tight md:text-[60px]">
-            Lending, kept between you and the chain.
-          </h1>
+          <h1 className="font-display text-5xl leading-[1.06] font-medium tracking-tight md:text-[60px]">Lending, kept between you and the chain.</h1>
           <p className="text-lg leading-relaxed text-ink-muted">
-            Latens is a confidential borrow-lend market for Horizen. Collateral, borrow size, and health
-            factor stay provably hidden — verified by zero-knowledge proofs instead of a public ledger.
+            Latens is a confidential borrow-lend market for Horizen. Collateral, borrow size, and health factor stay provably hidden — verified by zero-knowledge proofs instead of a public ledger.
           </p>
           <div className="mt-2 flex items-center gap-4">
-            <Link
-              href="/app/markets"
-              className="rounded-[10px] bg-gold px-6 py-3.5 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong"
-            >
+            <Link href="/app/markets" className="rounded-[10px] bg-gold px-6 py-3.5 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong">
               Launch App
             </Link>
-            <a
-              href="#docs"
-              className="flex items-center gap-2 rounded-[10px] border border-line-strong px-6 py-3.5 text-[14.5px] font-semibold transition-colors hover:bg-surface-hover"
-            >
+            <a href="#docs" className="flex items-center gap-2 rounded-[10px] border border-line-strong px-6 py-3.5 text-[14.5px] font-semibold transition-colors hover:bg-surface-hover">
               Read the litepaper
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <path d="M3 11 L11 3 M11 3 H5 M11 3 V9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -122,12 +108,7 @@ export default function Home() {
           <p className="mt-2 text-xs text-ink-faint">Built for Horizen · Base L3 · Thrive Season 2 Builder Fund</p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-1 justify-center"
-        >
+        <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} className="flex flex-1 justify-center">
           <div className="w-full max-w-[420px] rounded-[20px] border border-line bg-surface p-8 shadow-[0_24px_64px_rgba(0,0,0,0.4)]">
             <div className="mb-6 flex items-center justify-between">
               <span className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Your position</span>
@@ -153,17 +134,13 @@ export default function Home() {
       <div id="protocol" className="mx-auto max-w-[1200px] px-8 py-24 text-center md:px-16">
         <Reveal>
           <p className="text-xs font-semibold tracking-[0.16em] text-gold uppercase">How confidential lending works</p>
-          <h2 className="mt-3 mb-16 font-display text-3xl font-medium md:text-4xl">
-            Nothing about your position is public — not even to us.
-          </h2>
+          <h2 className="mt-3 mb-16 font-display text-3xl font-medium md:text-4xl">Nothing about your position is public — not even to us.</h2>
         </Reveal>
         <div className="flex flex-col gap-12 text-left md:flex-row">
           {steps.map((step, i) => (
             <Reveal key={step.n} delay={i * 0.1} className="flex flex-1 flex-col gap-4">
               <div className="flex items-center gap-3.5">
-                <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full border border-gold/40 font-mono text-[13px] text-gold">
-                  {step.n}
-                </span>
+                <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full border border-gold/40 font-mono text-[13px] text-gold">{step.n}</span>
                 {step.icon}
               </div>
               <span className="font-display text-[21px] font-medium">{step.title}</span>
@@ -194,13 +171,7 @@ export default function Home() {
           </Reveal>
           <div className="flex flex-col md:flex-row">
             {milestones.map((m, i) => (
-              <Reveal
-                key={m.tag}
-                delay={i * 0.1}
-                className={`flex-1 px-0 py-6 md:px-8 md:py-0 ${
-                  i < milestones.length - 1 ? "md:border-r md:border-line" : ""
-                } ${i > 0 ? "md:pl-8" : "md:pl-0"}`}
-              >
+              <Reveal key={m.tag} delay={i * 0.1} className={`flex-1 px-0 py-6 md:px-8 md:py-0 ${i < milestones.length - 1 ? "md:border-r md:border-line" : ""} ${i > 0 ? "md:pl-8" : "md:pl-0"}`}>
                 <div className="flex flex-col gap-3">
                   <span className="font-mono text-xs text-gold">{m.tag}</span>
                   <span className="font-display text-[19px]">{m.title}</span>
@@ -218,8 +189,7 @@ export default function Home() {
           <p className="text-xs font-semibold tracking-[0.16em] text-gold uppercase">Ecosystem alignment</p>
           <h2 className="mt-3 mb-5 font-display text-[30px] font-medium">Building inside the Horizen cluster</h2>
           <p className="text-[15.5px] leading-relaxed text-ink-muted">
-            Latens contributes a share of protocol fees to the ZEN staking rewards pool, aligning its
-            long-term incentives with the ecosystem it&apos;s built on — in partnership with Thrive Protocol.
+            Latens contributes a share of protocol fees to the ZEN staking rewards pool, aligning its long-term incentives with the ecosystem it&apos;s built on — in partnership with Thrive Protocol.
           </p>
         </Reveal>
       </div>
@@ -228,10 +198,7 @@ export default function Home() {
       <div className="border-t border-line px-8 py-24 text-center md:px-16">
         <Reveal>
           <h2 className="mb-8 font-display text-[38px] font-medium">Ready to lend without exposure?</h2>
-          <Link
-            href="/app/markets"
-            className="rounded-[10px] bg-gold px-8 py-4 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong"
-          >
+          <Link href="/app/markets" className="rounded-[10px] bg-gold px-8 py-4 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong">
             Launch App
           </Link>
         </Reveal>

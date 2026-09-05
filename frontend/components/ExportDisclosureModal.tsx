@@ -59,13 +59,7 @@ export function ExportDisclosureModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-28">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-[rgba(10,9,7,0.6)]"
-      />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-[rgba(10,9,7,0.6)]" />
       <motion.div
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -87,8 +81,7 @@ export function ExportDisclosureModal({
             <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-4 text-center">
               <p className="mb-4 text-sm text-success">Signed and downloaded.</p>
               <p className="mb-5 text-xs leading-relaxed text-ink-faint">
-                Hand this file to your auditor along with the link to Latens&apos;s verify page. Anyone holding it can
-                see the amounts below in the clear — treat it like a bank statement, not a password.
+                Hand this file to your auditor along with the link to Latens&apos;s verify page. Anyone holding it can see the amounts below in the clear — treat it like a bank statement, not a password.
               </p>
               <button onClick={onClose} className="w-full rounded-[10px] border border-line-strong py-3.5 text-[15px] font-semibold">
                 Close
@@ -96,9 +89,7 @@ export function ExportDisclosureModal({
             </motion.div>
           ) : (
             <motion.div key="review" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <p className="mt-1 mb-5 text-[13.5px] leading-relaxed text-ink-muted">
-                You&apos;re about to sign a disclosure revealing these amounts to whoever holds this file:
-              </p>
+              <p className="mt-1 mb-5 text-[13.5px] leading-relaxed text-ink-muted">You&apos;re about to sign a disclosure revealing these amounts to whoever holds this file:</p>
 
               <div className="mb-5 flex flex-col gap-2.5 rounded-xl border border-line bg-canvas-raised p-4">
                 {entries.map((e) => (
@@ -112,9 +103,8 @@ export function ExportDisclosureModal({
               </div>
 
               <p className="mb-5 text-[11.5px] text-ink-faint">
-                This is a one-time snapshot signed by your wallet — it isn&apos;t a standing key, and re-exporting
-                after your position changes is on you. Nothing is sent anywhere; the file only leaves your device
-                when you share it.
+                This is a one-time snapshot signed by your wallet — it isn&apos;t a standing key, and re-exporting after your position changes is on you. Nothing is sent anywhere; the file only leaves your device when
+                you share it.
               </p>
 
               <button

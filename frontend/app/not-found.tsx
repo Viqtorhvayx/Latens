@@ -10,10 +10,7 @@ export default function NotFound() {
         <h1 className="font-display text-3xl font-medium">This page doesn&apos;t exist.</h1>
         <p className="text-sm text-ink-muted">Check the address, or head back to somewhere that does.</p>
       </div>
-      <Link
-        href="/"
-        className="rounded-[10px] bg-gold px-6 py-3 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong"
-      >
+      <Link href="/" className="rounded-[10px] bg-gold px-6 py-3 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong">
         Back to home
       </Link>
     </div>

@@ -19,10 +19,7 @@ export function MarketingNav() {
           Roadmap
         </a>
       </div>
-      <Link
-        href="/app/markets"
-        className="rounded-[10px] bg-gold px-6 py-3 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong"
-      >
+      <Link href="/app/markets" className="rounded-[10px] bg-gold px-6 py-3 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong">
         Launch App
       </Link>
     </div>

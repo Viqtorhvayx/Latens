@@ -1,12 +1,8 @@
 import { parseAbiItem, type PublicClient } from "viem";
 import { latensPool } from "./contracts";
 
-const COLLATERAL_UPDATED = parseAbiItem(
-  "event CollateralUpdated(address indexed user, uint256 indexed assetId, uint256 newCommitment, uint256 amount, bool isIncrease)"
-);
-const DEBT_UPDATED = parseAbiItem(
-  "event DebtUpdated(address indexed user, uint256 indexed assetId, uint256 newCommitment, uint256 amount, bool isIncrease)"
-);
+const COLLATERAL_UPDATED = parseAbiItem("event CollateralUpdated(address indexed user, uint256 indexed assetId, uint256 newCommitment, uint256 amount, bool isIncrease)");
+const DEBT_UPDATED = parseAbiItem("event DebtUpdated(address indexed user, uint256 indexed assetId, uint256 newCommitment, uint256 amount, bool isIncrease)");
 
 export type ActivityEntry = {
   kind: "collateral" | "debt";

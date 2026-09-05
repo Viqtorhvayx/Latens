@@ -27,10 +27,7 @@ const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
 export const wagmiConfig = createConfig({
   chains: [hardhatLocal],
-  connectors: [
-    injected(),
-    ...(walletConnectProjectId ? [walletConnect({ projectId: walletConnectProjectId })] : []),
-  ],
+  connectors: [injected(), ...(walletConnectProjectId ? [walletConnect({ projectId: walletConnectProjectId })] : [])],
   transports: {
     [hardhatLocal.id]: http(),
   },

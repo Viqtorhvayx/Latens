@@ -24,16 +24,12 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "Latens — Private lending on Horizen",
-  description:
-    "Confidential borrow-lend market for Horizen. Collateral, borrow size, and health factor stay provably hidden, verified by zero-knowledge proofs.",
+  description: "Confidential borrow-lend market for Horizen. Collateral, borrow size, and health factor stay provably hidden, verified by zero-knowledge proofs.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${newsreader.variable} ${plexSans.variable} ${plexMono.variable} h-full`}
-    >
+    <html lang="en" className={`${newsreader.variable} ${plexSans.variable} ${plexMono.variable} h-full`}>
       <body className="min-h-full bg-canvas text-ink font-ui antialiased">
         <DevBuildBanner />
         <Providers>{children}</Providers>
