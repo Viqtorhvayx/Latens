@@ -19,15 +19,12 @@ type AssetStruct = {
   totalSupplied: bigint;
   totalBorrowed: bigint;
 };
-type PositionStruct = {
-  collateralAssetId: bigint;
-  debtAssetId: bigint;
-  collateralCommitment: bigint;
-  debtCommitment: bigint;
-  lastUpdated: number;
-  active: boolean;
-  hasDebt: boolean;
-};
+// LatensPool.positions() is Solidity's auto-generated struct-mapping getter — unlike
+// AssetRegistry.getAsset() (a hand-written function returning one real `tuple`-typed
+// struct, decoded as a named object above), the auto getter flattens Position into 7
+// separate top-level outputs, which viem decodes as a positional array instead.
+// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, active, hasDebt]
+type PositionTuple = readonly [bigint, bigint, bigint, bigint, number, boolean, boolean];
 
 export default function MarketsPage() {
   const { address } = useAccount();
@@ -51,9 +48,9 @@ export default function MarketsPage() {
     query: { enabled: Boolean(address) },
   });
 
-  const positionStruct = position as PositionStruct | undefined;
-  const collateralAssetId = positionStruct ? Number(positionStruct.collateralAssetId) : undefined;
-  const debtAssetId = positionStruct?.hasDebt ? Number(positionStruct.debtAssetId) : undefined;
+  const positionTuple = position as PositionTuple | undefined;
+  const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
+  const debtAssetId = positionTuple?.[6] ? Number(positionTuple[1]) : undefined;
   const collateralToken = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
   const collateralAmount = collateralToken ? get(address, collateralToken.assetId).supplied : 0n;
   const debtToken = debtAssetId !== undefined ? tokenList.find((t) => t.assetId === debtAssetId) : undefined;

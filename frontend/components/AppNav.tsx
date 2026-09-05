@@ -8,6 +8,7 @@ import { Logo } from "./Logo";
 const links = [
   { href: "/app/markets", label: "Markets" },
   { href: "/app/portfolio", label: "Portfolio" },
+  { href: "/app/verify", label: "Verify" },
 ];
 
 export function AppNav() {

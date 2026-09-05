@@ -9,17 +9,13 @@ import { usePositionStore } from "@/lib/positionStore";
 
 type Mode = "supply" | "borrow";
 
-// viem decodes a named-struct return (DataTypes.Position) as an object keyed
-// by field name, not a positional tuple/array.
-type PositionStruct = {
-  collateralAssetId: bigint;
-  debtAssetId: bigint;
-  collateralCommitment: bigint;
-  debtCommitment: bigint;
-  lastUpdated: number;
-  active: boolean;
-  hasDebt: boolean;
-};
+// LatensPool.positions() is Solidity's auto-generated struct-mapping getter — unlike a
+// hand-written function returning a single `tuple`-typed DataTypes.Position, the auto
+// getter flattens the struct into 7 separate top-level outputs, which viem decodes as a
+// positional array, not a named object. (AssetRegistry.getAsset() below IS hand-written
+// and returns one real tuple, so it decodes as an object — don't conflate the two.)
+// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, active, hasDebt]
+type PositionTuple = readonly [bigint, bigint, bigint, bigint, number, boolean, boolean];
 
 export function SupplyBorrowModal({
   symbol,
@@ -54,7 +50,7 @@ export function SupplyBorrowModal({
     query: { enabled: Boolean(address) && mode === "borrow" },
   });
 
-  const collateralAssetId = position ? Number((position as PositionStruct).collateralAssetId) : undefined;
+  const collateralAssetId = position ? Number((position as PositionTuple)[0]) : undefined;
   const collateralToken = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
 
   const { data: collateralAsset } = useReadContract({
@@ -121,8 +117,8 @@ export function SupplyBorrowModal({
           throw new Error("Supply collateral before borrowing.");
         }
         const { oldCommitment, newCommitment } = applyBorrow(address, token.assetId, amount);
-        const positionStruct = position as PositionStruct;
-        const currentCollateralCommitment = positionStruct.collateralCommitment;
+        const positionTuple = position as PositionTuple;
+        const currentCollateralCommitment = positionTuple[2];
         const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
         const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
         const debtPriceE8 = (debtPrice as readonly [bigint, bigint])[0];

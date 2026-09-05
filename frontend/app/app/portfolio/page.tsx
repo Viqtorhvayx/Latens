@@ -1,21 +1,21 @@
 "use client";
 
-import { useAccount, useReadContract, useReadContracts } from "wagmi";
+import { useMemo, useState } from "react";
+import { useAccount, useChainId, useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 import { assetRegistry, latensPool, priceOracle, tokenList } from "@/lib/contracts";
 import { usePositionStore } from "@/lib/positionStore";
 import { MaskedValue } from "@/components/MaskedValue";
 import { HealthGauge } from "@/components/HealthGauge";
+import { ExportDisclosureModal } from "@/components/ExportDisclosureModal";
+import { makeEntry, type DisclosureEntry } from "@/lib/disclosure";
 
-type PositionStruct = {
-  collateralAssetId: bigint;
-  debtAssetId: bigint;
-  collateralCommitment: bigint;
-  debtCommitment: bigint;
-  lastUpdated: number;
-  active: boolean;
-  hasDebt: boolean;
-};
+// LatensPool.positions() is Solidity's auto-generated struct-mapping getter — unlike
+// AssetRegistry.getAsset() (a hand-written function returning one real `tuple`-typed
+// struct, decoded as a named object below), the auto getter flattens Position into 7
+// separate top-level outputs, which viem decodes as a positional array instead.
+// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, active, hasDebt]
+type PositionTuple = readonly [bigint, bigint, bigint, bigint, number, boolean, boolean];
 type AssetStruct = {
   token: `0x${string}`;
   isSupported: boolean;
@@ -30,7 +30,9 @@ type PriceTuple = readonly [bigint, bigint];
 
 export default function PortfolioPage() {
   const { address } = useAccount();
+  const chainId = useChainId();
   const { get } = usePositionStore();
+  const [showExport, setShowExport] = useState(false);
 
   const { data: position } = useReadContract({
     address: latensPool.address,
@@ -40,14 +42,27 @@ export default function PortfolioPage() {
     query: { enabled: Boolean(address) },
   });
 
-  const positionStruct = position as PositionStruct | undefined;
-  const collateralAssetId = positionStruct ? Number(positionStruct.collateralAssetId) : undefined;
-  const debtAssetId = positionStruct?.hasDebt ? Number(positionStruct.debtAssetId) : undefined;
+  const positionTuple = position as PositionTuple | undefined;
+  const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
+  const debtAssetId = positionTuple?.[6] ? Number(positionTuple[1]) : undefined;
   const collateralToken = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
   const debtToken = debtAssetId !== undefined ? tokenList.find((t) => t.assetId === debtAssetId) : undefined;
 
-  const collateralAmount = collateralToken ? get(address, collateralToken.assetId).supplied : 0n;
-  const debtAmount = debtToken ? get(address, debtToken.assetId).borrowed : 0n;
+  const collateralPosition = collateralToken ? get(address, collateralToken.assetId) : undefined;
+  const debtPosition = debtToken ? get(address, debtToken.assetId) : undefined;
+  const collateralAmount = collateralPosition?.supplied ?? 0n;
+  const debtAmount = debtPosition?.borrowed ?? 0n;
+
+  const disclosureEntries: DisclosureEntry[] = useMemo(() => {
+    const out: DisclosureEntry[] = [];
+    if (collateralToken && collateralPosition && collateralAmount > 0n) {
+      out.push(makeEntry(collateralToken.assetId, collateralToken.symbol, "collateral", collateralAmount, collateralPosition.suppliedSalt));
+    }
+    if (debtToken && debtPosition && debtAmount > 0n) {
+      out.push(makeEntry(debtToken.assetId, debtToken.symbol, "debt", debtAmount, debtPosition.borrowedSalt));
+    }
+    return out;
+  }, [collateralToken, collateralPosition, collateralAmount, debtToken, debtPosition, debtAmount]);
 
   const { data: reads } = useReadContracts({
     contracts: [
@@ -90,7 +105,17 @@ export default function PortfolioPage() {
 
   return (
     <div className="px-12 py-10">
-      <span className="font-display text-[28px]">Portfolio</span>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-display text-[28px]">Portfolio</span>
+        {address && disclosureEntries.length > 0 && (
+          <button
+            onClick={() => setShowExport(true)}
+            className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+          >
+            Export for auditor
+          </button>
+        )}
+      </div>
 
       {!address ? (
         <p className="mt-8 text-sm text-ink-muted">Connect a wallet to see your positions.</p>
@@ -145,6 +170,16 @@ export default function PortfolioPage() {
             </div>
           </div>
         </>
+      )}
+
+      {showExport && address && (
+        <ExportDisclosureModal
+          address={address}
+          chainId={chainId}
+          entries={disclosureEntries}
+          decimalsFor={(assetId) => tokenList.find((t) => t.assetId === assetId)?.decimals ?? 18}
+          onClose={() => setShowExport(false)}
+        />
       )}
     </div>
   );
