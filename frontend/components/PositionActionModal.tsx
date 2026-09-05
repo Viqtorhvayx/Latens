@@ -6,6 +6,7 @@ import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokens, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore } from "@/lib/positionStore";
+import { humanizeError } from "@/lib/errors";
 
 export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
 
@@ -211,7 +212,7 @@ export function PositionActionModal({
       setStep("done");
     } catch (err) {
       setStep("error");
-      setErrorMessage(err instanceof Error ? err.message : "Transaction failed");
+      setErrorMessage(humanizeError(err));
     }
   }
 

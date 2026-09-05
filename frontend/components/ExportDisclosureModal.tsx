@@ -6,6 +6,7 @@ import { useSignMessage } from "wagmi";
 import { formatUnits } from "viem";
 import { latensPool } from "@/lib/contracts";
 import { buildDisclosureMessage, type Disclosure, type DisclosureEntry } from "@/lib/disclosure";
+import { humanizeError } from "@/lib/errors";
 
 function download(filename: string, content: string) {
   const blob = new Blob([content], { type: "application/json" });
@@ -52,7 +53,7 @@ export function ExportDisclosureModal({
       setStep("done");
     } catch (err) {
       setStep("error");
-      setErrorMessage(err instanceof Error ? err.message : "Signing failed");
+      setErrorMessage(humanizeError(err));
     }
   }
 
