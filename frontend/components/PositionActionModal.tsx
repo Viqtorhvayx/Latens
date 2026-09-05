@@ -267,6 +267,15 @@ export function PositionActionModal({
           </button>
         </div>
 
+        {!address ? (
+          <div className="py-4 text-center">
+            <p className="mb-4 text-sm text-ink-muted">Connect your wallet to continue.</p>
+            <button onClick={onClose} className="w-full rounded-[10px] border border-line-strong py-3.5 text-[15px] font-semibold">
+              Close
+            </button>
+          </div>
+        ) : (
+          <>
         <div className="mb-2 flex items-baseline justify-between">
           <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Amount</span>
           {available !== undefined && (
@@ -355,6 +364,8 @@ export function PositionActionModal({
             </motion.div>
           )}
         </AnimatePresence>
+          </>
+        )}
       </motion.div>
     </div>
   );
