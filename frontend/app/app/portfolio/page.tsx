@@ -11,6 +11,7 @@ import { ExportDisclosureModal } from "@/components/ExportDisclosureModal";
 import { ImportBackupModal } from "@/components/ImportBackupModal";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
 import { ActivityLog } from "@/components/ActivityLog";
+import { Skeleton } from "@/components/Skeleton";
 import { makeEntry, type DisclosureEntry } from "@/lib/disclosure";
 import type { TokenSymbol } from "@/lib/contracts";
 
@@ -41,7 +42,7 @@ export default function PortfolioPage() {
   const [actionModal, setActionModal] = useState<{ symbol: TokenSymbol; mode: ActionMode } | null>(null);
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
 
-  const { data: position } = useReadContract({
+  const { data: position, isLoading: positionLoading } = useReadContract({
     address: latensPool.address,
     abi: latensPool.abi,
     functionName: "positions",
@@ -141,20 +142,26 @@ export default function PortfolioPage() {
           <div className="mt-8 mb-12 flex gap-5">
             <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
               <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Net worth</span>
-              <MaskedValue
-                value={`${collateralToken ? formatUnits(collateralAmount, collateralToken.decimals) : "0"} ${collateralToken?.symbol ?? ""}`.trim()}
-                fontSize={22}
-              />
+              {positionLoading ? (
+                <Skeleton width={120} height={22} />
+              ) : (
+                <MaskedValue
+                  value={`${collateralToken ? formatUnits(collateralAmount, collateralToken.decimals) : "0"} ${collateralToken?.symbol ?? ""}`.trim()}
+                  fontSize={22}
+                />
+              )}
             </div>
             <div className="flex flex-1 rounded-2xl border border-line bg-surface p-5">
-              <HealthGauge zone={zone} width={240} />
+              {positionLoading ? <Skeleton width={200} height={22} /> : <HealthGauge zone={zone} width={240} />}
             </div>
           </div>
 
           <div className="flex gap-12">
             <div className="flex-1">
               <div className="mb-3.5 text-xs font-semibold tracking-wide text-ink-faint uppercase">Supplying</div>
-              {collateralToken && collateralAmount > 0n ? (
+              {positionLoading ? (
+                <p className="text-sm text-ink-faint">Loading…</p>
+              ) : collateralToken && collateralAmount > 0n ? (
                 <div className="flex items-center justify-between border-b border-line py-4.5">
                   <div className="flex items-center gap-3">
                     <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-[11px] text-gold">
@@ -179,7 +186,9 @@ export default function PortfolioPage() {
             <div className="w-px bg-line" />
             <div className="flex-1">
               <div className="mb-3.5 text-xs font-semibold tracking-wide text-ink-faint uppercase">Borrowing</div>
-              {debtToken && debtAmount > 0n ? (
+              {positionLoading ? (
+                <p className="text-sm text-ink-faint">Loading…</p>
+              ) : debtToken && debtAmount > 0n ? (
                 <div className="flex items-center justify-between border-b border-line py-4.5">
                   <div className="flex items-center gap-3">
                     <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-[11px] text-gold">

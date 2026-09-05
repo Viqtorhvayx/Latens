@@ -8,6 +8,7 @@ import { usePositionStore } from "@/lib/positionStore";
 import { MaskedValue } from "@/components/MaskedValue";
 import { PositionActionModal } from "@/components/PositionActionModal";
 import { UtilizationMeter } from "@/components/UtilizationMeter";
+import { Skeleton } from "@/components/Skeleton";
 
 type AssetStruct = {
   token: `0x${string}`;
@@ -31,7 +32,7 @@ export default function MarketsPage() {
   const { get } = usePositionStore();
   const [modal, setModal] = useState<{ symbol: TokenSymbol; mode: "supply" | "borrow" } | null>(null);
 
-  const { data: assets } = useReadContracts({
+  const { data: assets, isLoading: assetsLoading } = useReadContracts({
     contracts: tokenList.map((t) => ({
       address: assetRegistry.address,
       abi: assetRegistry.abi,
@@ -40,7 +41,7 @@ export default function MarketsPage() {
     })),
   });
 
-  const { data: position } = useReadContract({
+  const { data: position, isLoading: positionLoading } = useReadContract({
     address: latensPool.address,
     abi: latensPool.abi,
     functionName: "positions",
@@ -67,11 +68,19 @@ export default function MarketsPage() {
         <div className="mb-10 flex gap-5">
           <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
             <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Your collateral</span>
-            <MaskedValue value={collateralToken ? `${formatUnits(collateralAmount, collateralToken.decimals)} ${collateralToken.symbol}` : "0.00"} fontSize={22} />
+            {positionLoading ? (
+              <Skeleton width={120} height={22} />
+            ) : (
+              <MaskedValue value={collateralToken ? `${formatUnits(collateralAmount, collateralToken.decimals)} ${collateralToken.symbol}` : "0.00"} fontSize={22} />
+            )}
           </div>
           <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
             <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Your debt</span>
-            <MaskedValue value={debtToken ? `${formatUnits(debtAmount, debtToken.decimals)} ${debtToken.symbol}` : "0.00"} fontSize={22} />
+            {positionLoading ? (
+              <Skeleton width={120} height={22} />
+            ) : (
+              <MaskedValue value={debtToken ? `${formatUnits(debtAmount, debtToken.decimals)} ${debtToken.symbol}` : "0.00"} fontSize={22} />
+            )}
           </div>
         </div>
       )}
@@ -98,9 +107,17 @@ export default function MarketsPage() {
               </div>
               <span className="font-medium">{t.symbol}</span>
             </div>
-            <span className="font-mono text-sm tabular-nums">{formatUnits(totalSupplied, t.decimals)}</span>
-            <span className="font-mono text-sm tabular-nums">{formatUnits(totalBorrowed, t.decimals)}</span>
-            <UtilizationMeter value={utilization} />
+            {assetsLoading ? (
+              <Skeleton width={70} />
+            ) : (
+              <span className="font-mono text-sm tabular-nums">{formatUnits(totalSupplied, t.decimals)}</span>
+            )}
+            {assetsLoading ? (
+              <Skeleton width={70} />
+            ) : (
+              <span className="font-mono text-sm tabular-nums">{formatUnits(totalBorrowed, t.decimals)}</span>
+            )}
+            {assetsLoading ? <Skeleton width={110} /> : <UtilizationMeter value={utilization} />}
             <div className="flex gap-2">
               <button
                 onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "supply" })}
