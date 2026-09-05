@@ -30,7 +30,7 @@ type Store = Record<string, PositionsByAsset>; // keyed by lowercase address
 const EMPTY: AssetPosition = { supplied: 0n, suppliedSalt: 0n, borrowed: 0n, borrowedSalt: 0n };
 const STORAGE_KEY = "latens.positions.v1";
 
-function randomSalt(): bigint {
+export function randomSalt(): bigint {
   const bytes = crypto.getRandomValues(new Uint8Array(31)); // stay under the BN254 field size
   let value = 0n;
   for (const b of bytes) value = (value << 8n) | BigInt(b);
