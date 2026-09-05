@@ -21,7 +21,7 @@ export function HealthGauge({ zone, width = 280 }: { zone: Zone; width?: number 
   const segments: Zone[] = ["safe", "moderate", "risk"];
 
   return (
-    <div className="flex flex-col gap-2" style={{ width }}>
+    <div className="flex flex-col gap-2" style={{ width, maxWidth: "100%" }}>
       <div className="flex items-baseline justify-between">
         <span className="text-[11px] font-semibold tracking-wide text-ink-muted uppercase">Position health</span>
         <motion.span key={zone} initial={{ opacity: 0, y: -2 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="font-mono text-[13px] font-medium" style={{ color: ZONE_COLOR[zone] }}>

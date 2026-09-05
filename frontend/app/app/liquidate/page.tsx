@@ -121,15 +121,7 @@ export default function LiquidatePage() {
 
   const eligible =
     entriesMatchChain && collateralAsset && collateralPrice && debtPrice && collateralToken && debtToken
-      ? isInsolvent(
-          BigInt(collateralEntry!.amount),
-          collateralToken.decimals,
-          collateralPrice[0],
-          BigInt(debtEntry!.amount),
-          debtToken.decimals,
-          debtPrice[0],
-          collateralAsset.liquidationThresholdBps,
-        )
+      ? isInsolvent(BigInt(collateralEntry!.amount), collateralToken.decimals, collateralPrice[0], BigInt(debtEntry!.amount), debtToken.decimals, debtPrice[0], collateralAsset.liquidationThresholdBps)
       : undefined;
 
   const repayAmount = debtEntry ? BigInt(debtEntry.amount) : 0n; // full liquidation only, in this pass
@@ -189,13 +181,12 @@ export default function LiquidatePage() {
   }
 
   return (
-    <div className="px-12 py-10">
+    <div className="px-4 py-6 sm:px-12 sm:py-10">
       <div className="mb-8 max-w-[640px]">
         <span className="font-display text-[28px]">Liquidate</span>
         <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-muted">
-          Paste a position&apos;s disclosure file to check eligibility and liquidate it if it&apos;s genuinely insolvent. This isn&apos;t a
-          shortcut — an independent keeper has no way to see a confidential position&apos;s real amounts otherwise, which is exactly why this
-          is the one place privacy has to give way.
+          Paste a position&apos;s disclosure file to check eligibility and liquidate it if it&apos;s genuinely insolvent. This isn&apos;t a shortcut — an independent keeper has no way to see a confidential
+          position&apos;s real amounts otherwise, which is exactly why this is the one place privacy has to give way.
         </p>
       </div>
 
@@ -222,15 +213,12 @@ export default function LiquidatePage() {
           <div className="flex-1 rounded-2xl border border-line bg-surface p-6">
             <div className="mb-4 flex items-center justify-between">
               <span className="font-mono text-xs text-ink-faint">{disclosure.address}</span>
-              <span className={`text-xs font-semibold ${signatureValid ? "text-ink-muted" : "text-danger"}`}>
-                {signatureValid ? "Signature valid" : "Signature invalid"}
-              </span>
+              <span className={`text-xs font-semibold ${signatureValid ? "text-ink-muted" : "text-danger"}`}>{signatureValid ? "Signature valid" : "Signature invalid"}</span>
             </div>
 
             {!entriesMatchChain ? (
               <p className="text-sm text-warning">
-                This file doesn&apos;t match the target&apos;s live on-chain position — it may be stale, incomplete (needs both a collateral
-                and a debt entry), or for a different deployment.
+                This file doesn&apos;t match the target&apos;s live on-chain position — it may be stale, incomplete (needs both a collateral and a debt entry), or for a different deployment.
               </p>
             ) : eligible === undefined ? (
               <p className="text-sm text-ink-faint">Reading live prices…</p>

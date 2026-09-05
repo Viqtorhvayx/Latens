@@ -58,14 +58,14 @@ export default function MarketsPage() {
   const debtAmount = debtToken ? get(address, debtToken.assetId).borrowed : 0n;
 
   return (
-    <div className="px-12 py-10">
+    <div className="px-4 py-6 sm:px-12 sm:py-10">
       <div className="mb-8">
         <span className="font-display text-[28px]">Markets</span>
         <p className="mt-1.5 text-[13.5px] text-ink-muted">Confidential supply and borrow markets on Horizen.</p>
       </div>
 
       {address && (
-        <div className="mb-10 flex gap-5">
+        <div className="mb-10 flex flex-col gap-5 sm:flex-row">
           <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
             <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Your collateral</span>
             {positionLoading ? (
@@ -87,49 +87,54 @@ export default function MarketsPage() {
           is computed per-grid: five independent grids would each hand the `1.4fr`/`1.1fr`/
           `1fr` columns a different amount of remaining space, so headers and data would
           never land in the same place. One grid means the columns are sized once. */}
-      <div className="grid grid-cols-[1.4fr_1.1fr_1.1fr_1fr_auto] items-center gap-4">
-        <span className="border-b border-line-strong pb-4 text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Market</span>
-        <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total supplied</span>
-        <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total borrowed</span>
-        <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Utilization</span>
-        <span className="border-b border-line-strong pb-4"></span>
+      {/* Wrapped in its own horizontal scroll container so a narrow viewport scrolls the
+          table instead of blowing out the whole page — the five columns need real minimum
+          widths to stay legible and don't have room to shrink further on mobile. */}
+      <div className="overflow-x-auto">
+        <div className="grid min-w-[640px] grid-cols-[1.4fr_1.1fr_1.1fr_1fr_auto] items-center gap-4">
+          <span className="border-b border-line-strong pb-4 text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Market</span>
+          <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total supplied</span>
+          <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total borrowed</span>
+          <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Utilization</span>
+          <span className="border-b border-line-strong pb-4"></span>
 
-        {tokenList.map((t, i) => {
-          const asset = assets?.[i]?.result as AssetStruct | undefined;
-          const totalSupplied = asset ? asset.totalSupplied : 0n;
-          const totalBorrowed = asset ? asset.totalBorrowed : 0n;
-          const utilization = totalSupplied > 0n ? Number((totalBorrowed * 10000n) / totalSupplied) / 100 : 0;
+          {tokenList.map((t, i) => {
+            const asset = assets?.[i]?.result as AssetStruct | undefined;
+            const totalSupplied = asset ? asset.totalSupplied : 0n;
+            const totalBorrowed = asset ? asset.totalBorrowed : 0n;
+            const utilization = totalSupplied > 0n ? Number((totalBorrowed * 10000n) / totalSupplied) / 100 : 0;
 
-          return (
-            <div key={t.symbol} className="contents">
-              <div className="flex items-center gap-3 border-b border-line py-4.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-xs text-gold">{t.symbol[0]}</div>
-                <span className="font-medium">{t.symbol}</span>
+            return (
+              <div key={t.symbol} className="contents">
+                <div className="flex items-center gap-3 border-b border-line py-4.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-xs text-gold">{t.symbol[0]}</div>
+                  <span className="font-medium">{t.symbol}</span>
+                </div>
+                <div className="flex justify-center border-b border-line py-4.5">
+                  {assetsLoading ? <Skeleton width={70} /> : <span className="font-mono text-sm tabular-nums">{formatUnits(totalSupplied, t.decimals)}</span>}
+                </div>
+                <div className="flex justify-center border-b border-line py-4.5">
+                  {assetsLoading ? <Skeleton width={70} /> : <span className="font-mono text-sm tabular-nums">{formatUnits(totalBorrowed, t.decimals)}</span>}
+                </div>
+                <div className="flex justify-center border-b border-line py-4.5">{assetsLoading ? <Skeleton width={110} /> : <UtilizationMeter value={utilization} />}</div>
+                <div className="flex gap-2 border-b border-line py-4.5">
+                  <button
+                    onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "supply" })}
+                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+                  >
+                    Supply
+                  </button>
+                  <button
+                    onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "borrow" })}
+                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+                  >
+                    Borrow
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-center border-b border-line py-4.5">
-                {assetsLoading ? <Skeleton width={70} /> : <span className="font-mono text-sm tabular-nums">{formatUnits(totalSupplied, t.decimals)}</span>}
-              </div>
-              <div className="flex justify-center border-b border-line py-4.5">
-                {assetsLoading ? <Skeleton width={70} /> : <span className="font-mono text-sm tabular-nums">{formatUnits(totalBorrowed, t.decimals)}</span>}
-              </div>
-              <div className="flex justify-center border-b border-line py-4.5">{assetsLoading ? <Skeleton width={110} /> : <UtilizationMeter value={utilization} />}</div>
-              <div className="flex gap-2 border-b border-line py-4.5">
-                <button
-                  onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "supply" })}
-                  className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
-                >
-                  Supply
-                </button>
-                <button
-                  onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "borrow" })}
-                  className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
-                >
-                  Borrow
-                </button>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       <p className="mt-4 text-[11.5px] text-ink-faint">

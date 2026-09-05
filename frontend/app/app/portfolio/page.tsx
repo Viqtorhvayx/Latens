@@ -116,8 +116,8 @@ export default function PortfolioPage() {
   })();
 
   return (
-    <div className="px-12 py-10">
-      <div className="mb-2 flex items-center justify-between">
+    <div className="px-4 py-6 sm:px-12 sm:py-10">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <span className="font-display text-[28px]">Portfolio</span>
         {address && (
           <div className="flex gap-2">
@@ -137,7 +137,7 @@ export default function PortfolioPage() {
         <p className="mt-8 text-sm text-ink-muted">Connect a wallet to see your positions.</p>
       ) : (
         <>
-          <div className="mt-8 mb-12 flex gap-5">
+          <div className="mt-8 mb-12 flex flex-col gap-5 sm:flex-row">
             <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
               <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Net worth</span>
               {positionLoading ? (
@@ -149,7 +149,7 @@ export default function PortfolioPage() {
             <div className="flex flex-1 rounded-2xl border border-line bg-surface p-5">{positionLoading ? <Skeleton width={200} height={22} /> : <HealthGauge zone={zone} width={240} />}</div>
           </div>
 
-          <div className="flex gap-12">
+          <div className="flex flex-col gap-8 md:flex-row md:gap-12">
             <div className="flex-1">
               <div className="mb-3.5 text-xs font-semibold tracking-wide text-ink-faint uppercase">Supplying</div>
               {positionLoading ? (

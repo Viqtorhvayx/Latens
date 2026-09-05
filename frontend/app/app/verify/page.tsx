@@ -97,7 +97,7 @@ export default function VerifyPage() {
   const allVerified = signatureValid === true && entryResults.length > 0 && entryResults.every((r) => r.selfConsistent && r.onChainMatch);
 
   return (
-    <div className="px-12 py-10">
+    <div className="px-4 py-6 sm:px-12 sm:py-10">
       <div className="mb-8">
         <span className="font-display text-[28px]">Verify a disclosure</span>
         <p className="mt-1.5 max-w-[560px] text-[13.5px] text-ink-muted">
