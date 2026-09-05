@@ -9,6 +9,7 @@ import { usePositionStore } from "@/lib/positionStore";
 import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
+import { sanitizeAmountInput } from "@/lib/amountInput";
 
 export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
 
@@ -277,7 +278,7 @@ export function PositionActionModal({
         <div className="mb-6 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-4 py-3.5">
           <input
             value={amountInput}
-            onChange={(e) => setAmountInput(e.target.value.replace(/[^0-9.]/g, ""))}
+            onChange={(e) => setAmountInput(sanitizeAmountInput(e.target.value, token.decimals))}
             placeholder="0.00"
             className="w-full bg-transparent font-mono text-[22px] text-ink outline-none placeholder:text-ink-faint"
           />
