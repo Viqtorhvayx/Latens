@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccount, useChainId, useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 import { assetRegistry, latensPool, priceOracle, tokenList } from "@/lib/contracts";
@@ -62,15 +62,26 @@ export default function PortfolioPage() {
   const collateralAmount = collateralPosition?.supplied ?? 0n;
   const debtAmount = debtPosition?.borrowed ?? 0n;
 
-  const disclosureEntries: DisclosureEntry[] = useMemo(() => {
-    const out: DisclosureEntry[] = [];
-    if (collateralToken && collateralPosition && collateralAmount > 0n) {
-      out.push(makeEntry(collateralToken.assetId, collateralToken.symbol, "collateral", collateralAmount, collateralPosition.suppliedSalt));
+  // makeEntry() now calls a real (WASM-backed) Pedersen hash, so it's async — can't live in
+  // a useMemo. Recomputed whenever the underlying position data changes; `cancelled` guards
+  // against a stale async result landing after a newer one was already kicked off.
+  const [disclosureEntries, setDisclosureEntries] = useState<DisclosureEntry[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    async function compute() {
+      const out: DisclosureEntry[] = [];
+      if (collateralToken && collateralPosition && collateralAmount > 0n) {
+        out.push(await makeEntry(collateralToken.assetId, collateralToken.symbol, "collateral", collateralAmount, collateralPosition.suppliedSalt));
+      }
+      if (debtToken && debtPosition && debtAmount > 0n) {
+        out.push(await makeEntry(debtToken.assetId, debtToken.symbol, "debt", debtAmount, debtPosition.borrowedSalt));
+      }
+      if (!cancelled) setDisclosureEntries(out);
     }
-    if (debtToken && debtPosition && debtAmount > 0n) {
-      out.push(makeEntry(debtToken.assetId, debtToken.symbol, "debt", debtAmount, debtPosition.borrowedSalt));
-    }
-    return out;
+    compute();
+    return () => {
+      cancelled = true;
+    };
   }, [collateralToken, collateralPosition, collateralAmount, debtToken, debtPosition, debtAmount]);
 
   const { data: reads } = useReadContracts({

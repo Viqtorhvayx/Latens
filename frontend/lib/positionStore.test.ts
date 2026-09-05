@@ -1,22 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { commitment, randomSalt } from "./positionStore";
+import { pedersenCommit } from "./pedersen";
 
 describe("commitment", () => {
-  it("is deterministic for the same amount and salt", () => {
-    expect(commitment(100n, 42n)).toBe(commitment(100n, 42n));
-  });
-
-  it("differs when the amount changes", () => {
-    expect(commitment(100n, 42n)).not.toBe(commitment(101n, 42n));
-  });
-
-  it("differs when the salt changes", () => {
-    expect(commitment(100n, 42n)).not.toBe(commitment(100n, 43n));
-  });
-
-  it("is the zero hash only for amount=0, salt=0 (an empty position)", () => {
-    expect(commitment(0n, 0n)).toBe(`0x${"0".repeat(64)}`);
-    expect(commitment(0n, 1n)).not.toBe(`0x${"0".repeat(64)}`);
+  // The actual hash behavior (determinism, ground-truth match against the real circuit's
+  // fixture, etc.) is covered in pedersen.test.ts — this just confirms positionStore hasn't
+  // drifted from re-exporting that same real implementation.
+  it("is the same function as pedersenCommit — must never diverge from it", () => {
+    expect(commitment).toBe(pedersenCommit);
   });
 });
 

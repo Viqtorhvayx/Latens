@@ -142,7 +142,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
       setStep("submitting");
 
       if (mode === "supply") {
-        const { oldCommitment, newCommitment, patch } = prepareSupply(address, token.assetId, amount);
+        const { oldCommitment, newCommitment, patch } = await prepareSupply(address, token.assetId, amount);
         const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
@@ -152,7 +152,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         commit(address, token.assetId, patch);
         setTxHash(hash);
       } else if (mode === "repay") {
-        const { oldCommitment, newCommitment, patch } = prepareRepay(address, token.assetId, amount);
+        const { oldCommitment, newCommitment, patch } = await prepareRepay(address, token.assetId, amount);
         const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
@@ -165,7 +165,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         if (collateralAssetId === undefined || !collateralAsset || !collateralPrice || !debtPrice) {
           throw new Error("Supply collateral before borrowing.");
         }
-        const { oldCommitment, newCommitment, patch } = prepareBorrow(address, token.assetId, amount);
+        const { oldCommitment, newCommitment, patch } = await prepareBorrow(address, token.assetId, amount);
         const currentCollateralCommitment = positionTuple![2];
         const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
         const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
@@ -199,7 +199,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         if (hasDebt && (!collateralAsset || !collateralPrice || !debtPrice)) {
           throw new Error("Still loading solvency data — try again in a moment.");
         }
-        const { oldCommitment, newCommitment, patch } = prepareWithdraw(address, token.assetId, amount);
+        const { oldCommitment, newCommitment, patch } = await prepareWithdraw(address, token.assetId, amount);
         const debtCommitment = positionTuple[3];
         const ltvBps = collateralAsset ? (collateralAsset as { ltvBps: number }).ltvBps : 0;
         const collateralPriceE8 = collateralPrice ? (collateralPrice as readonly [bigint, bigint])[0] : 0n;

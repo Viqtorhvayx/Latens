@@ -5,17 +5,23 @@
 // read back from chain (that's the whole point of confidentiality). The pool only ever
 // sees a commitment.
 //
-// IMPORTANT — this dev build's commitment scheme is a placeholder, not the real one: it's
-// a plain keccak256(amount, salt), computed here in TypeScript, NOT the Pedersen-hash scheme
-// circuits/latens_common actually uses. That's fine for now because this deployment wires
-// MockVerifier (see script/deployLocal.js) — LatensPool's own binding checks only require
-// the commitment you claim to be writing matches what you pass in, not that it's a real
-// zk-valid Pedersen commitment. Swapping in real privacy means replacing this whole module
-// with actual client-side proof generation (bb.js, most likely in a Web Worker so proving
-// doesn't block the UI thread) — a separate, substantial task, not something this scaffold
-// claims to have done.
+// The commitment scheme itself is now the REAL one: `commitment()` below calls
+// pedersenCommit() (lib/pedersen.ts), which matches circuits/latens_common's `commit()`
+// byte-for-byte via bb.js's actual Barretenberg pedersen_hash primitive — verified against
+// the real circuit's own Prover.toml fixture, see lib/pedersen.test.ts. That used to be a
+// placeholder keccak256(amount, salt), which could never have opened against a real proof.
+//
+// What's STILL not done: actual zk-SNARK PROOF generation. This module produces a real
+// commitment value, but every supply/withdraw/borrow/repay/liquidate call in this frontend
+// still submits "0x" as its proof — that's a much larger task (bundling each circuit's
+// compiled ACIR, running a witness solver via @noir-lang/noir_js, then Barretenberg's actual
+// proving backend, almost certainly in a Web Worker given proving isn't instant). This
+// deployment's MockVerifier accepts that "0x" regardless — LatensPool's own binding checks
+// only require the commitment you claim to be writing matches what you pass in, which is
+// exactly what's now genuinely true instead of merely asserted.
 import { createContext, useContext, useMemo, useState } from "react";
-import { encodePacked, keccak256, type Address } from "viem";
+import type { Address } from "viem";
+import { pedersenCommit } from "./pedersen";
 
 export type AssetPosition = {
   supplied: bigint;
@@ -37,10 +43,7 @@ export function randomSalt(): bigint {
   return value;
 }
 
-export function commitment(amount: bigint, salt: bigint): `0x${string}` {
-  if (amount === 0n && salt === 0n) return `0x${"0".repeat(64)}`;
-  return keccak256(encodePacked(["uint256", "uint256"], [amount, salt]));
-}
+export const commitment = pedersenCommit;
 
 function load(): Store {
   if (typeof window === "undefined") return {};
@@ -97,26 +100,28 @@ export type PreparedUpdate = {
   patch: Partial<AssetPosition>;
 };
 
-function prepare(current: AssetPosition, field: "supplied" | "borrowed", delta: bigint, direction: "increase" | "decrease"): PreparedUpdate {
+// Async now that `commitment` is a real (WASM-backed) Pedersen hash rather than a
+// synchronous keccak256 call — every caller of prepare*() below must await it.
+async function prepare(current: AssetPosition, field: "supplied" | "borrowed", delta: bigint, direction: "increase" | "decrease"): Promise<PreparedUpdate> {
   const saltField = field === "supplied" ? "suppliedSalt" : "borrowedSalt";
   const amount = current[field];
   const salt = current[saltField];
   if (direction === "decrease" && delta > amount) {
     throw new Error(field === "supplied" ? "Can't withdraw more than you've supplied." : "Can't repay more than you owe.");
   }
-  const oldCommitment = commitment(amount, salt);
+  const oldCommitment = await commitment(amount, salt);
   const newAmount = direction === "increase" ? amount + delta : amount - delta;
   const newSalt = randomSalt();
-  const newCommitment = commitment(newAmount, newSalt);
+  const newCommitment = await commitment(newAmount, newSalt);
   return { oldCommitment, newCommitment, patch: { [field]: newAmount, [saltField]: newSalt } };
 }
 
 const PositionStoreContext = createContext<{
   get: (address: Address | undefined, assetId: number) => AssetPosition;
-  prepareSupply: (address: Address, assetId: number, delta: bigint) => PreparedUpdate;
-  prepareWithdraw: (address: Address, assetId: number, delta: bigint) => PreparedUpdate;
-  prepareBorrow: (address: Address, assetId: number, delta: bigint) => PreparedUpdate;
-  prepareRepay: (address: Address, assetId: number, delta: bigint) => PreparedUpdate;
+  prepareSupply: (address: Address, assetId: number, delta: bigint) => Promise<PreparedUpdate>;
+  prepareWithdraw: (address: Address, assetId: number, delta: bigint) => Promise<PreparedUpdate>;
+  prepareBorrow: (address: Address, assetId: number, delta: bigint) => Promise<PreparedUpdate>;
+  prepareRepay: (address: Address, assetId: number, delta: bigint) => Promise<PreparedUpdate>;
   commit: (address: Address, assetId: number, patch: Partial<AssetPosition>) => void;
 } | null>(null);
 
@@ -146,7 +151,7 @@ export function PositionStoreProvider({ children }: { children: React.ReactNode 
       prepareRepay(address: Address, assetId: number, delta: bigint) {
         const current = store[address.toLowerCase()]?.[assetId] ?? EMPTY;
         return prepare(current, "borrowed", delta, "decrease");
-      },
+      }, // each returns prepare(...)'s Promise directly — no need to mark these `async` too
       commit(address: Address, assetId: number, patch: Partial<AssetPosition>) {
         const key = address.toLowerCase();
         // Functional updater, not a closure over the outer `store`: callers that commit

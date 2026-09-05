@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useReadContract } from "wagmi";
 import { recoverMessageAddress, formatUnits, isAddress } from "viem";
 import { latensPool, tokenList } from "@/lib/contracts";
@@ -70,28 +70,44 @@ export default function VerifyPage() {
     return null;
   }, [disclosure]);
 
-  const entryResults: EntryResult[] = useMemo(() => {
-    if (!disclosure) return [];
-    return disclosure.entries.map((entry) => {
-      const token = tokenList.find((t) => t.assetId === entry.assetId);
-      const label = `${entry.kind} — ${entry.symbol}`;
-      const amountDisplay = token ? formatUnits(BigInt(entry.amount), token.decimals) : entry.amount;
-      const selfConsistent = recomputeCommitment(entry) === entry.commitment;
-
-      if (!positionTuple) return { label, amountDisplay, selfConsistent, onChainMatch: false, reason: "Reading live position…" };
-
-      const claimed = BigInt(entry.commitment);
-      let onChainMatch = false;
-      let reason: string | undefined;
-      if (entry.kind === "collateral") {
-        onChainMatch = Number(positionTuple[0]) === entry.assetId && positionTuple[2] === claimed;
-        if (!onChainMatch) reason = "Doesn't match this address's live collateral commitment.";
-      } else {
-        onChainMatch = positionTuple[6] && Number(positionTuple[1]) === entry.assetId && positionTuple[3] === claimed;
-        if (!onChainMatch) reason = "Doesn't match this address's live debt commitment.";
+  // recomputeCommitment() now calls a real (WASM-backed) Pedersen hash, so it's async — the
+  // self-consistency check can't live in a useMemo anymore.
+  const [entryResults, setEntryResults] = useState<EntryResult[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    async function compute() {
+      if (!disclosure) {
+        if (!cancelled) setEntryResults([]);
+        return;
       }
-      return { label, amountDisplay, selfConsistent, onChainMatch, reason };
-    });
+      const results = await Promise.all(
+        disclosure.entries.map(async (entry) => {
+          const token = tokenList.find((t) => t.assetId === entry.assetId);
+          const label = `${entry.kind} — ${entry.symbol}`;
+          const amountDisplay = token ? formatUnits(BigInt(entry.amount), token.decimals) : entry.amount;
+          const selfConsistent = (await recomputeCommitment(entry)) === entry.commitment;
+
+          if (!positionTuple) return { label, amountDisplay, selfConsistent, onChainMatch: false, reason: "Reading live position…" };
+
+          const claimed = BigInt(entry.commitment);
+          let onChainMatch = false;
+          let reason: string | undefined;
+          if (entry.kind === "collateral") {
+            onChainMatch = Number(positionTuple[0]) === entry.assetId && positionTuple[2] === claimed;
+            if (!onChainMatch) reason = "Doesn't match this address's live collateral commitment.";
+          } else {
+            onChainMatch = positionTuple[6] && Number(positionTuple[1]) === entry.assetId && positionTuple[3] === claimed;
+            if (!onChainMatch) reason = "Doesn't match this address's live debt commitment.";
+          }
+          return { label, amountDisplay, selfConsistent, onChainMatch, reason };
+        }),
+      );
+      if (!cancelled) setEntryResults(results);
+    }
+    compute();
+    return () => {
+      cancelled = true;
+    };
   }, [disclosure, positionTuple]);
 
   const allVerified = signatureValid === true && entryResults.length > 0 && entryResults.every((r) => r.selfConsistent && r.onChainMatch);

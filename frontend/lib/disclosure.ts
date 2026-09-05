@@ -6,13 +6,12 @@
 // stream on their own schedule. That's a real, smaller feature — see the follow-up note
 // below for what upgrading to a standing key would require.
 //
-// IMPORTANT — this reuses positionStore's placeholder keccak256(amount, salt) commitment,
-// NOT the real Pedersen scheme in circuits/latens_common. That's consistent with the rest
-// of this dev build (MockVerifier doesn't care), but means the on-chain match this performs
-// is only meaningful against a MockVerifier deployment. Swapping in real verifiers means
-// this file's `commitment` import needs to move to a real Pedersen implementation (e.g.
-// via bb.js) at the same time positionStore.tsx does — they must never diverge, same
-// invariant circuits/latens_common documents for the three Noir circuits.
+// Reuses positionStore's `commitment`, which is the real Pedersen scheme from
+// circuits/latens_common (see lib/pedersen.ts) — so `makeEntry`/`recomputeCommitment` here
+// and positionStore.tsx's own commitments can never diverge, same invariant
+// circuits/latens_common documents for why the three Noir circuits share one `commit` impl.
+// Being async now (a real hash call, not a synchronous placeholder) is why both functions
+// below return Promises.
 //
 // FOLLOW-UP (not built here): a real standing viewing key would have LatensPool emit an
 // ECIES-encrypted (amount, salt) note alongside each commitment update, with a viewing
@@ -56,17 +55,17 @@ export function buildDisclosureMessage(d: DisclosurePayload): string {
   return lines.join("\n");
 }
 
-export function makeEntry(assetId: number, symbol: string, kind: DisclosureKind, amount: bigint, salt: bigint): DisclosureEntry {
+export async function makeEntry(assetId: number, symbol: string, kind: DisclosureKind, amount: bigint, salt: bigint): Promise<DisclosureEntry> {
   return {
     assetId,
     symbol,
     kind,
     amount: amount.toString(),
     salt: salt.toString(),
-    commitment: commitment(amount, salt),
+    commitment: await commitment(amount, salt),
   };
 }
 
-export function recomputeCommitment(entry: DisclosureEntry): `0x${string}` {
+export function recomputeCommitment(entry: DisclosureEntry): Promise<`0x${string}`> {
   return commitment(BigInt(entry.amount), BigInt(entry.salt));
 }

@@ -58,7 +58,7 @@ export function ImportBackupModal({ address, onClose }: { address: `0x${string}`
 
       let restored = 0;
       for (const entry of parsed.entries) {
-        if (recomputeCommitment(entry) !== entry.commitment) continue; // internally inconsistent, skip
+        if ((await recomputeCommitment(entry)) !== entry.commitment) continue; // internally inconsistent, skip
         const amount = BigInt(entry.amount);
         const salt = BigInt(entry.salt);
         if (entry.kind === "collateral") {

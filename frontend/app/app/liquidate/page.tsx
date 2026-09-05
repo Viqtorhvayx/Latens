@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccount, useChainId, useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { formatUnits, recoverMessageAddress, isAddress } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokenList } from "@/lib/contracts";
@@ -107,6 +107,27 @@ export default function LiquidatePage() {
   const collateralEntry: DisclosureEntry | undefined = disclosure?.entries.find((e) => e.kind === "collateral");
   const debtEntry: DisclosureEntry | undefined = disclosure?.entries.find((e) => e.kind === "debt");
 
+  // recomputeCommitment() now calls a real (WASM-backed) Pedersen hash, so the
+  // self-consistency half of this check can't be a plain synchronous expression anymore —
+  // computed once per (collateralEntry, debtEntry) pair and cached, rather than re-hashing
+  // on every render the way the old synchronous keccak256 placeholder implicitly did.
+  const [entriesSelfConsistent, setEntriesSelfConsistent] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    async function compute() {
+      if (!collateralEntry || !debtEntry) {
+        if (!cancelled) setEntriesSelfConsistent(false);
+        return;
+      }
+      const [collateralOk, debtOk] = await Promise.all([recomputeCommitment(collateralEntry), recomputeCommitment(debtEntry)]);
+      if (!cancelled) setEntriesSelfConsistent(collateralOk === collateralEntry.commitment && debtOk === debtEntry.commitment);
+    }
+    compute();
+    return () => {
+      cancelled = true;
+    };
+  }, [collateralEntry, debtEntry]);
+
   const entriesMatchChain =
     Boolean(positionTuple) &&
     Boolean(collateralEntry) &&
@@ -116,8 +137,7 @@ export default function LiquidatePage() {
     Number(positionTuple![1]) === debtEntry!.assetId &&
     positionTuple![2] === BigInt(collateralEntry!.commitment) &&
     positionTuple![3] === BigInt(debtEntry!.commitment) &&
-    recomputeCommitment(collateralEntry!) === collateralEntry!.commitment &&
-    recomputeCommitment(debtEntry!) === debtEntry!.commitment;
+    entriesSelfConsistent;
 
   const eligible =
     entriesMatchChain && collateralAsset && collateralPrice && debtPrice && collateralToken && debtToken
@@ -137,8 +157,8 @@ export default function LiquidatePage() {
     try {
       const newCollateralAmount = BigInt(collateralEntry.amount) - seizeAmount;
       const newDebtAmount = BigInt(debtEntry.amount) - repayAmount;
-      const newCollateralCommitment = commitment(newCollateralAmount, randomSalt());
-      const newDebtCommitment = commitment(newDebtAmount, randomSalt());
+      const newCollateralCommitment = await commitment(newCollateralAmount, randomSalt());
+      const newDebtCommitment = await commitment(newDebtAmount, randomSalt());
 
       await writeContractAsync({
         address: debtToken.address,
