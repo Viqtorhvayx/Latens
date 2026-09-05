@@ -57,6 +57,10 @@ const benefits = [
     title: "Composable with the cluster",
     body: "Built to integrate with Horizen's private DEX, cross-chain bridge, and yield infrastructure.",
   },
+  {
+    title: "Selective disclosure, on your terms",
+    body: "Hand a viewing key to your own auditor, accountant, or regulator to reveal your position in the clear — without it ever touching the public chain. Confidential and compliant stop being a contradiction.",
+  },
 ];
 
 const milestones = [
@@ -171,9 +175,9 @@ export default function Home() {
 
       {/* BENEFITS */}
       <div className="mx-auto max-w-[1200px] px-8 pb-24 md:px-16">
-        <div className="flex flex-col gap-6 md:flex-row">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {benefits.map((b, i) => (
-            <Reveal key={b.title} delay={i * 0.1} className="flex-1 rounded-2xl border border-line bg-surface p-7">
+            <Reveal key={b.title} delay={i * 0.1} className="rounded-2xl border border-line bg-surface p-7">
               <span className="font-display text-xl">{b.title}</span>
               <p className="mt-3 text-sm leading-relaxed text-ink-muted">{b.body}</p>
             </Reveal>
