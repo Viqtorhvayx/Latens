@@ -2,7 +2,7 @@
   "chainId": 31337,
   "contracts": {
     "LatensPool": {
-      "address": "0x22753E4264FDDc6181dc7cce468904A80a363E44",
+      "address": "0x871ACbEabBaf8Bed65c22ba7132beCFaBf8c27B5",
       "abi": [
         {
           "inputs": [
@@ -781,7 +781,7 @@
       ]
     },
     "AssetRegistry": {
-      "address": "0xD0141E899a65C95a556fE2B27e5982A6DE7fDD7A",
+      "address": "0x0aec7c174554AF8aEc3680BB58431F6618311510",
       "abi": [
         {
           "inputs": [
@@ -1337,7 +1337,7 @@
       ]
     },
     "MockPriceOracle": {
-      "address": "0x4b6aB5F819A515382B0dEB6935D793817bB4af28",
+      "address": "0x942ED2fa862887Dc698682cc6a86355324F0f01e",
       "abi": [
         {
           "inputs": [],
@@ -1755,25 +1755,25 @@
   },
   "tokens": {
     "ZEN": {
-      "address": "0x720472c8ce72c2A2D711333e064ABD3E6BbEAdd3",
+      "address": "0x114e375B6FCC6d6fCb68c7A1d407E652C54F25FB",
       "symbol": "ZEN",
       "decimals": 18,
       "assetId": 0
     },
     "USDC": {
-      "address": "0xe8D2A1E88c91DCd5433208d4152Cc4F399a7e91d",
+      "address": "0xcD0048A5628B37B8f743cC2FeA18817A29e97270",
       "symbol": "USDC",
       "decimals": 6,
       "assetId": 1
     },
     "WBTC": {
-      "address": "0x5067457698Fd6Fa1C6964e416b3f42713513B3dD",
+      "address": "0x976C214741b4657bd99DFD38a5c0E3ac5C99D903",
       "symbol": "WBTC",
       "decimals": 8,
       "assetId": 2
     },
     "DAI": {
-      "address": "0x18E317A7D70d8fBf8e6E893616b52390EbBdb629",
+      "address": "0x8bEe2037448F096900Fd9affc427d38aE6CC0350",
       "symbol": "DAI",
       "decimals": 18,
       "assetId": 3

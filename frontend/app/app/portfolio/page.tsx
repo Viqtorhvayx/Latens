@@ -8,6 +8,7 @@ import { usePositionStore } from "@/lib/positionStore";
 import { MaskedValue } from "@/components/MaskedValue";
 import { HealthGauge } from "@/components/HealthGauge";
 import { ExportDisclosureModal } from "@/components/ExportDisclosureModal";
+import { ImportBackupModal } from "@/components/ImportBackupModal";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
 import { makeEntry, type DisclosureEntry } from "@/lib/disclosure";
 import type { TokenSymbol } from "@/lib/contracts";
@@ -35,6 +36,7 @@ export default function PortfolioPage() {
   const chainId = useChainId();
   const { get } = usePositionStore();
   const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [actionModal, setActionModal] = useState<{ symbol: TokenSymbol; mode: ActionMode } | null>(null);
 
   const { data: position } = useReadContract({
@@ -110,13 +112,23 @@ export default function PortfolioPage() {
     <div className="px-12 py-10">
       <div className="mb-2 flex items-center justify-between">
         <span className="font-display text-[28px]">Portfolio</span>
-        {address && disclosureEntries.length > 0 && (
-          <button
-            onClick={() => setShowExport(true)}
-            className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
-          >
-            Export for auditor
-          </button>
+        {address && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowImport(true)}
+              className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+            >
+              Import backup
+            </button>
+            {disclosureEntries.length > 0 && (
+              <button
+                onClick={() => setShowExport(true)}
+                className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+              >
+                Export for auditor
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -204,6 +216,8 @@ export default function PortfolioPage() {
       {actionModal && (
         <PositionActionModal symbol={actionModal.symbol} mode={actionModal.mode} onClose={() => setActionModal(null)} />
       )}
+
+      {showImport && address && <ImportBackupModal address={address} onClose={() => setShowImport(false)} />}
     </div>
   );
 }

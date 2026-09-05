@@ -149,10 +149,17 @@ export function PositionStoreProvider({ children }: { children: React.ReactNode 
       },
       commit(address: Address, assetId: number, patch: Partial<AssetPosition>) {
         const key = address.toLowerCase();
-        const current = store[key]?.[assetId] ?? EMPTY;
-        const next: Store = { ...store, [key]: { ...store[key], [assetId]: { ...current, ...patch } } };
-        setStore(next);
-        save(next);
+        // Functional updater, not a closure over the outer `store`: callers that commit
+        // more than once in the same synchronous tick (e.g. ImportBackupModal restoring
+        // both a collateral and a debt entry in one loop) would otherwise each compute
+        // their update from the same stale snapshot, and the second setStore call would
+        // silently discard the first commit instead of building on it.
+        setStore((prevStore) => {
+          const current = prevStore[key]?.[assetId] ?? EMPTY;
+          const next: Store = { ...prevStore, [key]: { ...prevStore[key], [assetId]: { ...current, ...patch } } };
+          save(next);
+          return next;
+        });
       },
     }),
     [store]
