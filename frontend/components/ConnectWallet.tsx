@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 
 function shortenAddress(address: string) {
   return `${address.slice(0, 6)}···${address.slice(-4)}`;
@@ -13,6 +14,7 @@ export function ConnectWallet() {
   const { connectors, connect, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const [open, setOpen] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   if (isConnected && address) {
     return (
@@ -33,6 +35,12 @@ export function ConnectWallet() {
               transition={{ duration: 0.15 }}
               className="absolute top-full right-0 z-10 mt-2 w-40 rounded-xl border border-line-strong bg-surface p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.4)]"
             >
+              <button
+                onClick={() => copy(address)}
+                className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
+              >
+                {copied ? "Copied" : "Copy address"}
+              </button>
               <button
                 onClick={() => {
                   disconnect();
