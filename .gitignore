@@ -6,3 +6,6 @@ coverage/
 coverage.json
 .env
 *.log
+
+# Noir/Barretenberg build output — regenerate with the commands in circuits/README.md
+circuits/*/target/

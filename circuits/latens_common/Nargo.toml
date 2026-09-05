@@ -1,0 +1,6 @@
+[package]
+name = "latens_common"
+type = "lib"
+authors = [""]
+
+[dependencies]

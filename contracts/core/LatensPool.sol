@@ -326,7 +326,7 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         _requireFreshPrice(collateralUpdatedAt);
         _requireFreshPrice(debtUpdatedAt);
 
-        if (eligibilityPublicInputs.length < 9) revert Errors.InvalidProof();
+        if (eligibilityPublicInputs.length < 10) revert Errors.InvalidProof();
         _requireEq(eligibilityPublicInputs[0], position.collateralCommitment);
         _requireEq(eligibilityPublicInputs[1], position.debtCommitment);
         _requireEq(eligibilityPublicInputs[2], newCollateralCommitment);
@@ -334,8 +334,9 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         _requireEq(eligibilityPublicInputs[4], collateralPriceE8);
         _requireEq(eligibilityPublicInputs[5], debtPriceE8);
         _requireEq(eligibilityPublicInputs[6], collateralAsset.liquidationThresholdBps);
-        _requireEq(eligibilityPublicInputs[7], seizedCollateralAmount);
-        _requireEq(eligibilityPublicInputs[8], repayAmount);
+        _requireEq(eligibilityPublicInputs[7], collateralAsset.liquidationBonusBps);
+        _requireEq(eligibilityPublicInputs[8], seizedCollateralAmount);
+        _requireEq(eligibilityPublicInputs[9], repayAmount);
 
         if (!liquidationVerifier.verifyLiquidationEligibility(eligibilityProof, eligibilityPublicInputs)) {
             revert Errors.InvalidProof();

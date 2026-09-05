@@ -1,0 +1,7 @@
+[package]
+name = "commitment_update"
+type = "bin"
+authors = [""]
+
+[dependencies]
+latens_common = { path = "../latens_common" }

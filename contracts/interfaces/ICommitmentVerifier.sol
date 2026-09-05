@@ -9,11 +9,13 @@ pragma solidity ^0.8.24;
 /// deposit/withdraw/borrow/repay amount) is public because the ERC20 transfer that moves it
 /// is itself public on an EVM chain; what stays private is the running position size.
 ///
-/// This interface's exact public-input layout is a placeholder pending the M1 circuit
-/// (see the Latens Season 2 milestones) — treat the shape as illustrative, not final.
+/// This layout matches circuits/commitment_update/src/main.nr field for field. What's still
+/// open is the on-chain verifier itself — LatensPool is wired to MockVerifier until the two
+/// gaps documented in circuits/README.md (public-input layout of the generated Solidity
+/// verifier, and a Solidity compile failure in Barretenberg's generated code) are closed.
 interface ICommitmentVerifier {
     /// @param proof Serialized zk-SNARK proof, format defined by the deployed verifying key.
-    /// @param publicInputs Illustrative layout:
+    /// @param publicInputs Layout (matches circuits/commitment_update/src/main.nr):
     ///   [0] oldCommitment (0 for a brand-new position)
     ///   [1] newCommitment
     ///   [2] publicDelta (the ERC20 amount moved this call)

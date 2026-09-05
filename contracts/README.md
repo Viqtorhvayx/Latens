@@ -43,10 +43,17 @@ contracts/
 ## Status
 
 - The pool's accounting, access control, pausability, and proof-binding logic are written
-  and tested (`npx hardhat test`) against `MockVerifier`, which accepts any proof — **there
-  is no real zero-knowledge circuit yet.** The M1 milestone is building it (commitment
-  scheme, the three circuits below, and their on-chain verifying-key contracts) and swapping
-  it in via `LatensPool.setVerifiers`.
+  and tested (`npx hardhat test`) against `MockVerifier`, which accepts any proof.
+- **The three circuits now exist** — see `../circuits/README.md`. They're written in Noir,
+  compile to real ACIR, and a full compile → prove → verify → generate-Solidity-verifier
+  pipeline has actually been run once end to end (not just described). `LatensPool` is
+  **still wired to `MockVerifier`**, though: swapping in the real verifiers needs two
+  concrete gaps closed first (a public-input layout mismatch between the generated verifier
+  and the circuit, and a Solidity compile failure in Barretenberg's generated verifier code
+  — both documented in `../circuits/README.md`, not glossed over). `ILiquidationVerifier`'s
+  public-input layout below already reflects the real circuit, including
+  `liquidationBonusBps`, which the circuit uses to cap a keeper's seized value at the repaid
+  debt's value plus the configured bonus.
 - There is **no interest-rate/accrual model.** `repay`'s reserve-factor cut is a placeholder
   for real interest-based revenue, wired end-to-end (down to `ProtocolTreasury`'s
   contribution to the ZEN staking pool) so the money-flow shape is testable before accrual
@@ -67,11 +74,11 @@ contracts/
 | `ISolvencyVerifier.verifySolvency` | borrow, withdraw | "This position's collateral and debt, at current public prices, satisfy the LTV threshold" — without revealing either amount. |
 | `ILiquidationVerifier.verifyLiquidationEligibility` | liquidate | "This position is *below* the liquidation threshold, and here are the post-liquidation commitments" — the hardest of the three; see its NatSpec. |
 
-Every public-input layout documented in these interfaces is illustrative pending the actual
-circuit design — the contract enforces that whatever layout is used, LatensPool itself
-computed or fetched every value the proof is checked against (old/new commitments, deltas,
-asset IDs, live oracle prices), so a valid proof from one call can never be replayed against
-another.
+Each interface's public-input layout now matches its real circuit in `../circuits/` field
+for field. Regardless of layout, LatensPool itself computed or fetched every value the proof
+is checked against (old/new commitments, deltas, asset IDs, live oracle prices) and binds
+them before calling the verifier, so a valid proof from one call can never be replayed
+against another.
 
 ## Running it
 

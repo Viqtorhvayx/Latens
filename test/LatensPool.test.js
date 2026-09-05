@@ -203,7 +203,7 @@ describe("LatensPool", function () {
       4n,
       5n,
       "0x",
-      [1n, 2n, 4n, 5n, ethers.parseUnits("2", 8), ethers.parseUnits("1", 8), BigInt(asset.liquidationThresholdBps), seizedCollateralAmount, repayAmount]
+      [1n, 2n, 4n, 5n, ethers.parseUnits("2", 8), ethers.parseUnits("1", 8), BigInt(asset.liquidationThresholdBps), BigInt(asset.liquidationBonusBps), seizedCollateralAmount, repayAmount]
     );
 
     expect(await collateralToken.balanceOf(liquidator.address)).to.equal(seizedCollateralAmount);
