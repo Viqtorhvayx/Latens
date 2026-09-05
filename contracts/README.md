@@ -84,6 +84,9 @@ contracts/
   exactly that purpose. There is no on-chain guard preventing a misconfigured mainnet
   deployment from using it — that gate belongs in the deploy process and the Foundation's
   milestone-acceptance review, not in the contract itself.
+- No independent security audit has been done. `SECURITY_REVIEW.md` in this directory is a
+  self-review — real, but explicitly not a substitute for one; read it for exactly what that
+  means and what it does and doesn't cover.
 
 ## The three proofs
 

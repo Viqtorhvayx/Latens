@@ -401,7 +401,12 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     function _requireFreshPrice(uint256 updatedAt) private view {
-        if (block.timestamp - updatedAt > PRICE_STALENESS_WINDOW) revert Errors.StaleOraclePrice();
+        // `updatedAt > block.timestamp` would otherwise underflow this subtraction and revert
+        // with a generic Panic instead of this clear, expected error — MockPriceOracle always
+        // stamps block.timestamp so it can't trigger this today, but nothing stops a future
+        // real IPriceOracle implementation (a different chain's clock skew, a buggy or
+        // compromised adapter) from reporting one.
+        if (updatedAt > block.timestamp || block.timestamp - updatedAt > PRICE_STALENESS_WINDOW) revert Errors.StaleOraclePrice();
     }
 
     function _requireEq(uint256 a, uint256 b) private pure {

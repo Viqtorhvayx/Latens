@@ -233,4 +233,38 @@ describe("LatensPool", function () {
       pool.connect(alice).supplyCollateral(collateralAssetId, amount, 1n, "0x" /* not keccak256(publicInputs) */, commitmentUpdateInputs({ oldCommitment: 0n, newCommitment: 1n, delta: amount, isIncrease: true, assetId: collateralAssetId }))
     ).to.be.revertedWithCustomError(pool, "InvalidProof");
   });
+
+  it("rejects a price oracle reporting a timestamp in the future with a clear error, not a raw underflow panic", async function () {
+    const { alice, collateralToken, debtToken, oracle, pool, collateralAssetId, debtAssetId } = await deployFixture();
+
+    const collateralAmount = ethers.parseUnits("1000", 18);
+    await collateralToken.connect(alice).approve(await pool.getAddress(), collateralAmount);
+    await pool.connect(alice).supplyCollateral(
+      collateralAssetId,
+      collateralAmount,
+      1n,
+      "0x",
+      commitmentUpdateInputs({ oldCommitment: 0n, newCommitment: 1n, delta: collateralAmount, isIncrease: true, assetId: collateralAssetId })
+    );
+
+    // A real IPriceOracle implementation is out of LatensPool's control — nothing stops one
+    // (clock skew, a buggy or compromised adapter) from reporting updatedAt > block.timestamp.
+    // Without the `updatedAt > block.timestamp` guard in `_requireFreshPrice`, this would
+    // underflow `block.timestamp - updatedAt` and revert with a generic Panic(0x11) instead.
+    const future = (await ethers.provider.getBlock("latest")).timestamp + 3600;
+    await oracle.setPriceWithTimestamp(await collateralToken.getAddress(), ethers.parseUnits("2", 8), future);
+
+    const borrowAmount = ethers.parseUnits("100", 6);
+    await expect(
+      pool.connect(alice).borrow(
+        debtAssetId,
+        borrowAmount,
+        2n,
+        "0x",
+        commitmentUpdateInputs({ oldCommitment: 0n, newCommitment: 2n, delta: borrowAmount, isIncrease: true, assetId: debtAssetId }),
+        "0x",
+        solvencyInputs({ collateralCommitment: 1n, debtCommitment: 2n, collateralPriceE8: ethers.parseUnits("2", 8), debtPriceE8: ethers.parseUnits("1", 8), thresholdBps: 8_000 })
+      )
+    ).to.be.revertedWithCustomError(pool, "StaleOraclePrice");
+  });
 });
