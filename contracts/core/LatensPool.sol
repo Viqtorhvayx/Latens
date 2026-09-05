@@ -63,6 +63,9 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
     );
     event VerifiersUpdated(address commitmentVerifier, address solvencyVerifier, address liquidationVerifier);
     event PriceOracleUpdated(address priceOracle);
+    /// @notice A position owner's self-encrypted opening of one of their own commitments,
+    /// published as a standing viewing key note — see `publishViewingNote`.
+    event ViewingNotePublished(address indexed user, uint256 indexed assetId, bool isDebt, uint256 timestamp, bytes ciphertext);
 
     constructor(
         address initialOwner,
@@ -353,6 +356,28 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         IERC20(collateralAsset.token).safeTransfer(msg.sender, seizedCollateralAmount);
 
         emit Liquidated(user, msg.sender, position.collateralAssetId, position.debtAssetId, seizedCollateralAmount, repayAmount);
+    }
+
+    // ── Standing viewing key ─────────────────────────────────────────────────
+
+    /// @notice Publishes a self-encrypted opening of `msg.sender`'s own commitment for
+    /// `assetId`/`isDebt`, as an event log entry only — no state is read or written, so this
+    /// can never affect accounting, solvency, or any other invariant.
+    ///
+    /// This is the standing-viewing-key upgrade the frontend's disclosure export originally
+    /// deferred (see frontend/lib/disclosure.ts's FOLLOW-UP note): a one-time signed
+    /// disclosure export requires the position owner to act again after every change, while
+    /// an auditor holding the plaintext of `ciphertext` (decrypted with a viewing private key
+    /// the owner shared once, out of band) gets passive, ongoing access to every update from
+    /// here on, the same shape as a Zcash viewing key. `ciphertext` is opaque to this
+    /// contract — it does not verify the encryption is well-formed, correctly opens the
+    /// position's real commitment, or even decrypts to anything meaningful. That's
+    /// deliberate: this event is a courier, not a source of truth. An auditor's trust still
+    /// has to run through the same live on-chain commitment check the disclosure-file flow
+    /// already does (see lib/disclosure.ts's `recomputeCommitment` / the Verify page) — this
+    /// just removes the need for the owner to re-export after every change.
+    function publishViewingNote(uint256 assetId, bool isDebt, bytes calldata ciphertext) external {
+        emit ViewingNotePublished(msg.sender, assetId, isDebt, block.timestamp, ciphertext);
     }
 
     // ── Internal proof plumbing ──────────────────────────────────────────────

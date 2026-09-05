@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 
 // These tests exercise LatensPool's state machine (accounting, access control, proof
 // binding) against MockVerifier, which accepts any proof. They do NOT test any real
@@ -266,5 +267,18 @@ describe("LatensPool", function () {
         solvencyInputs({ collateralCommitment: 1n, debtCommitment: 2n, collateralPriceE8: ethers.parseUnits("2", 8), debtPriceE8: ethers.parseUnits("1", 8), thresholdBps: 8_000 })
       )
     ).to.be.revertedWithCustomError(pool, "StaleOraclePrice");
+  });
+
+  it("publishViewingNote emits an opaque ciphertext without touching any state", async function () {
+    const { alice, pool, collateralAssetId } = await deployFixture();
+
+    const ciphertext = "0x1234abcd";
+    await expect(pool.connect(alice).publishViewingNote(collateralAssetId, false, ciphertext))
+      .to.emit(pool, "ViewingNotePublished")
+      .withArgs(alice.address, collateralAssetId, false, anyValue, ciphertext);
+
+    // No position needs to exist, and none is created — this is a pure event log entry.
+    const position = await pool.positions(alice.address);
+    expect(position.active).to.equal(false);
   });
 });

@@ -11,6 +11,8 @@ import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { sanitizeAmountInput } from "@/lib/amountInput";
 import { usdValueE8 } from "@/lib/valuation";
+import { useViewingKey } from "@/lib/viewingKeyContext";
+import { encryptNote } from "@/lib/viewingKey";
 
 export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
 
@@ -36,6 +38,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   const chainId = useChainId();
   const { get, prepareSupply, prepareWithdraw, prepareBorrow, prepareRepay, commit } = usePositionStore();
   const { writeContractAsync, isPending } = useWriteContract();
+  const { enabled: viewingKeyEnabled, ensure: ensureViewingKey } = useViewingKey();
   const [step, setStep] = useState<"idle" | "approving" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
@@ -125,6 +128,24 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     mode === "withdraw" ? local.supplied : mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance) : mode === "supply" ? walletBalance : mode === "borrow" ? borrowMax : undefined;
   const exceedsAvailable = available !== undefined && amount > available;
 
+  // Fire-and-forget, opt-in only (see the Viewing Key page): the user's real action has
+  // already confirmed successfully by the time this runs, so a failure here — the wallet
+  // rejecting the one-time signature prompt, this second tx reverting, anything — must never
+  // surface as an error on the action the user actually came here to do.
+  function publishViewingNoteInBackground(assetId: number, isDebt: boolean, newAmount: bigint, newSalt: bigint) {
+    if (!viewingKeyEnabled) return;
+    (async () => {
+      const keyPair = await ensureViewingKey();
+      const ciphertext = encryptNote(keyPair, { amount: newAmount.toString(), salt: newSalt.toString() });
+      await writeContractAsync({
+        address: latensPool.address,
+        abi: latensPool.abi,
+        functionName: "publishViewingNote",
+        args: [BigInt(assetId), isDebt, ciphertext],
+      });
+    })().catch((err) => console.warn("Failed to publish viewing key note (non-fatal):", err));
+  }
+
   async function handleConfirm() {
     if (!address || amount === 0n) return;
     setErrorMessage("");
@@ -150,6 +171,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)]],
         });
         commit(address, token.assetId, patch);
+        publishViewingNoteInBackground(token.assetId, false, patch.supplied!, patch.suppliedSalt!);
         setTxHash(hash);
       } else if (mode === "repay") {
         const { oldCommitment, newCommitment, patch } = await prepareRepay(address, token.assetId, amount);
@@ -160,6 +182,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           args: [amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)]],
         });
         commit(address, token.assetId, patch);
+        publishViewingNoteInBackground(token.assetId, true, patch.borrowed!, patch.borrowedSalt!);
         setTxHash(hash);
       } else if (mode === "borrow") {
         if (collateralAssetId === undefined || !collateralAsset || !collateralPrice || !debtPrice) {
@@ -191,6 +214,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           ],
         });
         commit(address, token.assetId, patch);
+        publishViewingNoteInBackground(token.assetId, true, patch.borrowed!, patch.borrowedSalt!);
         setTxHash(hash);
       } else {
         // withdraw
@@ -219,6 +243,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           ],
         });
         commit(address, token.assetId, patch);
+        publishViewingNoteInBackground(token.assetId, false, patch.supplied!, patch.suppliedSalt!);
         setTxHash(hash);
       }
       setStep("done");

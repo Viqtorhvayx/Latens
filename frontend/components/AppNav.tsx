@@ -10,6 +10,7 @@ const links = [
   { href: "/app/portfolio", label: "Portfolio" },
   { href: "/app/liquidate", label: "Liquidate" },
   { href: "/app/verify", label: "Verify" },
+  { href: "/app/viewing-key", label: "Viewing key" },
 ];
 
 export function AppNav() {

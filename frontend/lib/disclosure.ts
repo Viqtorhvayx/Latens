@@ -1,10 +1,11 @@
-// Selective-disclosure export/verify — the "viewing key" feature, M1 scope.
-//
-// This is the "disclosure export" design, not the full Zcash-style standing viewing key:
-// the position owner explicitly signs and hands over a snapshot naming exactly what's
-// disclosed, rather than an auditor holding a key that can decrypt an on-chain ciphertext
-// stream on their own schedule. That's a real, smaller feature — see the follow-up note
-// below for what upgrading to a standing key would require.
+// Selective-disclosure export/verify — a one-time signed snapshot the position owner
+// explicitly hands over, naming exactly what's disclosed at the moment of export. This
+// stays useful even now that a standing alternative exists (lib/viewingKey.ts,
+// lib/viewingKeyContext.tsx, LatensPool.publishViewingNote): it needs no on-chain action, no
+// opt-in ahead of time, and no fixed viewing keypair the owner has to manage — you sign once,
+// right now, for exactly this recipient. The standing viewing key trades that one-shot
+// simplicity for passive, ongoing access without re-exporting after every future change; see
+// lib/viewingKey.ts's own header for that design.
 //
 // Reuses positionStore's `commitment`, which is the real Pedersen scheme from
 // circuits/latens_common (see lib/pedersen.ts) — so `makeEntry`/`recomputeCommitment` here
@@ -12,12 +13,6 @@
 // circuits/latens_common documents for why the three Noir circuits share one `commit` impl.
 // Being async now (a real hash call, not a synchronous placeholder) is why both functions
 // below return Promises.
-//
-// FOLLOW-UP (not built here): a real standing viewing key would have LatensPool emit an
-// ECIES-encrypted (amount, salt) note alongside each commitment update, with a viewing
-// keypair derived deterministically from a wallet signature. That gives an auditor
-// passive, ongoing access without the user re-exporting after every change — a contract
-// change, not just a frontend one, and out of scope for this pass.
 import { commitment } from "./positionStore";
 
 export type DisclosureKind = "collateral" | "debt";
