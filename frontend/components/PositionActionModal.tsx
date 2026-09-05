@@ -10,6 +10,7 @@ import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { sanitizeAmountInput } from "@/lib/amountInput";
+import { usdValueE8 } from "@/lib/valuation";
 
 export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
 
@@ -101,10 +102,31 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   })();
 
   const walletBalance = (balance as bigint | undefined) ?? 0n;
-  // Borrow has no hard cap here: a real max would need the position's LTV headroom, which
-  // this scaffold's health-factor math (portfolio/page.tsx) doesn't correctly normalize
-  // across different collateral/debt token decimals yet — a deeper fix, not this one.
-  const available = mode === "withdraw" ? local.supplied : mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance) : mode === "supply" ? walletBalance : undefined;
+
+  const collateralLocal = collateralAssetId !== undefined ? get(address, collateralAssetId) : undefined;
+  const collateralTokenForCap = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
+  // Max additional borrow = (collateral value * LTV) minus what's already owed, converted
+  // back into the debt token's own base units — all USD-normalized via usdValueE8 so it's
+  // correct regardless of collateral/debt token decimals (see lib/valuation.ts).
+  const borrowMax = (() => {
+    if (mode !== "borrow" || !collateralAsset || !collateralPrice || !debtPrice || !collateralLocal || !collateralTokenForCap) return undefined;
+    const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
+    const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
+    const debtPriceE8 = (debtPrice as readonly [bigint, bigint])[0];
+    if (debtPriceE8 === 0n) return undefined;
+    const collateralValueE8 = usdValueE8(collateralLocal.supplied, collateralTokenForCap.decimals, collateralPriceE8);
+    const maxDebtValueE8 = (collateralValueE8 * BigInt(ltvBps)) / 10_000n;
+    const currentDebtValueE8 = usdValueE8(local.borrowed, token.decimals, debtPriceE8);
+    const headroomValueE8 = maxDebtValueE8 > currentDebtValueE8 ? maxDebtValueE8 - currentDebtValueE8 : 0n;
+    return (headroomValueE8 * 10n ** BigInt(token.decimals)) / debtPriceE8;
+  })();
+
+  const available =
+    mode === "withdraw" ? local.supplied
+    : mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance)
+    : mode === "supply" ? walletBalance
+    : mode === "borrow" ? borrowMax
+    : undefined;
   const exceedsAvailable = available !== undefined && amount > available;
 
   async function handleConfirm() {
@@ -212,7 +234,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
 
   const canBorrow = mode !== "borrow" || (collateralAssetId !== undefined && Boolean(collateralAsset) && Boolean(collateralPrice) && Boolean(debtPrice));
 
-  const availableLabel = mode === "withdraw" ? "Supplied" : mode === "repay" ? "Owed" : "Balance";
+  const availableLabel = mode === "withdraw" ? "Supplied" : mode === "repay" ? "Owed" : mode === "borrow" ? "Max" : "Balance";
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-28">
@@ -273,7 +295,13 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             {mode === "borrow" && !canBorrow && <p className="mb-4 text-xs text-warning">Supply collateral in another asset first — this position has none yet.</p>}
             {exceedsAvailable && (
               <p className="mb-4 text-xs text-warning">
-                {mode === "withdraw" ? "You can't withdraw more than you've supplied." : mode === "repay" ? "You can't repay more than you owe (or hold in your wallet)." : "You don't have that much in your wallet."}
+                {mode === "withdraw"
+                  ? "You can't withdraw more than you've supplied."
+                  : mode === "repay"
+                    ? "You can't repay more than you owe (or hold in your wallet)."
+                    : mode === "borrow"
+                      ? "That would push this position past its LTV limit."
+                      : "You don't have that much in your wallet."}
               </p>
             )}
 
