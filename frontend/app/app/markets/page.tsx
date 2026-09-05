@@ -7,6 +7,7 @@ import { assetRegistry, latensPool, tokenList, type TokenSymbol } from "@/lib/co
 import { usePositionStore } from "@/lib/positionStore";
 import { MaskedValue } from "@/components/MaskedValue";
 import { SupplyBorrowModal } from "@/components/SupplyBorrowModal";
+import { UtilizationMeter } from "@/components/UtilizationMeter";
 
 type AssetStruct = {
   token: `0x${string}`;
@@ -100,14 +101,9 @@ export default function MarketsPage() {
               </div>
               <span className="font-medium">{t.symbol}</span>
             </div>
-            <span className="font-mono text-sm">{formatUnits(totalSupplied, t.decimals)}</span>
-            <span className="font-mono text-sm">{formatUnits(totalBorrowed, t.decimals)}</span>
-            <div className="flex flex-col gap-1.5">
-              <div className="h-[5px] rounded-full bg-white/8">
-                <div className="h-full rounded-full bg-gold" style={{ width: `${Math.min(utilization, 100)}%` }} />
-              </div>
-              <span className="font-mono text-[11.5px] text-ink-faint">{utilization.toFixed(0)}%</span>
-            </div>
+            <span className="font-mono text-sm tabular-nums">{formatUnits(totalSupplied, t.decimals)}</span>
+            <span className="font-mono text-sm tabular-nums">{formatUnits(totalBorrowed, t.decimals)}</span>
+            <UtilizationMeter value={utilization} />
             <div className="flex gap-2">
               <button
                 onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "supply" })}
