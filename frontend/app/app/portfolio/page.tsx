@@ -10,6 +10,7 @@ import { HealthGauge } from "@/components/HealthGauge";
 import { ExportDisclosureModal } from "@/components/ExportDisclosureModal";
 import { ImportBackupModal } from "@/components/ImportBackupModal";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
+import { ActivityLog } from "@/components/ActivityLog";
 import { makeEntry, type DisclosureEntry } from "@/lib/disclosure";
 import type { TokenSymbol } from "@/lib/contracts";
 
@@ -38,6 +39,7 @@ export default function PortfolioPage() {
   const [showExport, setShowExport] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [actionModal, setActionModal] = useState<{ symbol: TokenSymbol; mode: ActionMode } | null>(null);
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
 
   const { data: position } = useReadContract({
     address: latensPool.address,
@@ -200,6 +202,8 @@ export default function PortfolioPage() {
               )}
             </div>
           </div>
+
+          <ActivityLog address={address} refreshKey={activityRefreshKey} />
         </>
       )}
 
@@ -214,7 +218,14 @@ export default function PortfolioPage() {
       )}
 
       {actionModal && (
-        <PositionActionModal symbol={actionModal.symbol} mode={actionModal.mode} onClose={() => setActionModal(null)} />
+        <PositionActionModal
+          symbol={actionModal.symbol}
+          mode={actionModal.mode}
+          onClose={() => {
+            setActionModal(null);
+            setActivityRefreshKey((k) => k + 1);
+          }}
+        />
       )}
 
       {showImport && address && <ImportBackupModal address={address} onClose={() => setShowImport(false)} />}
