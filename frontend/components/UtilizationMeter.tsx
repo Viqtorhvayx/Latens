@@ -1,21 +1,22 @@
-// A quiet, instrument-style utilization readout — a single position marker on a
-// hairline track, not a filled progress bar. Progress bars read as "loading state";
-// this reads as a dial, which is the register we want for market-level data.
+// A segmented tick row (like a bond-rating scale or a VU meter), read
+// left-to-right. Each tick lights up as filled once utilization passes its
+// threshold — no continuous fill, no rounded pill. Reads as a discrete,
+// deliberate instrument rather than a smooth "percent loaded" bar.
+const SEGMENTS = 10;
+
 export function UtilizationMeter({ value }: { value: number }) {
   const pct = Math.min(Math.max(value, 0), 100);
-  const tone = pct >= 90 ? "text-danger" : pct >= 75 ? "text-warning" : "text-ink-muted";
+  const filled = Math.round((pct / 100) * SEGMENTS);
+  const tone = pct >= 90 ? "bg-danger" : pct >= 75 ? "bg-warning" : "bg-gold";
 
   return (
     <div className="flex items-center gap-3">
-      <span className={`w-9 font-mono text-[13px] tabular-nums ${tone}`}>{pct.toFixed(0)}%</span>
-      <div className="relative h-3 flex-1">
-        <div className="absolute top-1/2 h-px w-full -translate-y-1/2 bg-line-strong" />
-        <div className="absolute top-1/2 left-[75%] h-1.5 w-px -translate-x-1/2 -translate-y-1/2 bg-line-strong" />
-        <div
-          className="absolute top-1/2 h-2.5 w-px -translate-x-1/2 -translate-y-1/2 bg-gold"
-          style={{ left: `${pct}%` }}
-        />
+      <div className="flex gap-[3px]">
+        {Array.from({ length: SEGMENTS }).map((_, i) => (
+          <div key={i} className={`h-3 w-[3px] rounded-[1px] ${i < filled ? tone : "bg-line-strong"}`} />
+        ))}
       </div>
+      <span className="font-mono text-[13px] tabular-nums text-ink-muted">{pct.toFixed(0)}%</span>
     </div>
   );
 }
