@@ -256,7 +256,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
                 placeholder="0.00"
                 className="w-full bg-transparent font-mono text-[22px] text-ink outline-none placeholder:text-ink-faint"
               />
-              <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-canvas px-2.5 py-1.5">
+              <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-canvas px-3 py-1.5">
                 <TokenIcon symbol={displaySymbol} size={18} />
                 <span className="font-mono text-sm text-ink-muted">{displaySymbol}</span>
               </div>
