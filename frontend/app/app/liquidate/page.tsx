@@ -11,6 +11,11 @@ import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 
+// Explicit gas limits, not left to wallet estimation — see PositionActionModal.tsx's
+// identical constants for why.
+const APPROVE_GAS = 100_000n;
+const LIQUIDATE_GAS = 700_000n;
+
 // Why this page needs a pasted disclosure file, not just a target address: liquidation is
 // the one place a confidential position's privacy genuinely has to give way (see
 // ILiquidationVerifier's own NatSpec — "the hardest of the three [proofs]"). An independent
@@ -166,6 +171,7 @@ export default function LiquidatePage() {
         abi: erc20Abi,
         functionName: "approve",
         args: [latensPool.address, repayAmount],
+        gas: APPROVE_GAS,
       });
 
       const hash = await writeContractAsync({
@@ -192,6 +198,7 @@ export default function LiquidatePage() {
             repayAmount,
           ],
         ],
+        gas: LIQUIDATE_GAS,
       });
       setTxHash(hash);
     } catch (err) {

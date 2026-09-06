@@ -17,6 +17,15 @@ import { encryptNote } from "@/lib/viewingKey";
 
 export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
 
+// Explicit gas limits, not left to wallet estimation: some wallets' own gas estimation
+// falls back to a wild guess (seen in practice: 21,000,000 for a plain supplyCollateral
+// call) when estimating against calldata shaped like these proof/public-input arrays,
+// which public RPC providers then reject as absurdly over their own request cap. Every
+// LatensPool call here does a handful of SSTOREs plus one verifier call — nowhere near
+// these limits even with generous headroom.
+const APPROVE_GAS = 100_000n;
+const POOL_CALL_GAS = 600_000n;
+
 const ACTION_LABEL: Record<ActionMode, string> = {
   supply: "supply",
   withdraw: "withdrawal",
@@ -155,6 +164,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         abi: latensPool.abi,
         functionName: "publishViewingNote",
         args: [BigInt(assetId), isDebt, ciphertext],
+        gas: POOL_CALL_GAS,
       });
     })().catch((err) => console.warn("Failed to publish viewing key note (non-fatal):", err));
   }
@@ -170,6 +180,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           abi: erc20Abi,
           functionName: "approve",
           args: [latensPool.address, mode === "repay" ? amount + interestFee : amount],
+          gas: APPROVE_GAS,
         });
       }
 
@@ -182,6 +193,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           abi: latensPool.abi,
           functionName: "supplyCollateral",
           args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)]],
+          gas: POOL_CALL_GAS,
         });
         commit(address, token.assetId, patch);
         appendActivity(address, { kind: "collateral", isIncrease: true, assetId: token.assetId, amount, transactionHash: hash });
@@ -194,6 +206,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           abi: latensPool.abi,
           functionName: "repay",
           args: [amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)]],
+          gas: POOL_CALL_GAS,
         });
         commit(address, token.assetId, patch);
         appendActivity(address, { kind: "debt", isIncrease: false, assetId: token.assetId, amount, transactionHash: hash });
@@ -227,6 +240,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             "0x",
             [currentCollateralCommitment, BigInt(newCommitment), collateralPriceE8, debtPriceE8, BigInt(ltvBps)],
           ],
+          gas: POOL_CALL_GAS,
         });
         commit(address, token.assetId, patch);
         appendActivity(address, { kind: "debt", isIncrease: true, assetId: token.assetId, amount, transactionHash: hash });
@@ -257,6 +271,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             "0x",
             [BigInt(newCommitment), debtCommitment, collateralPriceE8, debtPriceE8, BigInt(ltvBps)],
           ],
+          gas: POOL_CALL_GAS,
         });
         commit(address, token.assetId, patch);
         appendActivity(address, { kind: "collateral", isIncrease: false, assetId: token.assetId, amount, transactionHash: hash });

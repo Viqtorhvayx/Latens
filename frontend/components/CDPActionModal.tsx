@@ -23,6 +23,11 @@ const ACTION_LABEL: Record<CDPActionMode, string> = {
 
 const STABLECOIN_PRICE_E8 = 100_000_000n; // LatensDollar is pegged to $1 by construction
 
+// Explicit gas limits, not left to wallet estimation — see PositionActionModal.tsx's
+// identical constants for why.
+const APPROVE_GAS = 100_000n;
+const CDP_CALL_GAS = 600_000n;
+
 // LatensCDP.positions() flattens DataTypes.CDPPosition the same way LatensPool.positions()
 // does — see PositionActionModal.tsx's identical note.
 // [collateralAssetId, collateralCommitment, debtCommitment, lastUpdated, active, hasDebt]
@@ -117,6 +122,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           abi: erc20Abi,
           functionName: "approve",
           args: [latensCDP.address, amount],
+          gas: APPROVE_GAS,
         });
       }
 
@@ -129,6 +135,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           abi: latensCDP.abi,
           functionName: "supplyCollateral",
           args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)]],
+          gas: CDP_CALL_GAS,
         });
         commit(address, token.assetId, patch);
         setTxHash(hash);
@@ -139,6 +146,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           abi: latensCDP.abi,
           functionName: "burn",
           args: [amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)]],
+          gas: CDP_CALL_GAS,
         });
         commit(address, token.assetId, patch);
         setTxHash(hash);
@@ -166,6 +174,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
             "0x",
             [currentCollateralCommitment, BigInt(newCommitment), collateralPriceE8, STABLECOIN_PRICE_E8, BigInt(ltvBps)],
           ],
+          gas: CDP_CALL_GAS,
         });
         commit(address, token.assetId, patch);
         setTxHash(hash);
@@ -193,6 +202,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
             "0x",
             [BigInt(newCommitment), debtCommitment, collateralPriceE8, STABLECOIN_PRICE_E8, BigInt(ltvBps)],
           ],
+          gas: CDP_CALL_GAS,
         });
         commit(address, token.assetId, patch);
         setTxHash(hash);

@@ -15,6 +15,10 @@ const FAUCET_AMOUNTS: Record<TokenSymbol, string> = {
   USDC: "5000",
 };
 
+// Explicit gas limit, not left to wallet estimation — see PositionActionModal.tsx's
+// identical constants for why. A plain ERC20 mint never needs anywhere near this.
+const MINT_GAS = 150_000n;
+
 export function FaucetButton({ address, symbol, decimals }: { address: `0x${string}`; symbol: string; decimals: number }) {
   const { address: account } = useAccount();
   const { writeContractAsync, isPending } = useWriteContract();
@@ -32,6 +36,7 @@ export function FaucetButton({ address, symbol, decimals }: { address: `0x${stri
         abi: erc20Abi,
         functionName: "mint",
         args: [account, parseUnits(amount, decimals)],
+        gas: MINT_GAS,
       });
       setStatus("done");
     } catch (err) {
