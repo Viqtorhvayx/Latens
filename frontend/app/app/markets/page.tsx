@@ -9,7 +9,7 @@ import { usdValueE8 } from "@/lib/valuation";
 import { MaskedValue } from "@/components/MaskedValue";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
 import { UtilizationMeter } from "@/components/UtilizationMeter";
-import { FaucetButton } from "@/components/FaucetButton";
+import { MarketRowActions } from "@/components/MarketRowActions";
 import { Skeleton } from "@/components/Skeleton";
 
 type AssetStruct = {
@@ -189,38 +189,16 @@ export default function MarketsPage() {
                 <div className="flex items-center justify-center border-b border-line py-4.5">
                   {assetsLoading ? <Skeleton width={40} /> : <span className="font-mono text-sm tabular-nums text-ink-muted">{asset ? `${asset.ltvBps / 100}%` : "—"}</span>}
                 </div>
-                <div className="flex items-center gap-2 border-b border-line py-4.5">
-                  <button
-                    onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "supply" })}
-                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
-                  >
-                    Supply
-                  </button>
-                  {t.assetId === collateralAssetId && collateralAmount > 0n && (
-                    <button
-                      onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "withdraw" })}
-                      className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
-                    >
-                      Withdraw
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "borrow" })}
-                    disabled={!hasActivePosition}
-                    title={hasActivePosition ? undefined : "Supply collateral in any market first"}
-                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Borrow
-                  </button>
-                  {t.assetId === debtAssetId && debtAmount > 0n && (
-                    <button
-                      onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "repay" })}
-                      className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
-                    >
-                      Repay
-                    </button>
-                  )}
-                  <FaucetButton address={t.address} symbol={t.symbol} decimals={t.decimals} />
+                <div className="flex items-center border-b border-line py-4.5">
+                  <MarketRowActions
+                    tokenAddress={t.address}
+                    symbol={t.symbol}
+                    decimals={t.decimals}
+                    hasActivePosition={hasActivePosition}
+                    canWithdraw={t.assetId === collateralAssetId && collateralAmount > 0n}
+                    canRepay={t.assetId === debtAssetId && debtAmount > 0n}
+                    onAction={(mode) => setModal({ symbol: t.symbol as TokenSymbol, mode })}
+                  />
                 </div>
               </div>
             );

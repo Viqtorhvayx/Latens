@@ -15,7 +15,17 @@ const FAUCET_AMOUNTS: Record<TokenSymbol, string> = {
 
 const MINT_GAS = 150_000n;
 
-export function FaucetButton({ address, symbol, decimals }: { address: `0x${string}`; symbol: string; decimals: number }) {
+export function FaucetButton({
+  address,
+  symbol,
+  decimals,
+  variant = "button",
+}: {
+  address: `0x${string}`;
+  symbol: string;
+  decimals: number;
+  variant?: "button" | "menuItem";
+}) {
   const { address: account } = useAccount();
   const { writeContractAsync, isPending } = useWriteContract();
   const [status, setStatus] = useState<"idle" | "done" | "error">("idle");
@@ -41,14 +51,20 @@ export function FaucetButton({ address, symbol, decimals }: { address: `0x${stri
     }
   }
 
+  const label = isPending ? "Minting…" : status === "done" ? "Minted" : status === "error" ? "Failed" : "Get test tokens";
+
   return (
     <button
       onClick={handleClick}
       disabled={isPending}
       title={`Mint test ${symbol} to your wallet`}
-      className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover disabled:opacity-50"
+      className={
+        variant === "menuItem"
+          ? "w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink disabled:opacity-50"
+          : "rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover disabled:opacity-50"
+      }
     >
-      {isPending ? "Minting…" : status === "done" ? "Minted" : status === "error" ? "Failed" : "Get test tokens"}
+      {label}
     </button>
   );
 }
