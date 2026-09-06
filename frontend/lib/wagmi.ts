@@ -22,8 +22,8 @@ export const wagmiConfig = createConfig({
   chains: [sepolia, baseSepolia],
   connectors: [injected(), ...(walletConnectProjectId ? [walletConnect({ projectId: walletConnectProjectId })] : [])],
   transports: {
-    [sepolia.id]: http(),
-    [baseSepolia.id]: http(),
+    [sepolia.id]: http(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com"),
+    [baseSepolia.id]: http(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org"),
   },
   ssr: true,
 });

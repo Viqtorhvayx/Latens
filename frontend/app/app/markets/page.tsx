@@ -69,6 +69,15 @@ export default function MarketsPage() {
     })),
   });
 
+  const { data: supplyRates } = useReadContracts({
+    contracts: tokenList.map((t) => ({
+      address: assetRegistry.address,
+      abi: assetRegistry.abi,
+      functionName: "supplyRateBps",
+      args: [BigInt(t.assetId)],
+    })),
+  });
+
   const { data: position, isLoading: positionLoading } = useReadContract({
     address: latensPool.address,
     abi: latensPool.abi,
@@ -140,12 +149,14 @@ export default function MarketsPage() {
       </div>
 
       <div className="overflow-x-auto">
-        <div className="grid min-w-[760px] grid-cols-[1.2fr_1fr_1fr_0.9fr_0.8fr_auto] items-stretch gap-4">
+        <div className="grid min-w-[960px] grid-cols-[1.1fr_0.9fr_0.9fr_0.8fr_0.7fr_0.7fr_0.6fr_auto] items-stretch gap-4">
           <span className="border-b border-line-strong pb-4 text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Market</span>
           <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total supplied</span>
           <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total borrowed</span>
           <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Utilization</span>
+          <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Supply APY</span>
           <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Borrow APR</span>
+          <span className="border-b border-line-strong pb-4 text-center text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">LTV</span>
           <span className="border-b border-line-strong pb-4"></span>
 
           {tokenList.map((t, i) => {
@@ -153,6 +164,7 @@ export default function MarketsPage() {
             const totalSupplied = asset ? asset.totalSupplied : 0n;
             const totalBorrowed = asset ? asset.totalBorrowed : 0n;
             const utilization = totalSupplied > 0n ? Number((totalBorrowed * 10000n) / totalSupplied) / 100 : 0;
+            const supplyApy = Number((supplyRates?.[i]?.result as bigint | undefined) ?? 0n);
             const borrowApr = Number((borrowRates?.[i]?.result as bigint | undefined) ?? 0n);
 
             return (
@@ -169,7 +181,13 @@ export default function MarketsPage() {
                 </div>
                 <div className="flex items-center justify-center border-b border-line py-4.5">{assetsLoading ? <Skeleton width={110} /> : <UtilizationMeter value={utilization} />}</div>
                 <div className="flex items-center justify-center border-b border-line py-4.5">
+                  {assetsLoading ? <Skeleton width={50} /> : <span className="font-mono text-sm tabular-nums text-success">{formatApr(supplyApy)}</span>}
+                </div>
+                <div className="flex items-center justify-center border-b border-line py-4.5">
                   {assetsLoading ? <Skeleton width={50} /> : <span className="font-mono text-sm tabular-nums text-gold">{formatApr(borrowApr)}</span>}
+                </div>
+                <div className="flex items-center justify-center border-b border-line py-4.5">
+                  {assetsLoading ? <Skeleton width={40} /> : <span className="font-mono text-sm tabular-nums text-ink-muted">{asset ? `${asset.ltvBps / 100}%` : "—"}</span>}
                 </div>
                 <div className="flex items-center gap-2 border-b border-line py-4.5">
                   <button
@@ -211,8 +229,8 @@ export default function MarketsPage() {
       </div>
 
       <p className="mt-4 text-[11.5px] text-ink-faint">
-        TVL and Borrow APR are real, live figures computed from each market&apos;s utilization — not placeholders. Individual position sizes are never disclosed. Borrowers pay this rate as an interest fee charged at
-        repay time; most of it stays in the pool and compounds into supplied collateral automatically — withdraw later and you get back more than you put in, with no separate claim step.
+        TVL, Supply APY, and Borrow APR are real, live figures computed from each market&apos;s utilization — not placeholders. Individual position sizes are never disclosed. Borrowers pay Borrow APR as an interest fee
+        charged at repay time; most of it stays in the pool and compounds into supplied collateral automatically at Supply APY, so withdrawing later returns more than was deposited, with no separate claim step.
       </p>
 
       {modal && <PositionActionModal symbol={modal.symbol} mode={modal.mode} onClose={() => setModal(null)} />}
