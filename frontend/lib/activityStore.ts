@@ -1,20 +1,9 @@
 // A local, client-side-only record of the connected wallet's own supply/withdraw/borrow/
 // repay history — timestamps, amounts, and tx hashes, keyed by address in localStorage.
-//
-// This used to be reconstructed by scanning LatensPool's CollateralUpdated/DebtUpdated
-// events for `args.amount`. That was a real privacy leak: those events are public and
-// indexed by `user`, so anyone — not just the position's owner — could sum a single
-// address's own event history and recover its exact running total, without ever touching
-// the Pedersen commitment in storage. The contract no longer emits `amount` on those events
-// (see LatensPool.sol's THREAT MODEL note), so the amount side of "recent activity" now has
-// to come from somewhere that was never public in the first place: the same client-side
-// record positionStore already keeps of the plaintext amount/salt behind each commitment.
-//
-// Consequence worth being explicit about: this history is LOCAL to the browser that made
-// each transaction, same as positionStore's amounts and salts. It doesn't survive a cleared
-// profile or follow the user to a new device, and nothing here is meant to change that —
-// ExportDisclosureModal/ImportBackupModal already exist for deliberately moving that kind
-// of private state around; this file doesn't attempt to duplicate them.
+// Amounts never touch a public event (see LatensPool.sol's THREAT MODEL note), so this is
+// the only place "recent activity" can read them from. Like positionStore's amounts and
+// salts, this history is local to the browser that made each transaction — it doesn't
+// follow the user to a new device; ExportDisclosureModal/ImportBackupModal cover that.
 import type { Address } from "viem";
 
 export type ActivityEntry = {

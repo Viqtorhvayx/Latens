@@ -30,13 +30,8 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 }
 
 export function ActivityLog({ address, refreshKey }: { address: `0x${string}`; refreshKey?: number }) {
-  // Local and synchronous now — this used to scan on-chain logs (see lib/activityStore.ts
-  // for why the amount side of that had to move client-side). A plain memo, not an effect:
-  // getActivity() is a pure read with nothing to subscribe to, so there's no external system
-  // to synchronize with. refreshKey isn't read inside the callback — it's a signal that
-  // PositionActionModal just appended a new entry to this address's localStorage history,
-  // which getActivity() has no way to subscribe to on its own; bumping it is what tells this
-  // memo to re-read, not a real input to the computation.
+  // refreshKey isn't read inside the callback — bumping it just forces a re-read after
+  // PositionActionModal appends a new entry, since getActivity() has nothing to subscribe to.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const entries = useMemo(() => getActivity(address), [address, refreshKey]);
 

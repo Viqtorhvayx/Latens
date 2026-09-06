@@ -27,13 +27,10 @@ import {Errors} from "../libraries/Errors.sol";
 ///    other transaction — Latens does not hide transaction-level amounts or timing.
 ///  - What stays private is RESTING POSITION STATE: nobody but the position's owner (who
 ///    holds the commitment's opening) can read how much collateral or debt an address has,
-///    before liquidation. This is why `CollateralUpdated`/`DebtUpdated` do NOT carry the
-///    delta `amount` (they used to — an earlier version emitted it, which let anyone sum a
-///    single address's own event history and recover its exact running total, silently
-///    defeating the commitment scheme for that address even though no storage slot ever
-///    held the plaintext value). An owner who wants their own delta history back gets it
-///    from the same local, opt-in viewing-note channel `publishViewingNote` already
-///    provides, or from their own client-side records — never from a public event.
+///    before liquidation. `CollateralUpdated`/`DebtUpdated` deliberately carry no delta
+///    `amount` — summing one address's own event history must not recover its running
+///    total. An owner gets their own delta history from `publishViewingNote` or their own
+///    client-side records, never from a public event.
 ///  - At liquidation, `seizedCollateralAmount` and `repayAmount` become public — see
 ///    `ILiquidationVerifier`'s dev note. Keeping even that private is open design space for
 ///    a later milestone, not something this scaffold claims to have solved.
@@ -57,11 +54,7 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
 
     mapping(address user => DataTypes.Position) public positions;
 
-    /// @dev No `amount` field, deliberately — see the THREAT MODEL note above. This event
-    /// tells the world a position changed, in which direction, for which asset; it does not
-    /// say by how much. `newCommitment` is enough for the owner (who holds the opening) or
-    /// an audit disclosure to prove what changed; a public observer gets nothing more than
-    /// they'd get from the commitment already sitting in `positions`.
+    /// @dev No `amount` field — see the THREAT MODEL note above.
     event CollateralUpdated(address indexed user, uint256 indexed assetId, uint256 newCommitment, bool isIncrease);
     event DebtUpdated(address indexed user, uint256 indexed assetId, uint256 newCommitment, bool isIncrease);
     event Liquidated(

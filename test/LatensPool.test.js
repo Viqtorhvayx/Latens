@@ -95,12 +95,9 @@ describe("LatensPool", function () {
   });
 
   it("CollateralUpdated/DebtUpdated never carry the delta amount, only the new commitment and direction", async function () {
-    // Regression test for a real privacy leak: these events used to include a plaintext
-    // `amount` field, which — because they're indexed by `user` — let anyone sum a single
-    // address's own event history and recover its exact running total, without ever
-    // touching the Pedersen commitment in storage. `.withArgs` fails if the event carries
-    // any argument beyond the four listed here, so this fails loudly if `amount` ever
-    // creeps back in rather than silently passing alongside it.
+    // `.withArgs` fails if the event carries any argument beyond the four listed here — an
+    // `amount` indexed by `user` would let anyone sum one address's own history and recover
+    // its running total without ever touching the commitment in storage.
     const { alice, collateralToken, debtToken, pool, collateralAssetId, debtAssetId } = await deployFixture();
 
     const supplyAmount = ethers.parseUnits("100", 18);

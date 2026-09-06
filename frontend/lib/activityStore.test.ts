@@ -1,12 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { appendActivity, getActivity, activityLabel } from "./activityStore";
 
-// The suite runs under vitest's plain "node" environment (see vitest.config.ts) — no
-// `window`/`localStorage` global, and pulling in jsdom for one file's sake isn't worth the
-// new dependency. activityStore.ts only reads `window.localStorage` inside its function
-// bodies (same pattern as positionStore.ts), so a minimal in-memory stub of just the Web
-// Storage surface it actually calls (`getItem`/`setItem`), assigned before any test runs,
-// is enough to exercise the real module unmodified.
+// vitest runs in plain "node" here (vitest.config.ts) — no `window` global. A minimal
+// in-memory stub of the Web Storage calls activityStore.ts actually makes is enough;
+// not worth a jsdom dependency for one file.
 const memory = new Map<string, string>();
 (globalThis as { window?: unknown }).window = {
   localStorage: {
