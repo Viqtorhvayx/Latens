@@ -92,7 +92,11 @@ async function main() {
   await (await registry.setInterestRateModel(usdcAssetId, 50, 800, 10_000, 9_000, nextNonce())).wait();
   console.log("Markets listed with interest rate models.");
 
-  // Seed pool liquidity so early borrow() calls have something to draw down.
+  // Seed pool liquidity so early borrow() calls have something to draw down. Every listed
+  // asset needs this, not just the stablecoins/WBTC — a market with isSupported=true but
+  // zero pool balance still shows a Borrow button that always reverts.
+  await (await zen.mint(deployer.address, ethers.parseUnits("10000", 18), nextNonce())).wait();
+  await (await zen.transfer(await pool.getAddress(), ethers.parseUnits("5000", 18), nextNonce())).wait();
   await (await zusd.mint(deployer.address, ethers.parseUnits("100000", 18), nextNonce())).wait();
   await (await zusd.transfer(await pool.getAddress(), ethers.parseUnits("50000", 18), nextNonce())).wait();
   await (await wbtc.mint(deployer.address, ethers.parseUnits("10", 8), nextNonce())).wait();

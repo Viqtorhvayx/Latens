@@ -84,6 +84,10 @@ async function main() {
   await (await registry.setInterestRateModel(usdcAssetId, 50, 800, 10_000, 9_000)).wait();
 
   // Seed pool liquidity and test-account balances so the frontend has something to show.
+  // Every listed asset needs pool liquidity, not just the stablecoins/WBTC — a market with
+  // isSupported=true but zero pool balance still shows a Borrow button that always reverts.
+  await (await zen.mint(deployer.address, ethers.parseUnits("100000", 18))).wait();
+  await (await zen.transfer(await pool.getAddress(), ethers.parseUnits("50000", 18))).wait();
   await (await zusd.mint(deployer.address, ethers.parseUnits("1000000", 18))).wait();
   await (await zusd.transfer(await pool.getAddress(), ethers.parseUnits("500000", 18))).wait();
   await (await wbtc.mint(deployer.address, ethers.parseUnits("100", 8))).wait();
