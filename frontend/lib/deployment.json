@@ -1,8 +1,8 @@
 {
-  "chainId": 31337,
+  "chainId": 11155111,
   "contracts": {
     "LatensPool": {
-      "address": "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
+      "address": "0xB4b8C5bdFDA4524b7A34948795Db8979b5411856",
       "abi": [
         {
           "inputs": [
@@ -834,7 +834,7 @@
       ]
     },
     "AssetRegistry": {
-      "address": "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
+      "address": "0x370F1c505a6Ba4DC1CD17D4be00353316B05bB5a",
       "abi": [
         {
           "inputs": [
@@ -1586,7 +1586,7 @@
       ]
     },
     "MockPriceOracle": {
-      "address": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+      "address": "0xb50b8e492cc5B359ad28Bb0Abc5a2613e3ccE97D",
       "abi": [
         {
           "inputs": [],
@@ -2025,7 +2025,7 @@
       ]
     },
     "LatensCDP": {
-      "address": "0x95401dc811bb5740090279Ba06cfA8fcF6113778",
+      "address": "0x4D6F50cA31BB40Bdfa3e10d60EdB3325B6e6Ca10",
       "abi": [
         {
           "inputs": [
@@ -2890,7 +2890,7 @@
       ]
     },
     "LatensDollar": {
-      "address": "0xf5059a5D33d5853360D16C683c16e67980206f36",
+      "address": "0x9919B83d89840fe44ef316195032F74E7a8F3957",
       "abi": [
         {
           "inputs": [
@@ -3406,25 +3406,25 @@
   },
   "tokens": {
     "ZEN": {
-      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "address": "0x2e73Cd5a98C2b0E00b9759c1E7217527B1ae0A42",
       "symbol": "ZEN",
       "decimals": 18,
       "assetId": 0
     },
     "ZUSD": {
-      "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+      "address": "0x8AfF3bEbe97b693473E0Ffdf4DAfe9F799ACA744",
       "symbol": "ZUSD",
       "decimals": 18,
       "assetId": 1
     },
     "WBTC": {
-      "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      "address": "0x481048b20eB74c3978f269c3A680505101B592d8",
       "symbol": "WBTC",
       "decimals": 8,
       "assetId": 2
     },
     "USDC": {
-      "address": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+      "address": "0x48b62bb12786aC5F41715FEb7D610CB3646051d8",
       "symbol": "USDC",
       "decimals": 6,
       "assetId": 3
