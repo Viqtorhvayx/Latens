@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useReadContract } from "wagmi";
 import { recoverMessageAddress, formatUnits, isAddress } from "viem";
 import { latensPool, tokenList } from "@/lib/contracts";
-import { hardhatLocal } from "@/lib/wagmi";
+import { activeChain } from "@/lib/wagmi";
 import { buildDisclosureMessage, recomputeCommitment, type Disclosure } from "@/lib/disclosure";
 
 // LatensPool.positions() is Solidity's auto-generated struct-mapping getter, which
@@ -65,7 +65,7 @@ export default function VerifyPage() {
 
   const networkWarning = useMemo(() => {
     if (!disclosure) return null;
-    if (disclosure.chainId !== hardhatLocal.id) return `Disclosure was issued for chain ${disclosure.chainId}, not the network this page is checking against.`;
+    if (disclosure.chainId !== activeChain.id) return `Disclosure was issued for chain ${disclosure.chainId}, not the network this page is checking against.`;
     if (disclosure.pool.toLowerCase() !== latensPool.address.toLowerCase()) return "Disclosure names a different LatensPool deployment than this page is checking against.";
     return null;
   }, [disclosure]);
