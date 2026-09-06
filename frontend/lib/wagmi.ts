@@ -3,14 +3,8 @@ import { injected, walletConnect } from "wagmi/connectors";
 import { baseSepolia, sepolia } from "viem/chains";
 import deployment from "./deployment.json";
 
-// Real, publicly reachable chains only — no local Hardhat node. A user's own wallet has no
-// way to reach http://127.0.0.1:8545 (that's this machine's dev loop, see
-// script/deployLocal.js), so it must never appear as a connectable/switchable option here;
-// eventually Horizen's own L3 RPC, once public — see contracts/README.md and
-// hardhat.config.js's horizenTestnet placeholder.
 const SUPPORTED_CHAINS = [sepolia, baseSepolia] as const;
 
-// Whichever chain frontend/lib/deployment.json was actually generated against.
 export const activeChain = SUPPORTED_CHAINS.find((c) => c.id === deployment.chainId) ?? sepolia;
 
 // A minimal, hand-built wallet connection stack (see components/ConnectWallet.tsx) instead

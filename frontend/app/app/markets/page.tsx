@@ -7,7 +7,7 @@ import { assetRegistry, latensPool, priceOracle, tokenList, type TokenSymbol } f
 import { usePositionStore } from "@/lib/positionStore";
 import { usdValueE8 } from "@/lib/valuation";
 import { MaskedValue } from "@/components/MaskedValue";
-import { PositionActionModal } from "@/components/PositionActionModal";
+import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
 import { UtilizationMeter } from "@/components/UtilizationMeter";
 import { FaucetButton } from "@/components/FaucetButton";
 import { Skeleton } from "@/components/Skeleton";
@@ -26,12 +26,7 @@ type AssetStruct = {
   slope2Bps: number;
   kinkBps: number;
 };
-type PriceTuple = readonly [bigint, bigint]; // [priceE8, updatedAt]
-// LatensPool.positions() is Solidity's auto-generated struct-mapping getter — unlike
-// AssetRegistry.getAsset() (a hand-written function returning one real `tuple`-typed
-// struct, decoded as a named object above), the auto getter flattens Position into 7
-// separate top-level outputs, which viem decodes as a positional array instead.
-// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, debtLastUpdated, active, hasDebt]
+type PriceTuple = readonly [bigint, bigint];
 type PositionTuple = readonly [bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
 
 function formatUsd(valueE8: bigint): string {
@@ -45,7 +40,7 @@ function formatApr(bps: number): string {
 export default function MarketsPage() {
   const { address } = useAccount();
   const { get } = usePositionStore();
-  const [modal, setModal] = useState<{ symbol: TokenSymbol; mode: "supply" | "borrow" } | null>(null);
+  const [modal, setModal] = useState<{ symbol: TokenSymbol; mode: ActionMode } | null>(null);
 
   const { data: assets, isLoading: assetsLoading } = useReadContracts({
     contracts: tokenList.map((t) => ({
@@ -89,6 +84,7 @@ export default function MarketsPage() {
   const collateralAmount = collateralToken ? get(address, collateralToken.assetId).supplied : 0n;
   const debtToken = debtAssetId !== undefined ? tokenList.find((t) => t.assetId === debtAssetId) : undefined;
   const debtAmount = debtToken ? get(address, debtToken.assetId).borrowed : 0n;
+  const hasActivePosition = Boolean(positionTuple?.[6]);
 
   const tvlE8 = tokenList.reduce((sum, t, i) => {
     const asset = assets?.[i]?.result as AssetStruct | undefined;
@@ -103,6 +99,12 @@ export default function MarketsPage() {
         <span className="font-display text-[28px]">Markets</span>
         <p className="mt-1.5 text-[13.5px] text-ink-muted">Confidential supply and borrow markets on Horizen.</p>
       </div>
+
+      {address && !positionLoading && !hasActivePosition && (
+        <p className="mb-6 rounded-xl border border-line bg-surface px-4 py-3 text-[13px] text-ink-muted">
+          Supply a market below before borrowing — borrowing draws against collateral you&apos;ve already supplied, so Borrow stays disabled until you have an active position.
+        </p>
+      )}
 
       <div className="mb-10 flex flex-col gap-5 sm:flex-row">
         <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
@@ -127,15 +129,6 @@ export default function MarketsPage() {
         )}
       </div>
 
-      {/* One shared grid for the header AND every row (via `contents` wrappers below) —
-          not five separate per-row grids. Each row's last column has different content
-          width (empty in the header, buttons in a data row), and `auto` track sizing
-          is computed per-grid: independent grids would each hand the fractional columns
-          a different amount of remaining space, so headers and data would never land in
-          the same place. One grid means the columns are sized once. */}
-      {/* Wrapped in its own horizontal scroll container so a narrow viewport scrolls the
-          table instead of blowing out the whole page — the columns need real minimum
-          widths to stay legible and don't have room to shrink further on mobile. */}
       <div className="overflow-x-auto">
         <div className="grid min-w-[760px] grid-cols-[1.2fr_1fr_1fr_0.9fr_0.8fr_auto] items-stretch gap-4">
           <span className="border-b border-line-strong pb-4 text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Market</span>
@@ -175,12 +168,30 @@ export default function MarketsPage() {
                   >
                     Supply
                   </button>
+                  {t.assetId === collateralAssetId && collateralAmount > 0n && (
+                    <button
+                      onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "withdraw" })}
+                      className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+                    >
+                      Withdraw
+                    </button>
+                  )}
                   <button
                     onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "borrow" })}
-                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+                    disabled={!hasActivePosition}
+                    title={hasActivePosition ? undefined : "Supply collateral in any market first"}
+                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Borrow
                   </button>
+                  {t.assetId === debtAssetId && debtAmount > 0n && (
+                    <button
+                      onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "repay" })}
+                      className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+                    >
+                      Repay
+                    </button>
+                  )}
                   <FaucetButton address={t.address} symbol={t.symbol} decimals={t.decimals} />
                 </div>
               </div>

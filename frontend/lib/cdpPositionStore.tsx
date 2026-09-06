@@ -1,9 +1,5 @@
 "use client";
 
-// The private half of a LatensCDP position — same trust boundary as positionStore.tsx
-// (never read back from chain, only ever confirmed against the live commitment), kept in
-// its own localStorage namespace so a CDP position and a LatensPool position for the same
-// collateral assetId never collide.
 import { createContext, useContext, useMemo, useState } from "react";
 import type { Address } from "viem";
 import { commitment, randomSalt } from "./positionStore";
@@ -16,7 +12,7 @@ export type CDPAssetPosition = {
 };
 
 type PositionsByAsset = Record<number, CDPAssetPosition>;
-type Store = Record<string, PositionsByAsset>; // keyed by lowercase address
+type Store = Record<string, PositionsByAsset>;
 
 const EMPTY: CDPAssetPosition = { collateral: 0n, collateralSalt: 0n, debt: 0n, debtSalt: 0n };
 const STORAGE_KEY = "latens.cdp.positions.v1";

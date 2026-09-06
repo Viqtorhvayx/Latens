@@ -195,11 +195,6 @@ describe("LatensPool", function () {
   it("repay charges a real, utilization-driven interest fee that flows to the treasury and on to ZEN staking", async function () {
     const { alice, deployer, collateralToken, debtToken, registry, pool, treasury, stakingPool, collateralAssetId, debtAssetId } = await deployFixture();
 
-    // 5% base, +10% up to 80% utilization (the kink), +100% beyond it — all annualized bps.
-    // This fixture's debt asset never records any `totalSupplied` (the pool's USDC
-    // liquidity is seeded by a raw transfer, not supplyCollateral), so utilization stays 0
-    // and the rate is just the 5% base — enough to prove the fee is real without coupling
-    // this test to the utilization curve too.
     await registry.setInterestRateModel(debtAssetId, 500, 1_000, 10_000, 8_000);
 
     const collateralAmount = ethers.parseUnits("1000", 18);
@@ -219,7 +214,7 @@ describe("LatensPool", function () {
 
     const repayAmount = ethers.parseUnits("500", 6);
     await debtToken.connect(alice).approve(await pool.getAddress(), ethers.MaxUint256);
-    await time.increase(30 * 24 * 60 * 60); // 30 days
+    await time.increase(30 * 24 * 60 * 60);
 
     const repayReceipt = await (
       await pool.connect(alice).repay(
@@ -231,13 +226,13 @@ describe("LatensPool", function () {
 
     const elapsed = BigInt(repayBlock.timestamp - borrowBlock.timestamp);
     const expectedFee = (repayAmount * 500n * elapsed) / (BPS * 365n * 24n * 60n * 60n);
-    expect(expectedFee).to.be.greaterThan(0n); // sanity: 30 days at 5% APR must actually charge something
+    expect(expectedFee).to.be.greaterThan(0n);
 
     expect(await debtToken.balanceOf(await treasury.getAddress())).to.equal(expectedFee);
     expect(await debtToken.balanceOf(await pool.getAddress())).to.equal(ethers.parseUnits("500000", 6) - borrowAmount + repayAmount);
 
     await treasury.connect(deployer).sweep(await debtToken.getAddress());
-    const expectedToStaking = (expectedFee * 1_750n) / BPS; // default 17.5% contribution rate
+    const expectedToStaking = (expectedFee * 1_750n) / BPS;
     expect(await stakingPool.totalContributed(await debtToken.getAddress())).to.equal(expectedToStaking);
   });
 

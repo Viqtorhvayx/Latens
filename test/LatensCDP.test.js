@@ -1,10 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-// Mirrors LatensPool.test.js's approach: MockVerifier accepts any proof, so these tests
-// exercise LatensCDP's own state machine (accounting, access control, proof binding) —
-// not a real zero-knowledge circuit.
-
 const BPS = 10_000n;
 
 async function deployFixture() {
@@ -15,10 +11,10 @@ async function deployFixture() {
 
   const MockPriceOracle = await ethers.getContractFactory("MockPriceOracle");
   const oracle = await MockPriceOracle.deploy();
-  await oracle.setPrice(await collateralToken.getAddress(), ethers.parseUnits("2", 8)); // $2 / ZEN
+  await oracle.setPrice(await collateralToken.getAddress(), ethers.parseUnits("2", 8));
 
   const MockVerifier = await ethers.getContractFactory("MockVerifier");
-  const verifier = await MockVerifier.deploy(false); // permissive mode
+  const verifier = await MockVerifier.deploy(false);
 
   const MockZenStakingPool = await ethers.getContractFactory("MockZenStakingPool");
   const stakingPool = await MockZenStakingPool.deploy();
@@ -45,7 +41,6 @@ async function deployFixture() {
   );
   await latensDollar.setCDP(await cdp.getAddress());
 
-  // collateral: 80% LTV, 85% liquidation threshold, 8% bonus, 10% reserve factor (unused by CDP)
   const collateralAssetId = 0n;
   await registry.listAsset(await collateralToken.getAddress(), 8_000, 8_500, 800, 1_000);
 
@@ -60,7 +55,7 @@ function commitmentUpdateInputs({ oldCommitment, newCommitment, delta, isIncreas
 }
 
 function solvencyInputs({ collateralCommitment, debtCommitment, collateralPriceE8, thresholdBps }) {
-  return [collateralCommitment, debtCommitment, collateralPriceE8, 100_000_000n, BigInt(thresholdBps)]; // stablecoin pegged at $1e8
+  return [collateralCommitment, debtCommitment, collateralPriceE8, 100_000_000n, BigInt(thresholdBps)];
 }
 
 describe("LatensCDP", function () {
@@ -84,16 +79,16 @@ describe("LatensCDP", function () {
 
   it("mints LatensDollar against collateral, net of the mint fee, and sends the fee to the treasury", async function () {
     const { deployer, alice, collateralToken, treasury, latensDollar, cdp, collateralAssetId } = await deployFixture();
-    await cdp.connect(deployer).setMintFee(200); // 2%
+    await cdp.connect(deployer).setMintFee(200);
 
-    const collateralAmount = ethers.parseUnits("1000", 18); // $2000 @ $2/ZEN
+    const collateralAmount = ethers.parseUnits("1000", 18);
     await collateralToken.connect(alice).approve(await cdp.getAddress(), collateralAmount);
     await cdp.connect(alice).supplyCollateral(
       collateralAssetId, collateralAmount, 1n, "0x",
       commitmentUpdateInputs({ oldCommitment: 0n, newCommitment: 1n, delta: collateralAmount, isIncrease: true, assetId: collateralAssetId })
     );
 
-    const mintAmount = ethers.parseUnits("1000", 18); // 80% LTV allows up to $1600; well within range
+    const mintAmount = ethers.parseUnits("1000", 18);
     await cdp.connect(alice).mint(
       mintAmount, 2n, "0x",
       commitmentUpdateInputs({ oldCommitment: 0n, newCommitment: 2n, delta: mintAmount, isIncrease: true, assetId: collateralAssetId }),
@@ -111,17 +106,14 @@ describe("LatensCDP", function () {
   it("rejects minting past the collateral's LTV", async function () {
     const { alice, collateralToken, cdp, collateralAssetId } = await deployFixture();
 
-    const collateralAmount = ethers.parseUnits("1000", 18); // $2000
+    const collateralAmount = ethers.parseUnits("1000", 18);
     await collateralToken.connect(alice).approve(await cdp.getAddress(), collateralAmount);
     await cdp.connect(alice).supplyCollateral(
       collateralAssetId, collateralAmount, 1n, "0x",
       commitmentUpdateInputs({ oldCommitment: 0n, newCommitment: 1n, delta: collateralAmount, isIncrease: true, assetId: collateralAssetId })
     );
 
-    // MockVerifier is permissive (accepts any proof), so this is rejected by LatensCDP's own
-    // public-input binding: the solvency check demands thresholdBps == the asset's ltvBps
-    // (8000), not the 9000 an attacker might try to sneak past a permissive verifier.
-    const mintAmount = ethers.parseUnits("1700", 18); // 85% of collateral value — over the 80% LTV
+    const mintAmount = ethers.parseUnits("1700", 18);
     await expect(
       cdp.connect(alice).mint(
         mintAmount, 2n, "0x",
@@ -180,7 +172,6 @@ describe("LatensCDP", function () {
       solvencyInputs({ collateralCommitment: 1n, debtCommitment: 2n, collateralPriceE8: ethers.parseUnits("2", 8), thresholdBps: 8_000 })
     );
 
-    // Liquidator needs LatensDollar of their own to repay with — mint them some the same way.
     await collateralToken.connect(liquidator).approve(await cdp.getAddress(), collateralAmount);
     await cdp.connect(liquidator).supplyCollateral(
       collateralAssetId, collateralAmount, 10n, "0x",
@@ -195,7 +186,7 @@ describe("LatensCDP", function () {
 
     const { liquidationBonusBps, liquidationThresholdBps } = await registry.getAsset(collateralAssetId);
     const repayAmount = ethers.parseUnits("500", 18);
-    const seizedCollateralAmount = (repayAmount * (BPS + liquidationBonusBps)) / (BPS * 2n); // repay value + bonus, in ZEN @ $2
+    const seizedCollateralAmount = (repayAmount * (BPS + liquidationBonusBps)) / (BPS * 2n);
 
     const eligibilityInputs = [
       1n, 2n, 3n, 4n,

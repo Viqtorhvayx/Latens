@@ -21,16 +21,11 @@ const ACTION_LABEL: Record<CDPActionMode, string> = {
   burn: "burn",
 };
 
-const STABLECOIN_PRICE_E8 = 100_000_000n; // LatensDollar is pegged to $1 by construction
+const STABLECOIN_PRICE_E8 = 100_000_000n;
 
-// Explicit gas limits, not left to wallet estimation — see PositionActionModal.tsx's
-// identical constants for why.
 const APPROVE_GAS = 100_000n;
 const CDP_CALL_GAS = 600_000n;
 
-// LatensCDP.positions() flattens DataTypes.CDPPosition the same way LatensPool.positions()
-// does — see PositionActionModal.tsx's identical note.
-// [collateralAssetId, collateralCommitment, debtCommitment, lastUpdated, active, hasDebt]
 type CDPPositionTuple = readonly [bigint, bigint, bigint, bigint, boolean, boolean];
 
 export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol; mode: CDPActionMode; onClose: () => void }) {
@@ -94,15 +89,13 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
 
   const walletBalanceValue = (walletBalance as bigint | undefined) ?? 0n;
 
-  // Max additional mint = collateral value * LTV minus what's already minted — USD-
-  // normalized via usdValueE8, LatensDollar priced at a fixed $1 (see LatensCDP.STABLECOIN_PRICE_E8).
   const mintMax = (() => {
     if (mode !== "mint" || !collateralAsset || !collateralPrice) return undefined;
     const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
     const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
     const collateralValueE8 = usdValueE8(local.collateral, token.decimals, collateralPriceE8);
     const maxDebtValueE8 = (collateralValueE8 * BigInt(ltvBps)) / 10_000n;
-    const currentDebtValueE8 = usdValueE8(local.debt, 18, STABLECOIN_PRICE_E8); // LatensDollar is 18 decimals
+    const currentDebtValueE8 = usdValueE8(local.debt, 18, STABLECOIN_PRICE_E8);
     const headroomValueE8 = maxDebtValueE8 > currentDebtValueE8 ? maxDebtValueE8 - currentDebtValueE8 : 0n;
     return (headroomValueE8 * 10n ** 18n) / STABLECOIN_PRICE_E8;
   })();
@@ -159,9 +152,6 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
         const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
         const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
 
-        // Dev-only note: same as PositionActionModal — MockVerifier accepts any proof, but
-        // LatensCDP's own binding checks are real, so these values must genuinely match
-        // on-chain state. There is no real zk solvency proof behind this "0x" yet.
         const hash = await writeContractAsync({
           address: latensCDP.address,
           abi: latensCDP.abi,
@@ -179,7 +169,6 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
         commit(address, token.assetId, patch);
         setTxHash(hash);
       } else {
-        // withdraw
         if (!positionTuple) throw new Error("No position found.");
         const hasDebt = positionTuple[5];
         if (hasDebt && (!collateralAsset || !collateralPrice)) {

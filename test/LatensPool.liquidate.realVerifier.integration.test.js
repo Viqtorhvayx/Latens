@@ -4,15 +4,6 @@ const fs = require("fs");
 const path = require("path");
 const { deployHonkVerifier } = require("./helpers/honkVerifier");
 
-// The liquidation counterpart to LatensPool.realVerifier.integration.test.js: a real
-// LatensPool.liquidate() call gated by a REAL, machine-generated LiquidationHonkVerifier —
-// not MockVerifier. commitmentVerifier and solvencyVerifier stay on MockVerifier to reach
-// the fixture's exact pre-liquidation position (see the header comment in
-// script/deployRealVerifiers.js for why a real solvency proof can't exist for a position
-// that's by definition insolvent) — only the liquidation step itself is real.
-//
-// Requires circuits/liquidation_eligibility/target/{proof,public_inputs} to exist (see
-// circuits/README.md to regenerate).
 describe("LatensPool + NoirLiquidationVerifier (real proof, no MockVerifier for liquidation)", function () {
   const targetDir = path.join(__dirname, "..", "circuits", "liquidation_eligibility", "target");
   const proofPath = path.join(targetDir, "proof");
@@ -34,7 +25,6 @@ describe("LatensPool + NoirLiquidationVerifier (real proof, no MockVerifier for 
 
     const [deployer, alice, bob] = await ethers.getSigners();
 
-    // Matches ILiquidationVerifier's layout field for field.
     const [
       collateralCommitment,
       debtCommitment,
@@ -58,7 +48,7 @@ describe("LatensPool + NoirLiquidationVerifier (real proof, no MockVerifier for 
     await oracle.setPrice(await debtToken.getAddress(), debtPriceE8);
 
     const MockVerifier = await ethers.getContractFactory("MockVerifier");
-    const mockVerifier = await MockVerifier.deploy(false); // commitment/solvency — not the focus here
+    const mockVerifier = await MockVerifier.deploy(false);
 
     const honkVerifier = await deployHonkVerifier("LiquidationHonkVerifier", "LiquidationHonkVerifier");
     const NoirLiquidationVerifier = await ethers.getContractFactory("NoirLiquidationVerifier");
@@ -79,21 +69,17 @@ describe("LatensPool + NoirLiquidationVerifier (real proof, no MockVerifier for 
       await registry.getAddress(),
       await treasury.getAddress(),
       await oracle.getAddress(),
-      await mockVerifier.getAddress(), // commitmentVerifier — not the focus of this test
-      await mockVerifier.getAddress(), // solvencyVerifier — see header comment
-      await realLiquidationVerifier.getAddress() // the real thing
+      await mockVerifier.getAddress(),
+      await mockVerifier.getAddress(),
+      await realLiquidationVerifier.getAddress()
     );
     await registry.setPool(await pool.getAddress());
 
-    // ltvBps below liquidationThresholdBps, matching every real market's shape.
     const collateralAssetId = 0n;
     await registry.listAsset(await collateralToken.getAddress(), Number(liquidationThresholdBps) - 500, Number(liquidationThresholdBps), Number(liquidationBonusBps), 1_000);
     const debtAssetId = 1n;
     await registry.listAsset(await debtToken.getAddress(), 8_000, 8_500, 800, 1_000);
 
-    // Reach the fixture's exact pre-liquidation position via MockVerifier's permissive
-    // commitment/solvency checks (see header comment for why a real solvency proof can't
-    // exist for an intentionally-insolvent intermediate state).
     const collateralAmount = 1_000n;
     await collateralToken.mint(alice.address, collateralAmount);
     await collateralToken.connect(alice).approve(await pool.getAddress(), collateralAmount);
@@ -112,7 +98,6 @@ describe("LatensPool + NoirLiquidationVerifier (real proof, no MockVerifier for 
         ltvBps,
       ]);
 
-    // --- The real call: liquidate(), gated by the REAL LiquidationHonkVerifier ---
     await debtToken.mint(bob.address, repayAmount);
     await debtToken.connect(bob).approve(await pool.getAddress(), repayAmount);
 

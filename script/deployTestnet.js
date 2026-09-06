@@ -2,27 +2,14 @@ const { ethers, network } = require("hardhat");
 const fs = require("fs");
 const path = require("path");
 
-// Deploys the full Latens scaffold to a REAL, PUBLICLY REACHABLE testnet (Ethereum Sepolia
-// or Base Sepolia — see hardhat.config.js) so the frontend actually works from any device,
-// not just this machine's local Hardhat node. Structurally the same as
-// script/deployLocal.js (mock ERC20s + mock oracle + MockVerifier for all three proof
-// types, since there's still no client-side proof generation — see
-// frontend/lib/positionStore.tsx), just pointed at a network other devices can reach and
-// without deployLocal.js's hardcoded Hardhat default-account seeding (there's no "alice"/
-// "bob" on a public testnet — MockERC20.mint is already permissionless, see
-// frontend/components/FaucetButton.tsx).
 async function main() {
   const [deployer] = await ethers.getSigners();
   const net = await ethers.provider.getNetwork();
   console.log(`Deploying Latens to ${network.name} (chainId ${net.chainId}) with:`, deployer.address);
 
-  // Manual nonce tracking: several public testnet RPCs (this script has hit it against
-  // Sepolia's publicnode.com endpoint) load-balance across backend nodes whose mempool
-  // views can lag each other by a block or two, so letting ethers re-derive "the next
-  // nonce" from a fresh eth_getTransactionCount before every send occasionally reads a
-  // stale value and produces a spurious "replacement transaction underpriced". Assigning
-  // nonces locally, starting from a single "pending"-inclusive read, sidesteps that
-  // entirely — every send here already knows its own nonce.
+  // Nonces assigned locally rather than re-derived per send — some public RPCs load-balance
+  // across backend nodes whose mempool views can lag, producing spurious
+  // "replacement transaction underpriced" errors otherwise.
   let nonce = await ethers.provider.getTransactionCount(deployer.address, "pending");
   const nextNonce = () => ({ nonce: nonce++ });
 
@@ -92,9 +79,6 @@ async function main() {
   await (await registry.setInterestRateModel(usdcAssetId, 50, 800, 10_000, 9_000, nextNonce())).wait();
   console.log("Markets listed with interest rate models.");
 
-  // Seed pool liquidity so early borrow() calls have something to draw down. Every listed
-  // asset needs this, not just the stablecoins/WBTC — a market with isSupported=true but
-  // zero pool balance still shows a Borrow button that always reverts.
   await (await zen.mint(deployer.address, ethers.parseUnits("10000", 18), nextNonce())).wait();
   await (await zen.transfer(await pool.getAddress(), ethers.parseUnits("5000", 18), nextNonce())).wait();
   await (await zusd.mint(deployer.address, ethers.parseUnits("100000", 18), nextNonce())).wait();
@@ -123,7 +107,7 @@ async function main() {
   );
   await cdp.waitForDeployment();
   await (await latensDollar.setCDP(await cdp.getAddress(), nextNonce())).wait();
-  await (await cdp.setMintFee(50, nextNonce())).wait(); // 0.5% origination fee
+  await (await cdp.setMintFee(50, nextNonce())).wait();
   console.log("LatensCDP deployed and wired.");
 
   const artifactsDir = path.join(__dirname, "..", "artifacts", "contracts");

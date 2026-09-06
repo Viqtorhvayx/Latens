@@ -11,11 +11,6 @@ async function main() {
   const [deployer, alice, bob] = await ethers.getSigners();
   console.log("Deploying Latens (local dev) with:", deployer.address);
 
-  // Four assets actually grounded on Horizen: ZEN is the network's native gas/staking
-  // token; ZUSD is Horizen Labs' own natively-issued stablecoin. WBTC and USDC are the two
-  // bridged majors Horizen's own Archon Bridge documentation names for the (now-migrating)
-  // EON network — see contracts/README.md for the sourcing and the open question of which
-  // bridged assets the new Base-settling L3 will carry.
   const MockERC20 = await ethers.getContractFactory("MockERC20");
   const zen = await MockERC20.deploy("Wrapped ZEN", "ZEN", 18);
   const zusd = await MockERC20.deploy("Horizen USD", "ZUSD", 18);
@@ -74,18 +69,12 @@ async function main() {
   const usdcAssetId = 3n;
   await (await registry.listAsset(await usdc.getAddress(), 8_000, 8_500, 800, 1_000)).wait();
 
-  // Interest rate model per market: base/slope1 up to the kink, steeper slope2 beyond it.
-  // Stablecoins get a low, gently-sloped curve; ZEN and WBTC get a higher base and steeper
-  // post-kink slope to reflect their volatility. All bps are annualized — see
-  // AssetRegistry.borrowRateBps for the formula.
   await (await registry.setInterestRateModel(zenAssetId, 200, 1_000, 30_000, 8_000)).wait();
   await (await registry.setInterestRateModel(zusdAssetId, 50, 800, 10_000, 9_000)).wait();
   await (await registry.setInterestRateModel(wbtcAssetId, 100, 1_200, 40_000, 7_000)).wait();
   await (await registry.setInterestRateModel(usdcAssetId, 50, 800, 10_000, 9_000)).wait();
 
   // Seed pool liquidity and test-account balances so the frontend has something to show.
-  // Every listed asset needs pool liquidity, not just the stablecoins/WBTC — a market with
-  // isSupported=true but zero pool balance still shows a Borrow button that always reverts.
   await (await zen.mint(deployer.address, ethers.parseUnits("100000", 18))).wait();
   await (await zen.transfer(await pool.getAddress(), ethers.parseUnits("50000", 18))).wait();
   await (await zusd.mint(deployer.address, ethers.parseUnits("1000000", 18))).wait();
@@ -104,8 +93,6 @@ async function main() {
   await (await wbtc.mint(bob.address, ethers.parseUnits("5", 8))).wait();
   await (await usdc.mint(bob.address, ethers.parseUnits("50000", 6))).wait();
 
-  // Confidential stablecoin minting (item #5 alongside lend/borrow): LatensDollar is minted
-  // only by LatensCDP, against the same registry-listed collateral assets above.
   const LatensDollar = await ethers.getContractFactory("LatensDollar");
   const latensDollar = await LatensDollar.deploy(deployer.address);
   await latensDollar.waitForDeployment();
@@ -123,7 +110,7 @@ async function main() {
   );
   await cdp.waitForDeployment();
   await (await latensDollar.setCDP(await cdp.getAddress())).wait();
-  await (await cdp.setMintFee(50)).wait(); // 0.5% origination fee
+  await (await cdp.setMintFee(50)).wait();
 
   const artifactsDir = path.join(__dirname, "..", "artifacts", "contracts");
   function abiOf(rel) {

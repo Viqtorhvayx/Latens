@@ -19,15 +19,7 @@ import {Errors} from "../libraries/Errors.sol";
 
 /// @title LatensCDP
 /// @notice Confidential stablecoin minting: lock Pedersen-committed collateral, mint
-/// `LatensDollar` against it. Same commitment/solvency-proof discipline as `LatensPool` —
-/// see that contract's THREAT MODEL note, which applies here unchanged. The one thing this
-/// contract does NOT reuse from `LatensPool` is its pooled liquidity: minting doesn't draw
-/// down anyone else's deposit, so there is no `totalSupplied` to share and no utilization to
-/// speak of — `mintFeeBps` is the entire revenue mechanism, taken once at mint time.
-/// @dev Reuses `AssetRegistry`'s listed collateral assets and their ltv/liquidation
-/// parameters (read-only) rather than standing up a parallel registry, but keeps its own
-/// `totalCollateralLocked` aggregates — `AssetRegistry.recordSupply`/`recordBorrow` are
-/// gated to the one `pool` address `LatensPool` already occupies.
+/// `LatensDollar` against it. Same commitment/solvency-proof discipline as `LatensPool`.
 contract LatensCDP is Ownable2Step, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -49,8 +41,6 @@ contract LatensCDP is Ownable2Step, Pausable, ReentrancyGuard {
 
     mapping(address user => DataTypes.CDPPosition) public positions;
 
-    /// @dev No `amount` field on either event — same reasoning as LatensPool's
-    /// CollateralUpdated/DebtUpdated.
     event CDPCollateralUpdated(address indexed user, uint256 indexed assetId, uint256 newCommitment, bool isIncrease);
     event CDPDebtUpdated(address indexed user, uint256 newCommitment, bool isIncrease);
     event CDPLiquidated(
@@ -125,7 +115,7 @@ contract LatensCDP is Ownable2Step, Pausable, ReentrancyGuard {
             position.active = true;
             position.collateralAssetId = assetId;
         } else if (position.collateralAssetId != assetId) {
-            revert Errors.AssetNotSupported(); // one collateral asset per CDP position, like LatensPool
+            revert Errors.AssetNotSupported();
         }
 
         _verifyCommitmentUpdate({
@@ -193,10 +183,6 @@ contract LatensCDP is Ownable2Step, Pausable, ReentrancyGuard {
 
     // ── Stablecoin ───────────────────────────────────────────────────────────
 
-    /// @notice Mints `amount` of LatensDollar against this position's collateral, minus a
-    /// one-time `mintFeeBps` origination fee taken in the same minted tokens (sent to
-    /// `treasury`, not skimmed from the user's committed debt — the position owes the FULL
-    /// `amount`, matching the commitment proof exactly).
     function mint(
         uint256 amount,
         uint256 newCommitment,
@@ -242,9 +228,6 @@ contract LatensCDP is Ownable2Step, Pausable, ReentrancyGuard {
         emit CDPDebtUpdated(msg.sender, newCommitment, true);
     }
 
-    /// @notice Burns `amount` of the caller's own LatensDollar to reduce this position's
-    /// debt. Always self-burn — `LatensDollar.burn` trusts this contract completely, so
-    /// every call site here must pass `msg.sender`, never an arbitrary `from`.
     function burn(uint256 amount, uint256 newCommitment, bytes calldata updateProof, uint256[] calldata updatePublicInputs)
         external
         whenNotPaused

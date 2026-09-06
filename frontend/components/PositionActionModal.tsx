@@ -17,12 +17,6 @@ import { encryptNote } from "@/lib/viewingKey";
 
 export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
 
-// Explicit gas limits, not left to wallet estimation: some wallets' own gas estimation
-// falls back to a wild guess (seen in practice: 21,000,000 for a plain supplyCollateral
-// call) when estimating against calldata shaped like these proof/public-input arrays,
-// which public RPC providers then reject as absurdly over their own request cap. Every
-// LatensPool call here does a handful of SSTOREs plus one verifier call — nowhere near
-// these limits even with generous headroom.
 const APPROVE_GAS = 100_000n;
 const POOL_CALL_GAS = 600_000n;
 
@@ -33,12 +27,6 @@ const ACTION_LABEL: Record<ActionMode, string> = {
   repay: "repayment",
 };
 
-// LatensPool.positions() is Solidity's auto-generated struct-mapping getter — unlike a
-// hand-written function returning a single `tuple`-typed DataTypes.Position, the auto
-// getter flattens the struct into 7 separate top-level outputs, which viem decodes as a
-// positional array, not a named object. (AssetRegistry.getAsset() below IS hand-written
-// and returns one real tuple, so it decodes as an object — don't conflate the two.)
-// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, debtLastUpdated, active, hasDebt]
 type PositionTuple = readonly [bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
 
 export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol; mode: ActionMode; onClose: () => void }) {
@@ -77,10 +65,6 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   const positionTuple = position as PositionTuple | undefined;
   const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
   const debtLastUpdated = positionTuple?.[5] ?? 0n;
-  // `token` is the asset being acted on, which means different things per mode: the debt
-  // asset for borrow (the user is choosing what to borrow), but the collateral asset for
-  // withdraw. Solvency always needs the DEBT asset's price specifically, so for withdraw we
-  // must resolve it from the position's existing debtAssetId, not from `token`.
   const debtTokenForSolvency = mode === "borrow" ? token : positionTuple?.[7] ? tokenList.find((t) => t.assetId === Number(positionTuple[1])) : undefined;
 
   const { data: collateralAsset } = useReadContract({
@@ -115,8 +99,6 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     }
   })();
 
-  // Real, live interest fee — see AssetRegistry.quoteRepayInterestFee — charged on top of
-  // `amount` when repaying. Re-quoted on every keystroke since it depends on `amount`.
   const { data: repayInterestFee } = useReadContract({
     address: assetRegistry.address,
     abi: assetRegistry.abi,
@@ -130,9 +112,6 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
 
   const collateralLocal = collateralAssetId !== undefined ? get(address, collateralAssetId) : undefined;
   const collateralTokenForCap = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
-  // Max additional borrow = (collateral value * LTV) minus what's already owed, converted
-  // back into the debt token's own base units — all USD-normalized via usdValueE8 so it's
-  // correct regardless of collateral/debt token decimals (see lib/valuation.ts).
   const borrowMax = (() => {
     if (mode !== "borrow" || !collateralAsset || !collateralPrice || !debtPrice || !collateralLocal || !collateralTokenForCap) return undefined;
     const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
@@ -150,10 +129,6 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     mode === "withdraw" ? local.supplied : mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance) : mode === "supply" ? walletBalance : mode === "borrow" ? borrowMax : undefined;
   const exceedsAvailable = (available !== undefined && amount > available) || (mode === "repay" && amount + interestFee > walletBalance);
 
-  // Fire-and-forget, opt-in only (see the Viewing Key page): the user's real action has
-  // already confirmed successfully by the time this runs, so a failure here — the wallet
-  // rejecting the one-time signature prompt, this second tx reverting, anything — must never
-  // surface as an error on the action the user actually came here to do.
   function publishViewingNoteInBackground(assetId: number, isDebt: boolean, newAmount: bigint, newSalt: bigint) {
     if (!viewingKeyEnabled) return;
     (async () => {
@@ -222,11 +197,6 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
         const debtPriceE8 = (debtPrice as readonly [bigint, bigint])[0];
 
-        // Dev-only note: this deployment wires MockVerifier (script/deployLocal.js), which
-        // accepts any proof — but LatensPool's OWN binding checks are real and still
-        // enforced, which is why the values below must genuinely match on-chain state
-        // rather than being placeholders. There is no real zk solvency proof behind this
-        // "0x" — see contracts/README.md for what a real deployment needs instead.
         const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
@@ -247,7 +217,6 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         publishViewingNoteInBackground(token.assetId, true, patch.borrowed!, patch.borrowedSalt!);
         setTxHash(hash);
       } else {
-        // withdraw
         if (!positionTuple) throw new Error("No position found.");
         const hasDebt = positionTuple[7];
         if (hasDebt && (!collateralAsset || !collateralPrice || !debtPrice)) {

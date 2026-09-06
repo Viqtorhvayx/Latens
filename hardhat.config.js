@@ -42,9 +42,6 @@ module.exports = {
     sources: "./contracts",
     tests: "./test",
   },
-  // Off: this plugin's Sourcify integration POSTs to sourcify.dev/server's old REST verify
-  // path, which 404s against Sourcify's current API. Etherscan verification (below) is the
-  // one that actually works, and needs a free API key — see contracts/README.md.
   sourcify: {
     enabled: false,
   },
@@ -58,8 +55,6 @@ module.exports = {
       url: process.env.HORIZEN_TESTNET_RPC_URL || "",
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
     },
-    // Real, public, reachable testnets in the meantime — see script/deployTestnet.js.
-    // sepolia.base.org is Base's own free public RPC (no API key required).
     baseSepolia: {
       url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
       chainId: 84532,

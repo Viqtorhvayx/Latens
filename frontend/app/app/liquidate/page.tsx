@@ -11,8 +11,6 @@ import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 
-// Explicit gas limits, not left to wallet estimation — see PositionActionModal.tsx's
-// identical constants for why.
 const APPROVE_GAS = 100_000n;
 const LIQUIDATE_GAS = 700_000n;
 

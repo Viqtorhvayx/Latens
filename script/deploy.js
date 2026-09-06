@@ -88,8 +88,6 @@ async function main() {
   await setPoolTx.wait();
   console.log("AssetRegistry.pool wired to LatensPool.");
 
-  // Confidential stablecoin minting shares the same verifiers (real or mock, per
-  // MOCK_VERIFIERS above) and the same AssetRegistry-listed collateral assets as LatensPool.
   const LatensDollar = await ethers.getContractFactory("LatensDollar");
   const latensDollar = await LatensDollar.deploy(deployer.address);
   await latensDollar.waitForDeployment();

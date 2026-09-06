@@ -20,8 +20,6 @@ type AssetStruct = {
   totalSupplied: bigint;
   totalBorrowed: bigint;
 };
-// LatensCDP.positions() flattens DataTypes.CDPPosition:
-// [collateralAssetId, collateralCommitment, debtCommitment, lastUpdated, active, hasDebt]
 type CDPPositionTuple = readonly [bigint, bigint, bigint, bigint, boolean, boolean];
 
 export default function MintPage() {
@@ -74,6 +72,7 @@ export default function MintPage() {
   const collateralToken = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
   const collateralAmount = collateralToken ? get(address, collateralToken.assetId).collateral : 0n;
   const debtAmount = collateralToken ? get(address, collateralToken.assetId).debt : 0n;
+  const hasActivePosition = Boolean(positionTuple?.[4]);
 
   return (
     <div className="px-4 py-6 sm:px-12 sm:py-10">
@@ -81,6 +80,12 @@ export default function MintPage() {
         <span className="font-display text-[28px]">Mint</span>
         <p className="mt-1.5 text-[13.5px] text-ink-muted">Mint Latens Dollar (LATD) against confidential collateral — a private CDP.</p>
       </div>
+
+      {address && !positionLoading && !hasActivePosition && (
+        <p className="mb-6 rounded-xl border border-line bg-surface px-4 py-3 text-[13px] text-ink-muted">
+          Supply collateral below before minting — LATD is minted against collateral you&apos;ve already supplied, so Mint stays disabled until you have an active position.
+        </p>
+      )}
 
       <div className="mb-10 flex flex-col gap-5 sm:flex-row">
         <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
@@ -141,7 +146,9 @@ export default function MintPage() {
                   </button>
                   <button
                     onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "mint" })}
-                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+                    disabled={!hasActivePosition}
+                    title={hasActivePosition ? undefined : "Supply collateral first"}
+                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Mint
                   </button>

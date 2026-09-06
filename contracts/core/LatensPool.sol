@@ -35,14 +35,8 @@ import {Errors} from "../libraries/Errors.sol";
 ///    `ILiquidationVerifier`'s dev note. Keeping even that private is open design space for
 ///    a later milestone, not something this scaffold claims to have solved.
 ///  - Interest is real and utilization-driven (see `AssetRegistry.borrowRateBps`), charged
-///    at `repay` time over the exact elapsed time since a position's debt was last touched.
-///    It cannot yet compound onto a position's own hidden principal, and suppliers cannot
-///    yet be paid a matching pass-through yield — both would require the `commitment_update`
-///    and `solvency` circuits to accept a public index-scaling term, which is a follow-on
-///    milestone, not something this scaffold claims to have solved (see AssetRegistry's
-///    `supplyRateBps` NatSpec). What IS real: the fee is computed live from the market's
-///    current rate curve, not a static config constant, and its money-flow is wired
-///    end-to-end down to the ZEN staking pool contribution.
+///    at `repay` time. It does not yet compound onto a position's own hidden principal, and
+///    suppliers are not yet paid a matching yield — see `AssetRegistry.supplyRateBps`.
 ///  - Every zk proof is checked through a pluggable verifier interface; `MockVerifier` is
 ///    a development stand-in and must never be wired in production.
 contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
@@ -274,14 +268,6 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         emit DebtUpdated(msg.sender, debtAssetId, newCommitment, true);
     }
 
-    /// @dev Real, live interest: on top of `amount` (which is what the commitment proof
-    /// reduces the position's debt by), the caller pays `interestFee` — a genuine
-    /// time-and-utilization-weighted charge from `AssetRegistry.quoteRepayInterestFee`,
-    /// computed over the exact time since this position's debt was last touched. The fee
-    /// goes entirely to `treasury`, which later contributes its `stakingContributionBps`
-    /// share to the ZEN staking rewards pool. This charges real interest on real repayments
-    /// without ever reading a position's hidden principal — see the AssetRegistry NatSpec
-    /// on `supplyRateBps` for why this can't yet pay individual suppliers a matching yield.
     function repay(uint256 amount, uint256 newCommitment, bytes calldata updateProof, uint256[] calldata updatePublicInputs)
         external
         whenNotPaused

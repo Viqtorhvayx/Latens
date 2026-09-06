@@ -6,8 +6,6 @@ import { parseUnits } from "viem";
 import { erc20Abi, type TokenSymbol } from "@/lib/contracts";
 import { humanizeError } from "@/lib/errors";
 
-// MockERC20.mint is permissionless — there's no live public Horizen testnet yet to point a
-// real faucet at, so this calls the token contract directly from the connected wallet.
 const FAUCET_AMOUNTS: Record<TokenSymbol, string> = {
   ZEN: "1000",
   ZUSD: "5000",
@@ -15,8 +13,6 @@ const FAUCET_AMOUNTS: Record<TokenSymbol, string> = {
   USDC: "5000",
 };
 
-// Explicit gas limit, not left to wallet estimation — see PositionActionModal.tsx's
-// identical constants for why. A plain ERC20 mint never needs anywhere near this.
 const MINT_GAS = 150_000n;
 
 export function FaucetButton({ address, symbol, decimals }: { address: `0x${string}`; symbol: string; decimals: number }) {
