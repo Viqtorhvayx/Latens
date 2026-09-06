@@ -1,29 +1,17 @@
 import { createConfig, http } from "wagmi";
 import { injected, walletConnect } from "wagmi/connectors";
-import { defineChain } from "viem";
 import { baseSepolia, sepolia } from "viem/chains";
 import deployment from "./deployment.json";
 
-// Local Hardhat node — see script/deployLocal.js. Not reachable from outside this machine,
-// which is why deployment.json's chainId decides which chain the app actually targets (see
-// activeChain below) — Ethereum Sepolia (script/deployTestnet.js) is the real, publicly
-// reachable deployment; eventually Horizen's own L3 RPC, once public — see
-// contracts/README.md and hardhat.config.js's horizenTestnet placeholder.
-export const hardhatLocal = defineChain({
-  id: 31337,
-  name: "Hardhat Local",
-  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-  rpcUrls: {
-    default: { http: ["http://127.0.0.1:8545"] },
-  },
-});
+// Real, publicly reachable chains only — no local Hardhat node. A user's own wallet has no
+// way to reach http://127.0.0.1:8545 (that's this machine's dev loop, see
+// script/deployLocal.js), so it must never appear as a connectable/switchable option here;
+// eventually Horizen's own L3 RPC, once public — see contracts/README.md and
+// hardhat.config.js's horizenTestnet placeholder.
+const SUPPORTED_CHAINS = [sepolia, baseSepolia] as const;
 
-const SUPPORTED_CHAINS = [sepolia, baseSepolia, hardhatLocal] as const;
-
-// Whichever chain frontend/lib/deployment.json was actually generated against — falls back
-// to Hardhat Local only if that chainId isn't one of the chains this app knows how to talk
-// to, which would mean deployment.json is stale.
-export const activeChain = SUPPORTED_CHAINS.find((c) => c.id === deployment.chainId) ?? hardhatLocal;
+// Whichever chain frontend/lib/deployment.json was actually generated against.
+export const activeChain = SUPPORTED_CHAINS.find((c) => c.id === deployment.chainId) ?? sepolia;
 
 // A minimal, hand-built wallet connection stack (see components/ConnectWallet.tsx) instead
 // of RainbowKit: RainbowKit's package entry — regardless of which named export is actually
@@ -37,12 +25,11 @@ export const activeChain = SUPPORTED_CHAINS.find((c) => c.id === deployment.chai
 const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
 export const wagmiConfig = createConfig({
-  chains: [sepolia, baseSepolia, hardhatLocal],
+  chains: [sepolia, baseSepolia],
   connectors: [injected(), ...(walletConnectProjectId ? [walletConnect({ projectId: walletConnectProjectId })] : [])],
   transports: {
     [sepolia.id]: http(),
     [baseSepolia.id]: http(),
-    [hardhatLocal.id]: http(),
   },
   ssr: true,
 });
