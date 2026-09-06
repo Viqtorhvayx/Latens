@@ -6,6 +6,7 @@ import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi
 import { parseUnits, formatUnits } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokens, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore, sharesToReal, RAY } from "@/lib/positionStore";
+import { TokenIcon } from "./TokenIcon";
 import { appendActivity } from "@/lib/activityStore";
 import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
@@ -321,6 +322,11 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
               {available !== undefined && (
                 <span className="text-xs text-ink-faint">
                   {availableLabel}: {formatUnits(available, token.decimals)}
+                  {available > 0n && (
+                    <button onClick={() => setAmountInput(formatUnits(available, token.decimals))} className="ml-1.5 font-semibold text-gold transition-colors hover:text-gold-strong">
+                      Max
+                    </button>
+                  )}
                 </span>
               )}
             </div>
@@ -331,15 +337,10 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
                 placeholder="0.00"
                 className="w-full bg-transparent font-mono text-[22px] text-ink outline-none placeholder:text-ink-faint"
               />
-              <span className="font-mono text-sm text-ink-muted">{symbol}</span>
-              {available !== undefined && available > 0n && (
-                <button
-                  onClick={() => setAmountInput(formatUnits(available, token.decimals))}
-                  className="ml-2 rounded-md border border-line-strong px-2 py-1 text-[11px] font-semibold text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
-                >
-                  Max
-                </button>
-              )}
+              <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-canvas px-2.5 py-1.5">
+                <TokenIcon symbol={symbol} size={18} />
+                <span className="font-mono text-sm text-ink-muted">{symbol}</span>
+              </div>
             </div>
 
             {mode === "borrow" && !canBorrow && <p className="mb-4 text-xs text-warning">Supply collateral in another asset first — this position has none yet.</p>}

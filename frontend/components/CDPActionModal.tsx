@@ -6,6 +6,7 @@ import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi
 import { parseUnits, formatUnits } from "viem";
 import { latensCDP, latensDollar, assetRegistry, priceOracle, erc20Abi, tokens, type TokenSymbol } from "@/lib/contracts";
 import { useCDPPositionStore } from "@/lib/cdpPositionStore";
+import { TokenIcon } from "./TokenIcon";
 import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
@@ -240,6 +241,11 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
               {available !== undefined && (
                 <span className="text-xs text-ink-faint">
                   {availableLabel}: {formatUnits(available, displayDecimals)}
+                  {available > 0n && (
+                    <button onClick={() => setAmountInput(formatUnits(available, displayDecimals))} className="ml-1.5 font-semibold text-gold transition-colors hover:text-gold-strong">
+                      Max
+                    </button>
+                  )}
                 </span>
               )}
             </div>
@@ -250,15 +256,10 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
                 placeholder="0.00"
                 className="w-full bg-transparent font-mono text-[22px] text-ink outline-none placeholder:text-ink-faint"
               />
-              <span className="font-mono text-sm text-ink-muted">{displaySymbol}</span>
-              {available !== undefined && available > 0n && (
-                <button
-                  onClick={() => setAmountInput(formatUnits(available, displayDecimals))}
-                  className="ml-2 rounded-md border border-line-strong px-2 py-1 text-[11px] font-semibold text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
-                >
-                  Max
-                </button>
-              )}
+              <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-canvas px-2.5 py-1.5">
+                <TokenIcon symbol={displaySymbol} size={18} />
+                <span className="font-mono text-sm text-ink-muted">{displaySymbol}</span>
+              </div>
             </div>
 
             {mode === "mint" && !canMint && <p className="mb-4 text-xs text-warning">Supply {symbol} collateral first — this position has none yet.</p>}
