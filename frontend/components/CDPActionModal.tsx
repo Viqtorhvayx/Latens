@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useChainId, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { latensCDP, latensDollar, assetRegistry, priceOracle, erc20Abi, tokens, type TokenSymbol } from "@/lib/contracts";
 import { useCDPPositionStore } from "@/lib/cdpPositionStore";
@@ -13,6 +13,7 @@ import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { sanitizeAmountInput } from "@/lib/amountInput";
 import { usdValueE8 } from "@/lib/valuation";
+import { waitForConfirmation } from "@/lib/waitForTx";
 
 export type CDPActionMode = "supply" | "withdraw" | "mint" | "burn";
 
@@ -37,6 +38,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
   const chainId = useChainId();
   const { get, prepareSupply, prepareWithdraw, prepareMint, prepareBurn, commit } = useCDPPositionStore();
   const { writeContractAsync, isPending } = useWriteContract();
+  const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<"idle" | "approving" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -108,18 +110,19 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
   const canMint = mode !== "mint" || (collateralAssetId !== undefined && Boolean(collateralAsset) && Boolean(collateralPrice));
 
   async function handleConfirm() {
-    if (!address || amount === 0n) return;
+    if (!address || amount === 0n || !publicClient) return;
     setErrorMessage("");
     try {
       if (needsApprove) {
         setStep("approving");
-        await writeContractAsync({
+        const approveHash = await writeContractAsync({
           address: mode === "burn" ? latensDollar.address : token.address,
           abi: erc20Abi,
           functionName: "approve",
           args: [latensCDP.address, amount],
           gas: APPROVE_GAS,
         });
+        await waitForConfirmation(publicClient, approveHash);
       }
 
       setStep("submitting");
@@ -133,6 +136,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)]],
           gas: CDP_CALL_GAS,
         });
+        await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
         setTxHash(hash);
       } else if (mode === "burn") {
@@ -144,6 +148,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           args: [amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)]],
           gas: CDP_CALL_GAS,
         });
+        await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
         setTxHash(hash);
       } else if (mode === "mint") {
@@ -169,6 +174,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           ],
           gas: CDP_CALL_GAS,
         });
+        await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
         setTxHash(hash);
       } else {
@@ -196,6 +202,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           ],
           gas: CDP_CALL_GAS,
         });
+        await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
         setTxHash(hash);
       }
@@ -252,16 +259,16 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
                 </span>
               )}
             </div>
-            <div className="mb-6 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-4 py-3.5">
+            <div className="mb-6 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-5 py-5">
               <input
                 value={amountInput}
                 onChange={(e) => setAmountInput(sanitizeAmountInput(e.target.value, displayDecimals))}
                 placeholder="0.00"
-                className="w-full bg-transparent font-mono text-[22px] text-ink outline-none placeholder:text-ink-faint"
+                className="w-full bg-transparent font-mono text-[28px] text-ink outline-none placeholder:text-ink-faint"
               />
-              <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-canvas px-3 py-1.5">
-                <TokenIcon symbol={displaySymbol} size={18} />
-                <span className="font-mono text-sm text-ink-muted">{displaySymbol}</span>
+              <div className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-canvas px-4 py-2">
+                <TokenIcon symbol={displaySymbol} size={22} />
+                <span className="font-mono text-base text-ink-muted">{displaySymbol}</span>
               </div>
             </div>
 

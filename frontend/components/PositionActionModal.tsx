@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useChainId, usePublicClient, useReadContract, useWriteContract } from "wagmi";
+import { waitForConfirmation } from "@/lib/waitForTx";
 import { parseUnits, formatUnits } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokens, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore, sharesToReal, RAY } from "@/lib/positionStore";
@@ -38,6 +39,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   const chainId = useChainId();
   const { get, prepareSupply, prepareWithdraw, prepareBorrow, prepareRepay, commit } = usePositionStore();
   const { writeContractAsync, isPending } = useWriteContract();
+  const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const { enabled: viewingKeyEnabled, ensure: ensureViewingKey } = useViewingKey();
   const [step, setStep] = useState<"idle" | "approving" | "submitting" | "done" | "error">("idle");
@@ -176,18 +178,19 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   }
 
   async function handleConfirm() {
-    if (!address || amount === 0n) return;
+    if (!address || amount === 0n || !publicClient) return;
     setErrorMessage("");
     try {
       if (needsApprove) {
         setStep("approving");
-        await writeContractAsync({
+        const approveHash = await writeContractAsync({
           address: token.address,
           abi: erc20Abi,
           functionName: "approve",
           args: [latensPool.address, mode === "repay" ? amount + interestFee : amount],
           gas: APPROVE_GAS,
         });
+        await waitForConfirmation(publicClient, approveHash);
       }
 
       setStep("submitting");
@@ -201,6 +204,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), shareDelta, 1n, BigInt(token.assetId)]],
           gas: POOL_CALL_GAS,
         });
+        await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
         appendActivity(address, { kind: "collateral", isIncrease: true, assetId: token.assetId, amount, transactionHash: hash });
         publishViewingNoteInBackground(token.assetId, false, patch.supplied!, patch.suppliedSalt!);
@@ -214,6 +218,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           args: [amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)]],
           gas: POOL_CALL_GAS,
         });
+        await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
         appendActivity(address, { kind: "debt", isIncrease: false, assetId: token.assetId, amount, transactionHash: hash });
         publishViewingNoteInBackground(token.assetId, true, patch.borrowed!, patch.borrowedSalt!);
@@ -243,6 +248,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           ],
           gas: POOL_CALL_GAS,
         });
+        await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
         appendActivity(address, { kind: "debt", isIncrease: true, assetId: token.assetId, amount, transactionHash: hash });
         publishViewingNoteInBackground(token.assetId, true, patch.borrowed!, patch.borrowedSalt!);
@@ -273,6 +279,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           ],
           gas: POOL_CALL_GAS,
         });
+        await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
         appendActivity(address, { kind: "collateral", isIncrease: false, assetId: token.assetId, amount, transactionHash: hash });
         publishViewingNoteInBackground(token.assetId, false, patch.supplied!, patch.suppliedSalt!);
@@ -333,16 +340,16 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
                 </span>
               )}
             </div>
-            <div className="mb-6 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-4 py-3.5">
+            <div className="mb-6 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-5 py-5">
               <input
                 value={amountInput}
                 onChange={(e) => setAmountInput(sanitizeAmountInput(e.target.value, token.decimals))}
                 placeholder="0.00"
-                className="w-full bg-transparent font-mono text-[22px] text-ink outline-none placeholder:text-ink-faint"
+                className="w-full bg-transparent font-mono text-[28px] text-ink outline-none placeholder:text-ink-faint"
               />
-              <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-canvas px-3 py-1.5">
-                <TokenIcon symbol={symbol} size={18} />
-                <span className="font-mono text-sm text-ink-muted">{symbol}</span>
+              <div className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-canvas px-4 py-2">
+                <TokenIcon symbol={symbol} size={22} />
+                <span className="font-mono text-base text-ink-muted">{symbol}</span>
               </div>
             </div>
 

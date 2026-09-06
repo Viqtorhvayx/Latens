@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import { parseUnits } from "viem";
 import { erc20Abi, type TokenSymbol } from "@/lib/contracts";
 import { humanizeError } from "@/lib/errors";
+import { waitForConfirmation } from "@/lib/waitForTx";
 
 const FAUCET_AMOUNTS: Record<TokenSymbol, string> = {
   ZEN: "1000",
@@ -29,23 +30,25 @@ export function FaucetButton({
 }) {
   const { address: account } = useAccount();
   const { writeContractAsync, isPending } = useWriteContract();
+  const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<"idle" | "done" | "error">("idle");
 
   if (!account) return null;
 
   async function handleClick() {
-    if (!account) return;
+    if (!account || !publicClient) return;
     setStatus("idle");
     try {
       const amount = FAUCET_AMOUNTS[symbol as TokenSymbol] ?? "1000";
-      await writeContractAsync({
+      const hash = await writeContractAsync({
         address,
         abi: erc20Abi,
         functionName: "mint",
         args: [account, parseUnits(amount, decimals)],
         gas: MINT_GAS,
       });
+      await waitForConfirmation(publicClient, hash);
       await queryClient.invalidateQueries();
       setStatus("done");
     } catch (err) {

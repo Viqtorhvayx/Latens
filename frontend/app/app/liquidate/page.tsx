@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAccount, useChainId, useReadContract, useReadContracts, useWriteContract } from "wagmi";
+import { useAccount, useChainId, usePublicClient, useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { formatUnits, recoverMessageAddress, isAddress } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokenList } from "@/lib/contracts";
 import { buildDisclosureMessage, recomputeCommitment, type Disclosure, type DisclosureEntry } from "@/lib/disclosure";
@@ -11,6 +11,7 @@ import { isInsolvent, maxSeizableCollateral } from "@/lib/liquidation";
 import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
+import { waitForConfirmation } from "@/lib/waitForTx";
 
 const APPROVE_GAS = 100_000n;
 const LIQUIDATE_GAS = 700_000n;
@@ -42,6 +43,7 @@ export default function LiquidatePage() {
   const { address } = useAccount();
   const chainId = useChainId();
   const { writeContractAsync, isPending } = useWriteContract();
+  const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const { copied, copy } = useCopyToClipboard();
 
@@ -161,7 +163,7 @@ export default function LiquidatePage() {
       : 0n;
 
   async function handleLiquidate() {
-    if (!target || !collateralEntry || !debtEntry || !collateralToken || !debtToken || !collateralAsset || !collateralPrice || !debtPrice) return;
+    if (!target || !collateralEntry || !debtEntry || !collateralToken || !debtToken || !collateralAsset || !collateralPrice || !debtPrice || !publicClient) return;
     setSubmitting(true);
     setErrorMessage("");
     try {
@@ -171,13 +173,14 @@ export default function LiquidatePage() {
       const newCollateralCommitment = await commitment(newCollateralShares, randomSalt());
       const newDebtCommitment = await commitment(newDebtAmount, randomSalt());
 
-      await writeContractAsync({
+      const approveHash = await writeContractAsync({
         address: debtToken.address,
         abi: erc20Abi,
         functionName: "approve",
         args: [latensPool.address, repayAmount],
         gas: APPROVE_GAS,
       });
+      await waitForConfirmation(publicClient, approveHash);
 
       const hash = await writeContractAsync({
         address: latensPool.address,
@@ -207,6 +210,7 @@ export default function LiquidatePage() {
         ],
         gas: LIQUIDATE_GAS,
       });
+      await waitForConfirmation(publicClient, hash);
       await queryClient.invalidateQueries();
       setTxHash(hash);
     } catch (err) {
