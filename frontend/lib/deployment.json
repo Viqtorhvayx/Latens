@@ -2,7 +2,7 @@
   "chainId": 11155111,
   "contracts": {
     "LatensPool": {
-      "address": "0xB4b8C5bdFDA4524b7A34948795Db8979b5411856",
+      "address": "0xc449f86825F63BfC4f3fdDAcf8794AE03A03D928",
       "abi": [
         {
           "inputs": [
@@ -834,7 +834,7 @@
       ]
     },
     "AssetRegistry": {
-      "address": "0x370F1c505a6Ba4DC1CD17D4be00353316B05bB5a",
+      "address": "0xAcd55CB3525c559cbDfF089f10eE53F51B280216",
       "abi": [
         {
           "inputs": [
@@ -1103,6 +1103,25 @@
             }
           ],
           "name": "borrowRateBps",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "assetId",
+              "type": "uint256"
+            }
+          ],
+          "name": "currentSupplyIndexRay",
           "outputs": [
             {
               "internalType": "uint256",
@@ -1586,7 +1605,7 @@
       ]
     },
     "MockPriceOracle": {
-      "address": "0xb50b8e492cc5B359ad28Bb0Abc5a2613e3ccE97D",
+      "address": "0x0fE044563849fc21529f2eCFEc503817c0Be88aF",
       "abi": [
         {
           "inputs": [],
@@ -2025,7 +2044,7 @@
       ]
     },
     "LatensCDP": {
-      "address": "0x4D6F50cA31BB40Bdfa3e10d60EdB3325B6e6Ca10",
+      "address": "0x9dd2Dd457FB13aB76acA946390EEafC6Ef1beC42",
       "abi": [
         {
           "inputs": [
@@ -2890,7 +2909,7 @@
       ]
     },
     "LatensDollar": {
-      "address": "0x9919B83d89840fe44ef316195032F74E7a8F3957",
+      "address": "0xae3FE7b8a6dB2F27F36B8A9c99dd3bE7b1BFf31A",
       "abi": [
         {
           "inputs": [
@@ -3404,7 +3423,7 @@
       ]
     },
     "SupplyRewards": {
-      "address": "0xD3A00a4240bA6D7388bE88cc960aadeaa4e31f80",
+      "address": "0xb51253E9fc8819420f3619eF6b20274772094DcE",
       "abi": [
         {
           "inputs": [
@@ -3824,25 +3843,25 @@
   },
   "tokens": {
     "ZEN": {
-      "address": "0x2e73Cd5a98C2b0E00b9759c1E7217527B1ae0A42",
+      "address": "0xf184B8CB6fFd801eC7101fF9D25bb0F7DcaE645B",
       "symbol": "ZEN",
       "decimals": 18,
       "assetId": 0
     },
     "ZUSD": {
-      "address": "0x8AfF3bEbe97b693473E0Ffdf4DAfe9F799ACA744",
+      "address": "0x03f2793F33835d5fdF16B78707691c41348D129F",
       "symbol": "ZUSD",
       "decimals": 18,
       "assetId": 1
     },
     "WBTC": {
-      "address": "0x481048b20eB74c3978f269c3A680505101B592d8",
+      "address": "0x4cd52851C297107796C97Dd48a82858795056297",
       "symbol": "WBTC",
       "decimals": 8,
       "assetId": 2
     },
     "USDC": {
-      "address": "0x48b62bb12786aC5F41715FEb7D610CB3646051d8",
+      "address": "0x076eFb4107d9b308970f109Ec0f56F064f7c407A",
       "symbol": "USDC",
       "decimals": 6,
       "assetId": 3
