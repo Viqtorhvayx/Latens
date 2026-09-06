@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAccount, useWriteContract } from "wagmi";
 import { parseUnits } from "viem";
 import { erc20Abi, type TokenSymbol } from "@/lib/contracts";
@@ -28,6 +29,7 @@ export function FaucetButton({
 }) {
   const { address: account } = useAccount();
   const { writeContractAsync, isPending } = useWriteContract();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<"idle" | "done" | "error">("idle");
 
   if (!account) return null;
@@ -44,6 +46,7 @@ export function FaucetButton({
         args: [account, parseUnits(amount, decimals)],
         gas: MINT_GAS,
       });
+      await queryClient.invalidateQueries();
       setStatus("done");
     } catch (err) {
       console.error(humanizeError(err));

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokens, tokenList, type TokenSymbol } from "@/lib/contracts";
@@ -37,6 +38,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   const chainId = useChainId();
   const { get, prepareSupply, prepareWithdraw, prepareBorrow, prepareRepay, commit } = usePositionStore();
   const { writeContractAsync, isPending } = useWriteContract();
+  const queryClient = useQueryClient();
   const { enabled: viewingKeyEnabled, ensure: ensureViewingKey } = useViewingKey();
   const [step, setStep] = useState<"idle" | "approving" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -276,6 +278,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         publishViewingNoteInBackground(token.assetId, false, patch.supplied!, patch.suppliedSalt!);
         setTxHash(hash);
       }
+      await queryClient.invalidateQueries();
       setStep("done");
     } catch (err) {
       setStep("error");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAccount, useChainId, useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { formatUnits, recoverMessageAddress, isAddress } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokenList } from "@/lib/contracts";
@@ -41,6 +42,7 @@ export default function LiquidatePage() {
   const { address } = useAccount();
   const chainId = useChainId();
   const { writeContractAsync, isPending } = useWriteContract();
+  const queryClient = useQueryClient();
   const { copied, copy } = useCopyToClipboard();
 
   const [rawInput, setRawInput] = useState("");
@@ -205,6 +207,7 @@ export default function LiquidatePage() {
         ],
         gas: LIQUIDATE_GAS,
       });
+      await queryClient.invalidateQueries();
       setTxHash(hash);
     } catch (err) {
       setErrorMessage(humanizeError(err));

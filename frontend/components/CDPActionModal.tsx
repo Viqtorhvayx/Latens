@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { latensCDP, latensDollar, assetRegistry, priceOracle, erc20Abi, tokens, type TokenSymbol } from "@/lib/contracts";
@@ -36,6 +37,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
   const chainId = useChainId();
   const { get, prepareSupply, prepareWithdraw, prepareMint, prepareBurn, commit } = useCDPPositionStore();
   const { writeContractAsync, isPending } = useWriteContract();
+  const queryClient = useQueryClient();
   const [step, setStep] = useState<"idle" | "approving" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
@@ -197,6 +199,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
         commit(address, token.assetId, patch);
         setTxHash(hash);
       }
+      await queryClient.invalidateQueries();
       setStep("done");
     } catch (err) {
       setStep("error");
