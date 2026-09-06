@@ -10,8 +10,8 @@ import { buildDisclosureMessage, recomputeCommitment, type Disclosure } from "@/
 // LatensPool.positions() is Solidity's auto-generated struct-mapping getter, which
 // flattens Position into 7 separate top-level outputs — viem decodes this as a
 // positional array, not a named object (see markets/page.tsx for the full explanation).
-// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, active, hasDebt]
-type PositionTuple = readonly [bigint, bigint, bigint, bigint, number, boolean, boolean];
+// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, debtLastUpdated, active, hasDebt]
+type PositionTuple = readonly [bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
 
 type EntryResult = {
   label: string;
@@ -96,7 +96,7 @@ export default function VerifyPage() {
             onChainMatch = Number(positionTuple[0]) === entry.assetId && positionTuple[2] === claimed;
             if (!onChainMatch) reason = "Doesn't match this address's live collateral commitment.";
           } else {
-            onChainMatch = positionTuple[6] && Number(positionTuple[1]) === entry.assetId && positionTuple[3] === claimed;
+            onChainMatch = positionTuple[7] && Number(positionTuple[1]) === entry.assetId && positionTuple[3] === claimed;
             if (!onChainMatch) reason = "Doesn't match this address's live debt commitment.";
           }
           return { label, amountDisplay, selfConsistent, onChainMatch, reason };

@@ -18,6 +18,16 @@ export const priceOracle = {
   abi: deployment.contracts.MockPriceOracle.abi as Abi,
 };
 
+export const latensCDP = {
+  address: deployment.contracts.LatensCDP.address as `0x${string}`,
+  abi: deployment.contracts.LatensCDP.abi as Abi,
+};
+
+export const latensDollar = {
+  address: deployment.contracts.LatensDollar.address as `0x${string}`,
+  abi: deployment.contracts.LatensDollar.abi as Abi,
+};
+
 export const erc20Abi = deployment.contracts.MockERC20.abi as Abi;
 
 export type TokenSymbol = keyof typeof deployment.tokens;

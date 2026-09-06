@@ -4,53 +4,48 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
-import { latensPool, assetRegistry, priceOracle, erc20Abi, tokens, tokenList, type TokenSymbol } from "@/lib/contracts";
-import { usePositionStore } from "@/lib/positionStore";
-import { appendActivity } from "@/lib/activityStore";
+import { latensCDP, latensDollar, assetRegistry, priceOracle, erc20Abi, tokens, type TokenSymbol } from "@/lib/contracts";
+import { useCDPPositionStore } from "@/lib/cdpPositionStore";
 import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { sanitizeAmountInput } from "@/lib/amountInput";
 import { usdValueE8 } from "@/lib/valuation";
-import { useViewingKey } from "@/lib/viewingKeyContext";
-import { encryptNote } from "@/lib/viewingKey";
 
-export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
+export type CDPActionMode = "supply" | "withdraw" | "mint" | "burn";
 
-const ACTION_LABEL: Record<ActionMode, string> = {
+const ACTION_LABEL: Record<CDPActionMode, string> = {
   supply: "supply",
   withdraw: "withdrawal",
-  borrow: "borrow",
-  repay: "repayment",
+  mint: "mint",
+  burn: "burn",
 };
 
-// LatensPool.positions() is Solidity's auto-generated struct-mapping getter — unlike a
-// hand-written function returning a single `tuple`-typed DataTypes.Position, the auto
-// getter flattens the struct into 7 separate top-level outputs, which viem decodes as a
-// positional array, not a named object. (AssetRegistry.getAsset() below IS hand-written
-// and returns one real tuple, so it decodes as an object — don't conflate the two.)
-// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, debtLastUpdated, active, hasDebt]
-type PositionTuple = readonly [bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
+const STABLECOIN_PRICE_E8 = 100_000_000n; // LatensDollar is pegged to $1 by construction
 
-export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol; mode: ActionMode; onClose: () => void }) {
+// LatensCDP.positions() flattens DataTypes.CDPPosition the same way LatensPool.positions()
+// does — see PositionActionModal.tsx's identical note.
+// [collateralAssetId, collateralCommitment, debtCommitment, lastUpdated, active, hasDebt]
+type CDPPositionTuple = readonly [bigint, bigint, bigint, bigint, boolean, boolean];
+
+export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol; mode: CDPActionMode; onClose: () => void }) {
   const token = tokens[symbol];
   const [amountInput, setAmountInput] = useState("");
   const { address } = useAccount();
   const chainId = useChainId();
-  const { get, prepareSupply, prepareWithdraw, prepareBorrow, prepareRepay, commit } = usePositionStore();
+  const { get, prepareSupply, prepareWithdraw, prepareMint, prepareBurn, commit } = useCDPPositionStore();
   const { writeContractAsync, isPending } = useWriteContract();
-  const { enabled: viewingKeyEnabled, ensure: ensureViewingKey } = useViewingKey();
   const [step, setStep] = useState<"idle" | "approving" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   const { copied, copy } = useCopyToClipboard();
 
-  const needsApprove = mode === "supply" || mode === "repay";
-  const needsSolvencyContext = mode === "borrow" || mode === "withdraw";
+  const needsApprove = mode === "supply" || mode === "burn";
+  const needsSolvencyContext = mode === "withdraw" || mode === "mint";
   const local = get(address, token.assetId);
 
-  const { data: balance } = useReadContract({
-    address: token.address,
+  const { data: walletBalance } = useReadContract({
+    address: mode === "burn" ? latensDollar.address : token.address,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
@@ -58,21 +53,15 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   });
 
   const { data: position } = useReadContract({
-    address: latensPool.address,
-    abi: latensPool.abi,
+    address: latensCDP.address,
+    abi: latensCDP.abi,
     functionName: "positions",
     args: address ? [address] : undefined,
-    query: { enabled: Boolean(address) && (needsSolvencyContext || mode === "repay") },
+    query: { enabled: Boolean(address) },
   });
 
-  const positionTuple = position as PositionTuple | undefined;
+  const positionTuple = position as CDPPositionTuple | undefined;
   const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
-  const debtLastUpdated = positionTuple?.[5] ?? 0n;
-  // `token` is the asset being acted on, which means different things per mode: the debt
-  // asset for borrow (the user is choosing what to borrow), but the collateral asset for
-  // withdraw. Solvency always needs the DEBT asset's price specifically, so for withdraw we
-  // must resolve it from the position's existing debtAssetId, not from `token`.
-  const debtTokenForSolvency = mode === "borrow" ? token : positionTuple?.[7] ? tokenList.find((t) => t.assetId === Number(positionTuple[1])) : undefined;
 
   const { data: collateralAsset } = useReadContract({
     address: assetRegistry.address,
@@ -90,14 +79,6 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     query: { enabled: needsSolvencyContext && Boolean(collateralAsset) },
   });
 
-  const { data: debtPrice } = useReadContract({
-    address: priceOracle.address,
-    abi: priceOracle.abi,
-    functionName: "getPrice",
-    args: debtTokenForSolvency ? [debtTokenForSolvency.address] : undefined,
-    query: { enabled: needsSolvencyContext && Boolean(debtTokenForSolvency) },
-  });
-
   const amount = (() => {
     try {
       return amountInput ? parseUnits(amountInput, token.decimals) : 0n;
@@ -106,58 +87,24 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     }
   })();
 
-  // Real, live interest fee — see AssetRegistry.quoteRepayInterestFee — charged on top of
-  // `amount` when repaying. Re-quoted on every keystroke since it depends on `amount`.
-  const { data: repayInterestFee } = useReadContract({
-    address: assetRegistry.address,
-    abi: assetRegistry.abi,
-    functionName: "quoteRepayInterestFee",
-    args: [BigInt(token.assetId), amount, debtLastUpdated],
-    query: { enabled: mode === "repay" && Boolean(positionTuple) && amount > 0n },
-  });
-  const interestFee = mode === "repay" ? ((repayInterestFee as bigint | undefined) ?? 0n) : 0n;
+  const walletBalanceValue = (walletBalance as bigint | undefined) ?? 0n;
 
-  const walletBalance = (balance as bigint | undefined) ?? 0n;
-
-  const collateralLocal = collateralAssetId !== undefined ? get(address, collateralAssetId) : undefined;
-  const collateralTokenForCap = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
-  // Max additional borrow = (collateral value * LTV) minus what's already owed, converted
-  // back into the debt token's own base units — all USD-normalized via usdValueE8 so it's
-  // correct regardless of collateral/debt token decimals (see lib/valuation.ts).
-  const borrowMax = (() => {
-    if (mode !== "borrow" || !collateralAsset || !collateralPrice || !debtPrice || !collateralLocal || !collateralTokenForCap) return undefined;
+  // Max additional mint = collateral value * LTV minus what's already minted — USD-
+  // normalized via usdValueE8, LatensDollar priced at a fixed $1 (see LatensCDP.STABLECOIN_PRICE_E8).
+  const mintMax = (() => {
+    if (mode !== "mint" || !collateralAsset || !collateralPrice) return undefined;
     const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
     const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
-    const debtPriceE8 = (debtPrice as readonly [bigint, bigint])[0];
-    if (debtPriceE8 === 0n) return undefined;
-    const collateralValueE8 = usdValueE8(collateralLocal.supplied, collateralTokenForCap.decimals, collateralPriceE8);
+    const collateralValueE8 = usdValueE8(local.collateral, token.decimals, collateralPriceE8);
     const maxDebtValueE8 = (collateralValueE8 * BigInt(ltvBps)) / 10_000n;
-    const currentDebtValueE8 = usdValueE8(local.borrowed, token.decimals, debtPriceE8);
+    const currentDebtValueE8 = usdValueE8(local.debt, 18, STABLECOIN_PRICE_E8); // LatensDollar is 18 decimals
     const headroomValueE8 = maxDebtValueE8 > currentDebtValueE8 ? maxDebtValueE8 - currentDebtValueE8 : 0n;
-    return (headroomValueE8 * 10n ** BigInt(token.decimals)) / debtPriceE8;
+    return (headroomValueE8 * 10n ** 18n) / STABLECOIN_PRICE_E8;
   })();
 
-  const available =
-    mode === "withdraw" ? local.supplied : mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance) : mode === "supply" ? walletBalance : mode === "borrow" ? borrowMax : undefined;
-  const exceedsAvailable = (available !== undefined && amount > available) || (mode === "repay" && amount + interestFee > walletBalance);
-
-  // Fire-and-forget, opt-in only (see the Viewing Key page): the user's real action has
-  // already confirmed successfully by the time this runs, so a failure here — the wallet
-  // rejecting the one-time signature prompt, this second tx reverting, anything — must never
-  // surface as an error on the action the user actually came here to do.
-  function publishViewingNoteInBackground(assetId: number, isDebt: boolean, newAmount: bigint, newSalt: bigint) {
-    if (!viewingKeyEnabled) return;
-    (async () => {
-      const keyPair = await ensureViewingKey();
-      const ciphertext = encryptNote(keyPair, { amount: newAmount.toString(), salt: newSalt.toString() });
-      await writeContractAsync({
-        address: latensPool.address,
-        abi: latensPool.abi,
-        functionName: "publishViewingNote",
-        args: [BigInt(assetId), isDebt, ciphertext],
-      });
-    })().catch((err) => console.warn("Failed to publish viewing key note (non-fatal):", err));
-  }
+  const available = mode === "withdraw" ? local.collateral : mode === "burn" ? (local.debt < walletBalanceValue ? local.debt : walletBalanceValue) : mode === "supply" ? walletBalanceValue : mintMax;
+  const exceedsAvailable = available !== undefined && amount > available;
+  const canMint = mode !== "mint" || (collateralAssetId !== undefined && Boolean(collateralAsset) && Boolean(collateralPrice));
 
   async function handleConfirm() {
     if (!address || amount === 0n) return;
@@ -166,10 +113,10 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
       if (needsApprove) {
         setStep("approving");
         await writeContractAsync({
-          address: token.address,
+          address: mode === "burn" ? latensDollar.address : token.address,
           abi: erc20Abi,
           functionName: "approve",
-          args: [latensPool.address, mode === "repay" ? amount + interestFee : amount],
+          args: [latensCDP.address, amount],
         });
       }
 
@@ -178,76 +125,65 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
       if (mode === "supply") {
         const { oldCommitment, newCommitment, patch } = await prepareSupply(address, token.assetId, amount);
         const hash = await writeContractAsync({
-          address: latensPool.address,
-          abi: latensPool.abi,
+          address: latensCDP.address,
+          abi: latensCDP.abi,
           functionName: "supplyCollateral",
           args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)]],
         });
         commit(address, token.assetId, patch);
-        appendActivity(address, { kind: "collateral", isIncrease: true, assetId: token.assetId, amount, transactionHash: hash });
-        publishViewingNoteInBackground(token.assetId, false, patch.supplied!, patch.suppliedSalt!);
         setTxHash(hash);
-      } else if (mode === "repay") {
-        const { oldCommitment, newCommitment, patch } = await prepareRepay(address, token.assetId, amount);
+      } else if (mode === "burn") {
+        const { oldCommitment, newCommitment, patch } = await prepareBurn(address, token.assetId, amount);
         const hash = await writeContractAsync({
-          address: latensPool.address,
-          abi: latensPool.abi,
-          functionName: "repay",
+          address: latensCDP.address,
+          abi: latensCDP.abi,
+          functionName: "burn",
           args: [amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)]],
         });
         commit(address, token.assetId, patch);
-        appendActivity(address, { kind: "debt", isIncrease: false, assetId: token.assetId, amount, transactionHash: hash });
-        publishViewingNoteInBackground(token.assetId, true, patch.borrowed!, patch.borrowedSalt!);
         setTxHash(hash);
-      } else if (mode === "borrow") {
-        if (collateralAssetId === undefined || !collateralAsset || !collateralPrice || !debtPrice) {
-          throw new Error("Supply collateral before borrowing.");
+      } else if (mode === "mint") {
+        if (collateralAssetId === undefined || !collateralAsset || !collateralPrice) {
+          throw new Error("Supply collateral before minting.");
         }
-        const { oldCommitment, newCommitment, patch } = await prepareBorrow(address, token.assetId, amount);
-        const currentCollateralCommitment = positionTuple![2];
+        const { oldCommitment, newCommitment, patch } = await prepareMint(address, token.assetId, amount);
+        const currentCollateralCommitment = positionTuple![1];
         const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
         const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
-        const debtPriceE8 = (debtPrice as readonly [bigint, bigint])[0];
 
-        // Dev-only note: this deployment wires MockVerifier (script/deployLocal.js), which
-        // accepts any proof — but LatensPool's OWN binding checks are real and still
-        // enforced, which is why the values below must genuinely match on-chain state
-        // rather than being placeholders. There is no real zk solvency proof behind this
-        // "0x" — see contracts/README.md for what a real deployment needs instead.
+        // Dev-only note: same as PositionActionModal — MockVerifier accepts any proof, but
+        // LatensCDP's own binding checks are real, so these values must genuinely match
+        // on-chain state. There is no real zk solvency proof behind this "0x" yet.
         const hash = await writeContractAsync({
-          address: latensPool.address,
-          abi: latensPool.abi,
-          functionName: "borrow",
+          address: latensCDP.address,
+          abi: latensCDP.abi,
+          functionName: "mint",
           args: [
-            BigInt(token.assetId),
             amount,
             BigInt(newCommitment),
             "0x",
             [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)],
             "0x",
-            [currentCollateralCommitment, BigInt(newCommitment), collateralPriceE8, debtPriceE8, BigInt(ltvBps)],
+            [currentCollateralCommitment, BigInt(newCommitment), collateralPriceE8, STABLECOIN_PRICE_E8, BigInt(ltvBps)],
           ],
         });
         commit(address, token.assetId, patch);
-        appendActivity(address, { kind: "debt", isIncrease: true, assetId: token.assetId, amount, transactionHash: hash });
-        publishViewingNoteInBackground(token.assetId, true, patch.borrowed!, patch.borrowedSalt!);
         setTxHash(hash);
       } else {
         // withdraw
         if (!positionTuple) throw new Error("No position found.");
-        const hasDebt = positionTuple[7];
-        if (hasDebt && (!collateralAsset || !collateralPrice || !debtPrice)) {
+        const hasDebt = positionTuple[5];
+        if (hasDebt && (!collateralAsset || !collateralPrice)) {
           throw new Error("Still loading solvency data — try again in a moment.");
         }
         const { oldCommitment, newCommitment, patch } = await prepareWithdraw(address, token.assetId, amount);
-        const debtCommitment = positionTuple[3];
+        const debtCommitment = positionTuple[2];
         const ltvBps = collateralAsset ? (collateralAsset as { ltvBps: number }).ltvBps : 0;
         const collateralPriceE8 = collateralPrice ? (collateralPrice as readonly [bigint, bigint])[0] : 0n;
-        const debtPriceE8 = debtPrice ? (debtPrice as readonly [bigint, bigint])[0] : 0n;
 
         const hash = await writeContractAsync({
-          address: latensPool.address,
-          abi: latensPool.abi,
+          address: latensCDP.address,
+          abi: latensCDP.abi,
           functionName: "withdrawCollateral",
           args: [
             amount,
@@ -255,12 +191,10 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             "0x",
             [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)],
             "0x",
-            [BigInt(newCommitment), debtCommitment, collateralPriceE8, debtPriceE8, BigInt(ltvBps)],
+            [BigInt(newCommitment), debtCommitment, collateralPriceE8, STABLECOIN_PRICE_E8, BigInt(ltvBps)],
           ],
         });
         commit(address, token.assetId, patch);
-        appendActivity(address, { kind: "collateral", isIncrease: false, assetId: token.assetId, amount, transactionHash: hash });
-        publishViewingNoteInBackground(token.assetId, false, patch.supplied!, patch.suppliedSalt!);
         setTxHash(hash);
       }
       setStep("done");
@@ -270,9 +204,9 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     }
   }
 
-  const canBorrow = mode !== "borrow" || (collateralAssetId !== undefined && Boolean(collateralAsset) && Boolean(collateralPrice) && Boolean(debtPrice));
-
-  const availableLabel = mode === "withdraw" ? "Supplied" : mode === "repay" ? "Owed" : mode === "borrow" ? "Max" : "Balance";
+  const availableLabel = mode === "withdraw" ? "Supplied" : mode === "burn" ? "Owed" : mode === "mint" ? "Max" : "Balance";
+  const displaySymbol = mode === "burn" ? "LATD" : symbol;
+  const displayDecimals = mode === "burn" ? 18 : token.decimals;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-28">
@@ -285,9 +219,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         className="relative w-full max-w-[440px] rounded-[20px] border border-line-strong bg-surface p-7 shadow-[0_32px_80px_rgba(0,0,0,0.55)]"
       >
         <div className="mb-6 flex items-center justify-between">
-          <span className="font-display text-xl capitalize">
-            {mode} {symbol}
-          </span>
+          <span className="font-display text-xl capitalize">{mode === "mint" || mode === "burn" ? `${mode} LATD against ${symbol}` : `${mode} ${symbol}`}</span>
           <button onClick={onClose} className="text-ink-muted transition-colors hover:text-ink">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -308,21 +240,21 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
               <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Amount</span>
               {available !== undefined && (
                 <span className="text-xs text-ink-faint">
-                  {availableLabel}: {formatUnits(available, token.decimals)}
+                  {availableLabel}: {formatUnits(available, displayDecimals)}
                 </span>
               )}
             </div>
             <div className="mb-6 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-4 py-3.5">
               <input
                 value={amountInput}
-                onChange={(e) => setAmountInput(sanitizeAmountInput(e.target.value, token.decimals))}
+                onChange={(e) => setAmountInput(sanitizeAmountInput(e.target.value, displayDecimals))}
                 placeholder="0.00"
                 className="w-full bg-transparent font-mono text-[22px] text-ink outline-none placeholder:text-ink-faint"
               />
-              <span className="font-mono text-sm text-ink-muted">{symbol}</span>
+              <span className="font-mono text-sm text-ink-muted">{displaySymbol}</span>
               {available !== undefined && available > 0n && (
                 <button
-                  onClick={() => setAmountInput(formatUnits(available, token.decimals))}
+                  onClick={() => setAmountInput(formatUnits(available, displayDecimals))}
                   className="ml-2 rounded-md border border-line-strong px-2 py-1 text-[11px] font-semibold text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
                 >
                   Max
@@ -330,19 +262,14 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
               )}
             </div>
 
-            {mode === "borrow" && !canBorrow && <p className="mb-4 text-xs text-warning">Supply collateral in another asset first — this position has none yet.</p>}
-            {mode === "repay" && interestFee > 0n && (
-              <p className="mb-4 text-xs text-ink-faint">
-                Plus a {formatUnits(interestFee, token.decimals)} {symbol} interest fee (live, time-weighted — see Markets).
-              </p>
-            )}
+            {mode === "mint" && !canMint && <p className="mb-4 text-xs text-warning">Supply {symbol} collateral first — this position has none yet.</p>}
             {exceedsAvailable && (
               <p className="mb-4 text-xs text-warning">
                 {mode === "withdraw"
                   ? "You can't withdraw more than you've supplied."
-                  : mode === "repay"
-                    ? "You can't repay more than you owe (or hold in your wallet)."
-                    : mode === "borrow"
+                  : mode === "burn"
+                    ? "You can't burn more than you owe (or hold in your wallet)."
+                    : mode === "mint"
                       ? "That would push this position past its LTV limit."
                       : "You don't have that much in your wallet."}
               </p>
@@ -376,7 +303,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
                 <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <button
                     onClick={handleConfirm}
-                    disabled={!address || amount === 0n || isPending || !canBorrow || exceedsAvailable}
+                    disabled={!address || amount === 0n || isPending || !canMint || exceedsAvailable}
                     className="w-full rounded-[10px] bg-gold py-3.5 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {step === "approving" ? "Approving…" : step === "submitting" ? "Confirming…" : `Confirm ${ACTION_LABEL[mode]} — sign a private proof`}

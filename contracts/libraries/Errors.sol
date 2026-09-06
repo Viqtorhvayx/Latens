@@ -13,4 +13,5 @@ library Errors {
     error ZeroAmount();
     error StaleOraclePrice();
     error ExceedsGrantIndicativeRange();
+    error ExceedsMaxFee();
 }

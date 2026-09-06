@@ -11,23 +11,28 @@ async function main() {
   const [deployer, alice, bob] = await ethers.getSigners();
   console.log("Deploying Latens (local dev) with:", deployer.address);
 
+  // Four assets actually grounded on Horizen: ZEN is the network's native gas/staking
+  // token; ZUSD is Horizen Labs' own natively-issued stablecoin. WBTC and USDC are the two
+  // bridged majors Horizen's own Archon Bridge documentation names for the (now-migrating)
+  // EON network — see contracts/README.md for the sourcing and the open question of which
+  // bridged assets the new Base-settling L3 will carry.
   const MockERC20 = await ethers.getContractFactory("MockERC20");
   const zen = await MockERC20.deploy("Wrapped ZEN", "ZEN", 18);
-  const usdc = await MockERC20.deploy("USD Coin", "USDC", 6);
+  const zusd = await MockERC20.deploy("Horizen USD", "ZUSD", 18);
   const wbtc = await MockERC20.deploy("Wrapped Bitcoin", "WBTC", 8);
-  const dai = await MockERC20.deploy("Dai Stablecoin", "DAI", 18);
+  const usdc = await MockERC20.deploy("USD Coin", "USDC", 6);
   await zen.waitForDeployment();
-  await usdc.waitForDeployment();
+  await zusd.waitForDeployment();
   await wbtc.waitForDeployment();
-  await dai.waitForDeployment();
+  await usdc.waitForDeployment();
 
   const MockPriceOracle = await ethers.getContractFactory("MockPriceOracle");
   const oracle = await MockPriceOracle.deploy();
   await oracle.waitForDeployment();
   await (await oracle.setPrice(await zen.getAddress(), ethers.parseUnits("2", 8))).wait();
-  await (await oracle.setPrice(await usdc.getAddress(), ethers.parseUnits("1", 8))).wait();
+  await (await oracle.setPrice(await zusd.getAddress(), ethers.parseUnits("1", 8))).wait();
   await (await oracle.setPrice(await wbtc.getAddress(), ethers.parseUnits("60000", 8))).wait();
-  await (await oracle.setPrice(await dai.getAddress(), ethers.parseUnits("1", 8))).wait();
+  await (await oracle.setPrice(await usdc.getAddress(), ethers.parseUnits("1", 8))).wait();
 
   const MockVerifier = await ethers.getContractFactory("MockVerifier");
   const verifier = await MockVerifier.deploy(false);
@@ -62,29 +67,59 @@ async function main() {
   // WBTC gets a tighter 70%/75% band to reflect higher price volatility.
   const zenAssetId = 0n;
   await (await registry.listAsset(await zen.getAddress(), 8_000, 8_500, 800, 1_000)).wait();
-  const usdcAssetId = 1n;
-  await (await registry.listAsset(await usdc.getAddress(), 8_000, 8_500, 800, 1_000)).wait();
+  const zusdAssetId = 1n;
+  await (await registry.listAsset(await zusd.getAddress(), 8_000, 8_500, 800, 1_000)).wait();
   const wbtcAssetId = 2n;
   await (await registry.listAsset(await wbtc.getAddress(), 7_000, 7_500, 1_000, 1_000)).wait();
-  const daiAssetId = 3n;
-  await (await registry.listAsset(await dai.getAddress(), 8_000, 8_500, 800, 1_000)).wait();
+  const usdcAssetId = 3n;
+  await (await registry.listAsset(await usdc.getAddress(), 8_000, 8_500, 800, 1_000)).wait();
+
+  // Interest rate model per market: base/slope1 up to the kink, steeper slope2 beyond it.
+  // Stablecoins get a low, gently-sloped curve; ZEN and WBTC get a higher base and steeper
+  // post-kink slope to reflect their volatility. All bps are annualized — see
+  // AssetRegistry.borrowRateBps for the formula.
+  await (await registry.setInterestRateModel(zenAssetId, 200, 1_000, 30_000, 8_000)).wait();
+  await (await registry.setInterestRateModel(zusdAssetId, 50, 800, 10_000, 9_000)).wait();
+  await (await registry.setInterestRateModel(wbtcAssetId, 100, 1_200, 40_000, 7_000)).wait();
+  await (await registry.setInterestRateModel(usdcAssetId, 50, 800, 10_000, 9_000)).wait();
 
   // Seed pool liquidity and test-account balances so the frontend has something to show.
-  await (await usdc.mint(deployer.address, ethers.parseUnits("1000000", 6))).wait();
-  await (await usdc.transfer(await pool.getAddress(), ethers.parseUnits("500000", 6))).wait();
+  await (await zusd.mint(deployer.address, ethers.parseUnits("1000000", 18))).wait();
+  await (await zusd.transfer(await pool.getAddress(), ethers.parseUnits("500000", 18))).wait();
   await (await wbtc.mint(deployer.address, ethers.parseUnits("100", 8))).wait();
   await (await wbtc.transfer(await pool.getAddress(), ethers.parseUnits("50", 8))).wait();
-  await (await dai.mint(deployer.address, ethers.parseUnits("1000000", 18))).wait();
-  await (await dai.transfer(await pool.getAddress(), ethers.parseUnits("500000", 18))).wait();
+  await (await usdc.mint(deployer.address, ethers.parseUnits("1000000", 6))).wait();
+  await (await usdc.transfer(await pool.getAddress(), ethers.parseUnits("500000", 6))).wait();
 
   await (await zen.mint(alice.address, ethers.parseUnits("10000", 18))).wait();
-  await (await usdc.mint(alice.address, ethers.parseUnits("50000", 6))).wait();
+  await (await zusd.mint(alice.address, ethers.parseUnits("50000", 18))).wait();
   await (await wbtc.mint(alice.address, ethers.parseUnits("5", 8))).wait();
-  await (await dai.mint(alice.address, ethers.parseUnits("50000", 18))).wait();
+  await (await usdc.mint(alice.address, ethers.parseUnits("50000", 6))).wait();
   await (await zen.mint(bob.address, ethers.parseUnits("10000", 18))).wait();
-  await (await usdc.mint(bob.address, ethers.parseUnits("50000", 6))).wait();
+  await (await zusd.mint(bob.address, ethers.parseUnits("50000", 18))).wait();
   await (await wbtc.mint(bob.address, ethers.parseUnits("5", 8))).wait();
-  await (await dai.mint(bob.address, ethers.parseUnits("50000", 18))).wait();
+  await (await usdc.mint(bob.address, ethers.parseUnits("50000", 6))).wait();
+
+  // Confidential stablecoin minting (item #5 alongside lend/borrow): LatensDollar is minted
+  // only by LatensCDP, against the same registry-listed collateral assets above.
+  const LatensDollar = await ethers.getContractFactory("LatensDollar");
+  const latensDollar = await LatensDollar.deploy(deployer.address);
+  await latensDollar.waitForDeployment();
+
+  const LatensCDP = await ethers.getContractFactory("LatensCDP");
+  const cdp = await LatensCDP.deploy(
+    deployer.address,
+    await registry.getAddress(),
+    await treasury.getAddress(),
+    await latensDollar.getAddress(),
+    await oracle.getAddress(),
+    await verifier.getAddress(),
+    await verifier.getAddress(),
+    await verifier.getAddress()
+  );
+  await cdp.waitForDeployment();
+  await (await latensDollar.setCDP(await cdp.getAddress())).wait();
+  await (await cdp.setMintFee(50)).wait(); // 0.5% origination fee
 
   const artifactsDir = path.join(__dirname, "..", "artifacts", "contracts");
   function abiOf(rel) {
@@ -98,12 +133,14 @@ async function main() {
       AssetRegistry: { address: await registry.getAddress(), abi: abiOf("core/AssetRegistry.sol/AssetRegistry.json") },
       MockPriceOracle: { address: await oracle.getAddress(), abi: abiOf("mocks/MockPriceOracle.sol/MockPriceOracle.json") },
       MockERC20: { abi: abiOf("mocks/MockERC20.sol/MockERC20.json") },
+      LatensCDP: { address: await cdp.getAddress(), abi: abiOf("core/LatensCDP.sol/LatensCDP.json") },
+      LatensDollar: { address: await latensDollar.getAddress(), abi: abiOf("core/LatensDollar.sol/LatensDollar.json") },
     },
     tokens: {
       ZEN: { address: await zen.getAddress(), symbol: "ZEN", decimals: 18, assetId: Number(zenAssetId) },
-      USDC: { address: await usdc.getAddress(), symbol: "USDC", decimals: 6, assetId: Number(usdcAssetId) },
+      ZUSD: { address: await zusd.getAddress(), symbol: "ZUSD", decimals: 18, assetId: Number(zusdAssetId) },
       WBTC: { address: await wbtc.getAddress(), symbol: "WBTC", decimals: 8, assetId: Number(wbtcAssetId) },
-      DAI: { address: await dai.getAddress(), symbol: "DAI", decimals: 18, assetId: Number(daiAssetId) },
+      USDC: { address: await usdc.getAddress(), symbol: "USDC", decimals: 6, assetId: Number(usdcAssetId) },
     },
   };
 
@@ -114,9 +151,11 @@ async function main() {
   console.log("LatensPool:", await pool.getAddress());
   console.log("AssetRegistry:", await registry.getAddress());
   console.log("ZEN:", await zen.getAddress());
-  console.log("USDC:", await usdc.getAddress());
+  console.log("ZUSD:", await zusd.getAddress());
   console.log("WBTC:", await wbtc.getAddress());
-  console.log("DAI:", await dai.getAddress());
+  console.log("USDC:", await usdc.getAddress());
+  console.log("LatensCDP:", await cdp.getAddress());
+  console.log("LatensDollar:", await latensDollar.getAddress());
   console.log("Wrote frontend/lib/deployment.json");
 }
 

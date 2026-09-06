@@ -1,6 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
+const { time } = require("@nomicfoundation/hardhat-network-helpers");
 
 // These tests exercise LatensPool's state machine (accounting, access control, proof
 // binding) against MockVerifier, which accepts any proof. They do NOT test any real
@@ -191,34 +192,59 @@ describe("LatensPool", function () {
     expect(position.hasDebt).to.equal(true);
   });
 
-  it("repay splits the reserve-factor cut into the treasury, which forwards a share to ZEN staking", async function () {
-    const { alice, deployer, collateralToken, debtToken, pool, treasury, stakingPool, collateralAssetId, debtAssetId } = await deployFixture();
+  it("repay charges a real, utilization-driven interest fee that flows to the treasury and on to ZEN staking", async function () {
+    const { alice, deployer, collateralToken, debtToken, registry, pool, treasury, stakingPool, collateralAssetId, debtAssetId } = await deployFixture();
+
+    // 5% base, +10% up to 80% utilization (the kink), +100% beyond it — all annualized bps.
+    // This fixture's debt asset never records any `totalSupplied` (the pool's USDC
+    // liquidity is seeded by a raw transfer, not supplyCollateral), so utilization stays 0
+    // and the rate is just the 5% base — enough to prove the fee is real without coupling
+    // this test to the utilization curve too.
+    await registry.setInterestRateModel(debtAssetId, 500, 1_000, 10_000, 8_000);
 
     const collateralAmount = ethers.parseUnits("1000", 18);
     await collateralToken.connect(alice).approve(await pool.getAddress(), collateralAmount);
     await pool.connect(alice).supplyCollateral(collateralAssetId, collateralAmount, 1n, "0x", commitmentUpdateInputs({ oldCommitment: 0n, newCommitment: 1n, delta: collateralAmount, isIncrease: true, assetId: collateralAssetId }));
 
     const borrowAmount = ethers.parseUnits("1000", 6);
-    await pool.connect(alice).borrow(
-      debtAssetId, borrowAmount, 2n, "0x",
-      commitmentUpdateInputs({ oldCommitment: 0n, newCommitment: 2n, delta: borrowAmount, isIncrease: true, assetId: debtAssetId }),
-      "0x",
-      solvencyInputs({ collateralCommitment: 1n, debtCommitment: 2n, collateralPriceE8: ethers.parseUnits("2", 8), debtPriceE8: ethers.parseUnits("1", 8), thresholdBps: 8_000 })
-    );
+    const borrowReceipt = await (
+      await pool.connect(alice).borrow(
+        debtAssetId, borrowAmount, 2n, "0x",
+        commitmentUpdateInputs({ oldCommitment: 0n, newCommitment: 2n, delta: borrowAmount, isIncrease: true, assetId: debtAssetId }),
+        "0x",
+        solvencyInputs({ collateralCommitment: 1n, debtCommitment: 2n, collateralPriceE8: ethers.parseUnits("2", 8), debtPriceE8: ethers.parseUnits("1", 8), thresholdBps: 8_000 })
+      )
+    ).wait();
+    const borrowBlock = await ethers.provider.getBlock(borrowReceipt.blockNumber);
 
     const repayAmount = ethers.parseUnits("500", 6);
-    await debtToken.connect(alice).approve(await pool.getAddress(), repayAmount);
-    await pool.connect(alice).repay(
-      repayAmount, 3n, "0x",
-      commitmentUpdateInputs({ oldCommitment: 2n, newCommitment: 3n, delta: repayAmount, isIncrease: false, assetId: debtAssetId })
-    );
+    await debtToken.connect(alice).approve(await pool.getAddress(), ethers.MaxUint256);
+    await time.increase(30 * 24 * 60 * 60); // 30 days
 
-    const expectedReserveCut = (repayAmount * 1_000n) / BPS; // 10% reserveFactorBps set in fixture
-    expect(await debtToken.balanceOf(await treasury.getAddress())).to.equal(expectedReserveCut);
+    const repayReceipt = await (
+      await pool.connect(alice).repay(
+        repayAmount, 3n, "0x",
+        commitmentUpdateInputs({ oldCommitment: 2n, newCommitment: 3n, delta: repayAmount, isIncrease: false, assetId: debtAssetId })
+      )
+    ).wait();
+    const repayBlock = await ethers.provider.getBlock(repayReceipt.blockNumber);
+
+    const elapsed = BigInt(repayBlock.timestamp - borrowBlock.timestamp);
+    const expectedFee = (repayAmount * 500n * elapsed) / (BPS * 365n * 24n * 60n * 60n);
+    expect(expectedFee).to.be.greaterThan(0n); // sanity: 30 days at 5% APR must actually charge something
+
+    expect(await debtToken.balanceOf(await treasury.getAddress())).to.equal(expectedFee);
+    expect(await debtToken.balanceOf(await pool.getAddress())).to.equal(ethers.parseUnits("500000", 6) - borrowAmount + repayAmount);
 
     await treasury.connect(deployer).sweep(await debtToken.getAddress());
-    const expectedToStaking = (expectedReserveCut * 1_750n) / BPS; // default 17.5% contribution rate
+    const expectedToStaking = (expectedFee * 1_750n) / BPS; // default 17.5% contribution rate
     expect(await stakingPool.totalContributed(await debtToken.getAddress())).to.equal(expectedToStaking);
+  });
+
+  it("quotes zero repay interest when no rate model has been configured for the asset", async function () {
+    const { registry, debtAssetId } = await deployFixture();
+    expect(await registry.quoteRepayInterestFee(debtAssetId, ethers.parseUnits("500", 6), 0n)).to.equal(0n);
+    expect(await registry.borrowRateBps(debtAssetId)).to.equal(0n);
   });
 
   it("lets a keeper liquidate an eligible position and seize collateral plus bonus", async function () {

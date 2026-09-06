@@ -34,10 +34,15 @@ import {Errors} from "../libraries/Errors.sol";
 ///  - At liquidation, `seizedCollateralAmount` and `repayAmount` become public — see
 ///    `ILiquidationVerifier`'s dev note. Keeping even that private is open design space for
 ///    a later milestone, not something this scaffold claims to have solved.
-///  - This scaffold has NO interest-rate/accrual model yet (no borrow index). `repay`'s
-///    reserve-factor cut is a placeholder for real interest-based protocol revenue, wired
-///    end-to-end (down to the ZEN staking pool contribution) so the money-flow shape is
-///    testable before the accrual model exists.
+///  - Interest is real and utilization-driven (see `AssetRegistry.borrowRateBps`), charged
+///    at `repay` time over the exact elapsed time since a position's debt was last touched.
+///    It cannot yet compound onto a position's own hidden principal, and suppliers cannot
+///    yet be paid a matching pass-through yield — both would require the `commitment_update`
+///    and `solvency` circuits to accept a public index-scaling term, which is a follow-on
+///    milestone, not something this scaffold claims to have solved (see AssetRegistry's
+///    `supplyRateBps` NatSpec). What IS real: the fee is computed live from the market's
+///    current rate curve, not a static config constant, and its money-flow is wired
+///    end-to-end down to the ZEN staking pool contribution.
 ///  - Every zk proof is checked through a pluggable verifier interface; `MockVerifier` is
 ///    a development stand-in and must never be wired in production.
 contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
@@ -261,6 +266,7 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
 
         position.debtCommitment = newCommitment;
         position.lastUpdated = uint64(block.timestamp);
+        position.debtLastUpdated = uint64(block.timestamp);
         registry.recordBorrow(debtAssetId, amount, true);
 
         IERC20(debtAsset.token).safeTransfer(msg.sender, amount);
@@ -268,11 +274,14 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         emit DebtUpdated(msg.sender, debtAssetId, newCommitment, true);
     }
 
-    /// @dev Simplified revenue model: this scaffold takes `reserveFactorBps` of the
-    /// repayment itself as a placeholder for real interest-based protocol revenue. There is
-    /// no borrow index / accrual here yet — that is a follow-on milestone. What IS real is
-    /// the money's path: a cut lands in `treasury`, which later contributes its
-    /// `stakingContributionBps` share to the ZEN staking rewards pool.
+    /// @dev Real, live interest: on top of `amount` (which is what the commitment proof
+    /// reduces the position's debt by), the caller pays `interestFee` — a genuine
+    /// time-and-utilization-weighted charge from `AssetRegistry.quoteRepayInterestFee`,
+    /// computed over the exact time since this position's debt was last touched. The fee
+    /// goes entirely to `treasury`, which later contributes its `stakingContributionBps`
+    /// share to the ZEN staking rewards pool. This charges real interest on real repayments
+    /// without ever reading a position's hidden principal — see the AssetRegistry NatSpec
+    /// on `supplyRateBps` for why this can't yet pay individual suppliers a matching yield.
     function repay(uint256 amount, uint256 newCommitment, bytes calldata updateProof, uint256[] calldata updatePublicInputs)
         external
         whenNotPaused
@@ -283,6 +292,7 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         if (!position.active || !position.hasDebt) revert Errors.AssetNotListed();
 
         DataTypes.Asset memory debtAsset = registry.getAsset(position.debtAssetId);
+        uint256 interestFee = registry.quoteRepayInterestFee(position.debtAssetId, amount, position.debtLastUpdated);
 
         _verifyCommitmentUpdate({
             proof: updateProof,
@@ -296,12 +306,12 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
 
         position.debtCommitment = newCommitment;
         position.lastUpdated = uint64(block.timestamp);
+        position.debtLastUpdated = uint64(block.timestamp);
         registry.recordBorrow(position.debtAssetId, amount, false);
 
-        uint256 reserveCut = (amount * debtAsset.reserveFactorBps) / 10_000;
-        IERC20(debtAsset.token).safeTransferFrom(msg.sender, address(this), amount - reserveCut);
-        if (reserveCut > 0) {
-            IERC20(debtAsset.token).safeTransferFrom(msg.sender, address(treasury), reserveCut);
+        IERC20(debtAsset.token).safeTransferFrom(msg.sender, address(this), amount);
+        if (interestFee > 0) {
+            IERC20(debtAsset.token).safeTransferFrom(msg.sender, address(treasury), interestFee);
         }
 
         emit DebtUpdated(msg.sender, position.debtAssetId, newCommitment, false);

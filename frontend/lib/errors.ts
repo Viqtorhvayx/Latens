@@ -12,6 +12,7 @@ const REVERT_MESSAGES: Record<string, string> = {
   AssetNotSupported: "This build only supports one collateral asset and one debt asset per position.",
   StaleOraclePrice: "Price data is stale right now — try again in a moment.",
   ExceedsGrantIndicativeRange: "That amount is outside this deployment's configured range.",
+  ExceedsMaxFee: "That fee is outside this deployment's configured range.",
 };
 
 export function humanizeError(err: unknown): string {

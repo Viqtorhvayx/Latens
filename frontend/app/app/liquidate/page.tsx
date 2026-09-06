@@ -20,7 +20,8 @@ import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 // artifact already built for viewing keys — a signed disclosure the position owner (or an
 // insolvency-monitoring service they've shared one with) exported. That's not a shortcut;
 // it's the actual shape of the open problem this interface's own docs name.
-type PositionTuple = readonly [bigint, bigint, bigint, bigint, number, boolean, boolean];
+// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, debtLastUpdated, active, hasDebt]
+type PositionTuple = readonly [bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
 type AssetStruct = {
   token: `0x${string}`;
   isSupported: boolean;
@@ -58,7 +59,7 @@ export default function LiquidatePage() {
   });
   const positionTuple = position as PositionTuple | undefined;
   const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
-  const debtAssetId = positionTuple?.[6] ? Number(positionTuple[1]) : undefined;
+  const debtAssetId = positionTuple?.[7] ? Number(positionTuple[1]) : undefined;
   const collateralToken = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
   const debtToken = debtAssetId !== undefined ? tokenList.find((t) => t.assetId === debtAssetId) : undefined;
 
@@ -132,7 +133,7 @@ export default function LiquidatePage() {
     Boolean(positionTuple) &&
     Boolean(collateralEntry) &&
     Boolean(debtEntry) &&
-    positionTuple![6] && // hasDebt
+    positionTuple![7] && // hasDebt
     Number(positionTuple![0]) === collateralEntry!.assetId &&
     Number(positionTuple![1]) === debtEntry!.assetId &&
     positionTuple![2] === BigInt(collateralEntry!.commitment) &&

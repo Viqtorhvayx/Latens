@@ -8,10 +8,10 @@ describe("usdValueE8", () => {
   });
 
   it("normalizes across differing decimals so equal USD value compares equal", () => {
-    // 100 USDC (6 decimals) at $1 vs 100 DAI (18 decimals) at $1 — same USD value.
+    // 100 USDC (6 decimals) at $1 vs 100 ZUSD (18 decimals) at $1 — same USD value.
     const usdcValue = usdValueE8(100n * 10n ** 6n, 6, 100_000_000n);
-    const daiValue = usdValueE8(100n * 10n ** 18n, 18, 100_000_000n);
-    expect(usdcValue).toBe(daiValue);
+    const zusdValue = usdValueE8(100n * 10n ** 18n, 18, 100_000_000n);
+    expect(usdcValue).toBe(zusdValue);
   });
 
   it("catches the bug this module was written to fix: raw amount*price is not comparable across decimals", () => {

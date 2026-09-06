@@ -20,8 +20,8 @@ import type { TokenSymbol } from "@/lib/contracts";
 // AssetRegistry.getAsset() (a hand-written function returning one real `tuple`-typed
 // struct, decoded as a named object below), the auto getter flattens Position into 7
 // separate top-level outputs, which viem decodes as a positional array instead.
-// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, active, hasDebt]
-type PositionTuple = readonly [bigint, bigint, bigint, bigint, number, boolean, boolean];
+// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, debtLastUpdated, active, hasDebt]
+type PositionTuple = readonly [bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
 type AssetStruct = {
   token: `0x${string}`;
   isSupported: boolean;
@@ -53,7 +53,7 @@ export default function PortfolioPage() {
 
   const positionTuple = position as PositionTuple | undefined;
   const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
-  const debtAssetId = positionTuple?.[6] ? Number(positionTuple[1]) : undefined;
+  const debtAssetId = positionTuple?.[7] ? Number(positionTuple[1]) : undefined;
   const collateralToken = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
   const debtToken = debtAssetId !== undefined ? tokenList.find((t) => t.assetId === debtAssetId) : undefined;
 
@@ -116,7 +116,7 @@ export default function PortfolioPage() {
     if (!collateralToken || !debtToken || debtAmount === 0n || !collateralAsset || !collateralPrice || !debtPrice) return "safe" as const;
     const { ltvBps, liquidationThresholdBps } = collateralAsset;
     // USD-normalized via usdValueE8 — collateral and debt tokens don't share decimals
-    // (ZEN/DAI=18, WBTC=8, USDC=6), so comparing raw base-unit amounts times priceE8
+    // (ZEN/ZUSD=18, WBTC=8, USDC=6), so comparing raw base-unit amounts times priceE8
     // directly (the previous approach) isn't dimensionally valid; see lib/valuation.ts.
     const collateralValueE8 = usdValueE8(collateralAmount, collateralToken.decimals, collateralPrice[0]);
     const debtValueE8 = usdValueE8(debtAmount, debtToken.decimals, debtPrice[0]);

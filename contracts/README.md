@@ -11,8 +11,10 @@ production-ready.
 contracts/
   core/
     LatensPool.sol        entrypoint: supplyCollateral, withdrawCollateral, borrow, repay, liquidate
-    AssetRegistry.sol      public market config + aggregates (owner-governed)
-    ProtocolTreasury.sol   reserve-factor collection -> ZEN staking pool contribution
+    AssetRegistry.sol      public market config + aggregates + interest rate model (owner-governed)
+    ProtocolTreasury.sol   fee collection -> ZEN staking pool contribution
+    LatensCDP.sol          confidential stablecoin minting: lock collateral, mint LatensDollar
+    LatensDollar.sol       the protocol's own stablecoin — minted/burned only by LatensCDP
   interfaces/
     ICommitmentVerifier.sol   confidential balance-update proof
     ISolvencyVerifier.sol     health-factor-above-threshold proof (borrow/withdraw)
@@ -73,10 +75,34 @@ contracts/
   gated by the REAL `LiquidationHonkVerifier`, with a genuine Barretenberg proof. `ILiquidationVerifier`'s public-input layout below reflects the real
   circuit, including `liquidationBonusBps`, which the circuit uses to cap a keeper's seized
   value at the repaid debt's value plus the configured bonus.
-- There is **no interest-rate/accrual model.** `repay`'s reserve-factor cut is a placeholder
-  for real interest-based revenue, wired end-to-end (down to `ProtocolTreasury`'s
-  contribution to the ZEN staking pool) so the money-flow shape is testable before accrual
-  exists.
+- **Interest is real and utilization-driven**, not a placeholder: `AssetRegistry` holds a
+  kinked rate model per asset (`setInterestRateModel` / `borrowRateBps` / `supplyRateBps`),
+  and `LatensPool.repay` charges a genuine, time-weighted fee on top of the repaid amount via
+  `quoteRepayInterestFee`, computed over the exact elapsed time since the position's debt was
+  last touched. What this can't do yet: compound onto a position's own hidden principal, or
+  pay suppliers a matching pass-through yield — both require the `commitment_update` and
+  `solvency` circuits to accept a public index-scaling term (there is no `nargo`/`bb`
+  toolchain available to build that here). Until then, collected interest funds
+  `ProtocolTreasury` (and its contribution to the ZEN staking pool) rather than individual
+  suppliers — see `AssetRegistry.supplyRateBps`'s NatSpec for the full reasoning. TVL and
+  Borrow APR shown in the frontend's Markets page are real, live, computed figures built on
+  this model, not placeholders.
+- **Four collateral/debt assets, chosen to actually be grounded on Horizen:** ZEN (the
+  network's native gas/staking token) and ZUSD (Horizen Labs' own natively-issued
+  stablecoin) are confirmed native. WBTC and USDC are the two bridged majors Horizen's own
+  Archon Bridge documentation names for the EON network — EON itself is mid-migration to a
+  new, Base-settling L3 (per Horizen's own June 2025 announcement) whose final bridged-asset
+  list isn't published yet, so treat these two as "best available, sourced" rather than
+  confirmed on the new L3. DAI was dropped for exactly this reason: it had no sourced
+  Horizen-specific grounding, just generic recognizability.
+- **Confidential stablecoin minting (`LatensCDP` / `LatensDollar`)** reuses the same
+  commitment/solvency-proof discipline as `LatensPool` — lock Pedersen-committed collateral,
+  mint `LatensDollar` against it, pay a one-time origination fee (the entire revenue
+  mechanism here, since per-position minting amounts aren't distributable proportionally
+  either, for the same reason as above). It shares `AssetRegistry`'s listed collateral
+  assets and their LTV/liquidation parameters, but keeps its own aggregates —
+  `AssetRegistry.recordSupply`/`recordBorrow` are gated to the one `pool` address
+  `LatensPool` already occupies.
 - Positions are **single-collateral, single-debt-asset, isolated per user** — cross-margin,
   multi-asset positions would require the circuits to aggregate over many assets in one
   proof, which is materially harder and out of scope for this milestone.

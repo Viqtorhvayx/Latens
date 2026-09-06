@@ -16,7 +16,8 @@ import { humanizeError } from "@/lib/errors";
 // Restoring only accepts entries that (a) were signed by the connected wallet itself and
 // (b) still match LatensPool's live on-chain commitment for that asset, so a stale or
 // forged file can't quietly corrupt local state.
-type PositionTuple = readonly [bigint, bigint, bigint, bigint, number, boolean, boolean];
+// [collateralAssetId, debtAssetId, collateralCommitment, debtCommitment, lastUpdated, debtLastUpdated, active, hasDebt]
+type PositionTuple = readonly [bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
 
 export function ImportBackupModal({ address, onClose }: { address: `0x${string}`; onClose: () => void }) {
   const [rawInput, setRawInput] = useState("");
@@ -66,7 +67,7 @@ export function ImportBackupModal({ address, onClose }: { address: `0x${string}`
           commit(address, entry.assetId, { supplied: amount, suppliedSalt: salt });
           restored++;
         } else {
-          if (!positionTuple[6] || Number(positionTuple[1]) !== entry.assetId || positionTuple[3] !== BigInt(entry.commitment)) continue;
+          if (!positionTuple[7] || Number(positionTuple[1]) !== entry.assetId || positionTuple[3] !== BigInt(entry.commitment)) continue;
           commit(address, entry.assetId, { borrowed: amount, borrowedSalt: salt });
           restored++;
         }

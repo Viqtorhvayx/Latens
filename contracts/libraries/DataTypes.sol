@@ -16,6 +16,12 @@ library DataTypes {
         uint16 reserveFactorBps; // protocol's cut of interest, basis points
         uint256 totalSupplied; // public aggregate
         uint256 totalBorrowed; // public aggregate
+        // Kinked interest rate model, all bps annualized — see AssetRegistry.borrowRateBps.
+        // kinkBps == 0 means no model has been configured yet (borrowRateBps returns 0).
+        uint16 baseRateBps;
+        uint16 slope1Bps;
+        uint16 slope2Bps;
+        uint16 kinkBps;
     }
 
     /// @dev A user's confidential position in one market. Amounts are never stored in the
@@ -30,6 +36,22 @@ library DataTypes {
     struct Position {
         uint256 collateralAssetId;
         uint256 debtAssetId;
+        uint256 collateralCommitment;
+        uint256 debtCommitment;
+        uint64 lastUpdated;
+        // Set on every borrow/repay only (not on a collateral-only touch) — the base
+        // timestamp LatensPool.repay uses to quote a real, time-weighted interest fee on
+        // the amount being repaid. See AssetRegistry.quoteRepayInterestFee.
+        uint64 debtLastUpdated;
+        bool active;
+        bool hasDebt;
+    }
+
+    /// @dev A confidential CDP position in `LatensCDP` — same commitment discipline as
+    /// `Position` above, but the "debt" side is always the protocol's own `LatensDollar`,
+    /// never a registry-listed asset, so there is no separate debtAssetId to track.
+    struct CDPPosition {
+        uint256 collateralAssetId;
         uint256 collateralCommitment;
         uint256 debtCommitment;
         uint64 lastUpdated;
