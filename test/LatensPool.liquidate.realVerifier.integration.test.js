@@ -32,6 +32,8 @@ describe("LatensPool + NoirLiquidationVerifier (real proof, no MockVerifier for 
       newDebtCommitment,
       collateralPriceE8,
       debtPriceE8,
+      collateralIndexRay,
+      debtIndexRay,
       liquidationThresholdBps,
       liquidationBonusBps,
       seizedCollateralAmount,
@@ -95,6 +97,8 @@ describe("LatensPool + NoirLiquidationVerifier (real proof, no MockVerifier for 
         debtCommitment,
         collateralPriceE8,
         debtPriceE8,
+        collateralIndexRay,
+        debtIndexRay,
         ltvBps,
       ]);
 
@@ -111,6 +115,8 @@ describe("LatensPool + NoirLiquidationVerifier (real proof, no MockVerifier for 
         newDebtCommitment,
         collateralPriceE8,
         debtPriceE8,
+        collateralIndexRay,
+        debtIndexRay,
         liquidationThresholdBps,
         liquidationBonusBps,
         seizedCollateralAmount,

@@ -93,7 +93,7 @@ guessing at security-critical calldata. Both are now closed, with real proofs ve
 on-chain (Hardhat's local EVM) as evidence — see `contracts/README.md` for where the
 resulting verifier contracts and adapters live.
 
-**1. The generated verifier's `NUMBER_OF_PUBLIC_INPUTS` (13 for `solvency`) is NOT the
+**1. The generated verifier's `NUMBER_OF_PUBLIC_INPUTS` (15 for `solvency`) is NOT the
 length of the `publicInputs` calldata argument.** Reading `BaseZKHonkVerifier.verify`
 directly (in the generated Solidity, and cross-checked against Aztec's own
 `barretenberg/sol` test harness in the `aztec-packages` repo) shows:
@@ -103,7 +103,7 @@ require(publicInputs.length == vk.publicInputsSize - PAIRING_POINTS_SIZE, ...);
 `PAIRING_POINTS_SIZE` is a fixed constant (**8**) — a BN254 pairing/aggregation object
 embedded INSIDE the proof bytes themselves, extracted internally by the verifier
 (`ZKTranscriptLib.loadProof`), never supplied by the caller. So `publicInputs` is exactly
-each circuit's own declared public inputs (5 for `solvency`, 5 for `commitment_update`, 10
+each circuit's own declared public inputs (7 for `solvency`, 5 for `commitment_update`, 12
 for `liquidation_eligibility`), and `proof` is bb's complete, unmodified proof blob — `bb
 prove -o <dir>`'s own file split (`public_inputs` = N elements, `proof` = the rest) was
 already exactly correct all along; no reconstruction or re-splitting needed. Confirmed by

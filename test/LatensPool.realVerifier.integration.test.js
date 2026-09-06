@@ -35,7 +35,7 @@ describe("LatensPool + NoirSolvencyVerifier (real proof, no MockVerifier for sol
       publicInputWords.push(BigInt(ethers.hexlify(bbPublicInputsBuf.subarray(i * 32, (i + 1) * 32))));
     }
     // Matches circuits/solvency/src/main.nr's public input order exactly.
-    const [collateralCommitment, debtCommitment, collateralPriceE8, debtPriceE8, thresholdBps] = publicInputWords;
+    const [collateralCommitment, debtCommitment, collateralPriceE8, debtPriceE8, collateralIndexRay, debtIndexRay, thresholdBps] = publicInputWords;
 
     const MockERC20 = await ethers.getContractFactory("MockERC20");
     const collateralToken = await MockERC20.deploy("Wrapped ZEN", "ZEN", 18);
@@ -103,7 +103,7 @@ describe("LatensPool + NoirSolvencyVerifier (real proof, no MockVerifier for sol
       "0x",
       [0n, debtCommitment, borrowAmount, 1n, debtAssetId],
       bbProof, // the REAL zk-SNARK proof
-      [collateralCommitment, debtCommitment, collateralPriceE8, debtPriceE8, thresholdBps]
+      [collateralCommitment, debtCommitment, collateralPriceE8, debtPriceE8, collateralIndexRay, debtIndexRay, thresholdBps]
     );
 
     expect(await debtToken.balanceOf(alice.address)).to.equal(borrowAmount);

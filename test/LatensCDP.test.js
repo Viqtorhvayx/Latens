@@ -54,8 +54,10 @@ function commitmentUpdateInputs({ oldCommitment, newCommitment, delta, isIncreas
   return [oldCommitment, newCommitment, delta, isIncrease ? 1n : 0n, assetId];
 }
 
+const RAY = 1_000_000_000_000_000_000n;
+
 function solvencyInputs({ collateralCommitment, debtCommitment, collateralPriceE8, thresholdBps }) {
-  return [collateralCommitment, debtCommitment, collateralPriceE8, 100_000_000n, BigInt(thresholdBps)];
+  return [collateralCommitment, debtCommitment, collateralPriceE8, 100_000_000n, RAY, RAY, BigInt(thresholdBps)];
 }
 
 describe("LatensCDP", function () {
@@ -192,6 +194,8 @@ describe("LatensCDP", function () {
       1n, 2n, 3n, 4n,
       ethers.parseUnits("2", 8),
       100_000_000n,
+      RAY,
+      RAY,
       liquidationThresholdBps,
       liquidationBonusBps,
       seizedCollateralAmount,

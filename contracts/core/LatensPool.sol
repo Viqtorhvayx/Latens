@@ -43,6 +43,8 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint256 public constant PRICE_STALENESS_WINDOW = 1 hours;
+    uint256 private constant RAY = 1e18;
+    uint256 private constant BPS_DENOMINATOR = 10_000;
 
     AssetRegistry public immutable registry;
     ProtocolTreasury public immutable treasury;
@@ -142,12 +144,14 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
             revert Errors.AssetNotSupported(); // this scaffold is single-collateral per position
         }
 
+        uint256 shareDelta = (amount * RAY) / registry.currentSupplyIndexRay(assetId);
+
         _verifyCommitmentUpdate({
             proof: proof,
             publicInputs: publicInputs,
             oldCommitment: position.collateralCommitment,
             newCommitment: newCommitment,
-            delta: amount,
+            delta: shareDelta,
             isIncrease: true,
             assetId: assetId
         });
@@ -180,13 +184,15 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         if (!position.active) revert Errors.AssetNotListed();
 
         DataTypes.Asset memory collateralAsset = registry.getAsset(position.collateralAssetId);
+        uint256 collateralIndexRay = registry.currentSupplyIndexRay(position.collateralAssetId);
+        uint256 shareDelta = (amount * RAY) / collateralIndexRay;
 
         _verifyCommitmentUpdate({
             proof: updateProof,
             publicInputs: updatePublicInputs,
             oldCommitment: position.collateralCommitment,
             newCommitment: newCommitment,
-            delta: amount,
+            delta: shareDelta,
             isIncrease: false,
             assetId: position.collateralAssetId
         });
@@ -200,6 +206,8 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
                 debtCommitment: position.debtCommitment,
                 collateralToken: collateralAsset.token,
                 debtToken: debtAsset.token,
+                collateralIndexRay: collateralIndexRay,
+                debtIndexRay: RAY,
                 thresholdBps: collateralAsset.ltvBps
             });
         }
@@ -255,6 +263,8 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
             debtCommitment: newCommitment,
             collateralToken: collateralAsset.token,
             debtToken: debtAsset.token,
+            collateralIndexRay: registry.currentSupplyIndexRay(position.collateralAssetId),
+            debtIndexRay: RAY,
             thresholdBps: collateralAsset.ltvBps
         });
 
@@ -279,6 +289,7 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
 
         DataTypes.Asset memory debtAsset = registry.getAsset(position.debtAssetId);
         uint256 interestFee = registry.quoteRepayInterestFee(position.debtAssetId, amount, position.debtLastUpdated);
+        uint256 reserveCut = (interestFee * debtAsset.reserveFactorBps) / BPS_DENOMINATOR;
 
         _verifyCommitmentUpdate({
             proof: updateProof,
@@ -294,10 +305,16 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         position.lastUpdated = uint64(block.timestamp);
         position.debtLastUpdated = uint64(block.timestamp);
         registry.recordBorrow(position.debtAssetId, amount, false);
+        if (interestFee > reserveCut) {
+            registry.recordSupply(position.debtAssetId, interestFee - reserveCut, true);
+        }
 
         IERC20(debtAsset.token).safeTransferFrom(msg.sender, address(this), amount);
         if (interestFee > 0) {
-            IERC20(debtAsset.token).safeTransferFrom(msg.sender, address(treasury), interestFee);
+            IERC20(debtAsset.token).safeTransferFrom(msg.sender, address(this), interestFee);
+            if (reserveCut > 0) {
+                IERC20(debtAsset.token).safeTransfer(address(treasury), reserveCut);
+            }
         }
 
         emit DebtUpdated(msg.sender, position.debtAssetId, newCommitment, false);
@@ -329,17 +346,21 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         _requireFreshPrice(collateralUpdatedAt);
         _requireFreshPrice(debtUpdatedAt);
 
-        if (eligibilityPublicInputs.length < 10) revert Errors.InvalidProof();
+        uint256 collateralIndexRay = registry.currentSupplyIndexRay(position.collateralAssetId);
+
+        if (eligibilityPublicInputs.length < 12) revert Errors.InvalidProof();
         _requireEq(eligibilityPublicInputs[0], position.collateralCommitment);
         _requireEq(eligibilityPublicInputs[1], position.debtCommitment);
         _requireEq(eligibilityPublicInputs[2], newCollateralCommitment);
         _requireEq(eligibilityPublicInputs[3], newDebtCommitment);
         _requireEq(eligibilityPublicInputs[4], collateralPriceE8);
         _requireEq(eligibilityPublicInputs[5], debtPriceE8);
-        _requireEq(eligibilityPublicInputs[6], collateralAsset.liquidationThresholdBps);
-        _requireEq(eligibilityPublicInputs[7], collateralAsset.liquidationBonusBps);
-        _requireEq(eligibilityPublicInputs[8], seizedCollateralAmount);
-        _requireEq(eligibilityPublicInputs[9], repayAmount);
+        _requireEq(eligibilityPublicInputs[6], collateralIndexRay);
+        _requireEq(eligibilityPublicInputs[7], RAY);
+        _requireEq(eligibilityPublicInputs[8], collateralAsset.liquidationThresholdBps);
+        _requireEq(eligibilityPublicInputs[9], collateralAsset.liquidationBonusBps);
+        _requireEq(eligibilityPublicInputs[10], seizedCollateralAmount);
+        _requireEq(eligibilityPublicInputs[11], repayAmount);
 
         if (!liquidationVerifier.verifyLiquidationEligibility(eligibilityProof, eligibilityPublicInputs)) {
             revert Errors.InvalidProof();
@@ -408,6 +429,8 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         uint256 debtCommitment,
         address collateralToken,
         address debtToken,
+        uint256 collateralIndexRay,
+        uint256 debtIndexRay,
         uint16 thresholdBps
     ) private view {
         (uint256 collateralPriceE8, uint256 collateralUpdatedAt) = priceOracle.getPrice(collateralToken);
@@ -415,12 +438,14 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         _requireFreshPrice(collateralUpdatedAt);
         _requireFreshPrice(debtUpdatedAt);
 
-        if (publicInputs.length < 5) revert Errors.InvalidProof();
+        if (publicInputs.length < 7) revert Errors.InvalidProof();
         _requireEq(publicInputs[0], collateralCommitment);
         _requireEq(publicInputs[1], debtCommitment);
         _requireEq(publicInputs[2], collateralPriceE8);
         _requireEq(publicInputs[3], debtPriceE8);
-        _requireEq(publicInputs[4], thresholdBps);
+        _requireEq(publicInputs[4], collateralIndexRay);
+        _requireEq(publicInputs[5], debtIndexRay);
+        _requireEq(publicInputs[6], thresholdBps);
 
         if (!solvencyVerifier.verifySolvency(proof, publicInputs)) revert Errors.InvalidProof();
     }

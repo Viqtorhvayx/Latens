@@ -29,10 +29,13 @@ interface ILiquidationVerifier {
     ///   [3] newDebtCommitment (post-liquidation, repaid amount removed)
     ///   [4] collateralPriceE8
     ///   [5] debtPriceE8
-    ///   [6] liquidationThresholdBps
-    ///   [7] liquidationBonusBps
-    ///   [8] seizedCollateralAmount (public — see dev note above)
-    ///   [9] repayAmount (public — see dev note above)
+    ///   [6] collateralIndexRay (RAY-scaled, 1e18 = 1:1)
+    ///   [7] debtIndexRay (RAY-scaled; see ISolvencyVerifier's layout note)
+    ///   [8] liquidationThresholdBps
+    ///   [9] liquidationBonusBps
+    ///   [10] seizedCollateralAmount (public — see dev note above; a real underlying-token
+    ///        amount, converted to shares internally via collateralIndexRay)
+    ///   [11] repayAmount (public — see dev note above)
     function verifyLiquidationEligibility(bytes calldata proof, uint256[] calldata publicInputs)
         external
         view

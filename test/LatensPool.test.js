@@ -67,8 +67,10 @@ function commitmentUpdateInputs({ oldCommitment, newCommitment, delta, isIncreas
   return [oldCommitment, newCommitment, delta, isIncrease ? 1n : 0n, assetId];
 }
 
-function solvencyInputs({ collateralCommitment, debtCommitment, collateralPriceE8, debtPriceE8, thresholdBps }) {
-  return [collateralCommitment, debtCommitment, collateralPriceE8, debtPriceE8, BigInt(thresholdBps)];
+const RAY = 1_000_000_000_000_000_000n;
+
+function solvencyInputs({ collateralCommitment, debtCommitment, collateralPriceE8, debtPriceE8, collateralIndexRay = RAY, debtIndexRay = RAY, thresholdBps }) {
+  return [collateralCommitment, debtCommitment, collateralPriceE8, debtPriceE8, collateralIndexRay, debtIndexRay, BigInt(thresholdBps)];
 }
 
 describe("LatensPool", function () {
@@ -227,12 +229,15 @@ describe("LatensPool", function () {
     const elapsed = BigInt(repayBlock.timestamp - borrowBlock.timestamp);
     const expectedFee = (repayAmount * 500n * elapsed) / (BPS * 365n * 24n * 60n * 60n);
     expect(expectedFee).to.be.greaterThan(0n);
+    const expectedReserveCut = (expectedFee * 1_000n) / BPS; // debtAssetId's reserveFactorBps
 
-    expect(await debtToken.balanceOf(await treasury.getAddress())).to.equal(expectedFee);
-    expect(await debtToken.balanceOf(await pool.getAddress())).to.equal(ethers.parseUnits("500000", 6) - borrowAmount + repayAmount);
+    expect(await debtToken.balanceOf(await treasury.getAddress())).to.equal(expectedReserveCut);
+    expect(await debtToken.balanceOf(await pool.getAddress())).to.equal(
+      ethers.parseUnits("500000", 6) - borrowAmount + repayAmount + expectedFee - expectedReserveCut
+    );
 
     await treasury.connect(deployer).sweep(await debtToken.getAddress());
-    const expectedToStaking = (expectedFee * 1_750n) / BPS;
+    const expectedToStaking = (expectedReserveCut * 1_750n) / BPS;
     expect(await stakingPool.totalContributed(await debtToken.getAddress())).to.equal(expectedToStaking);
   });
 
@@ -269,7 +274,7 @@ describe("LatensPool", function () {
       4n,
       5n,
       "0x",
-      [1n, 2n, 4n, 5n, ethers.parseUnits("2", 8), ethers.parseUnits("1", 8), BigInt(asset.liquidationThresholdBps), BigInt(asset.liquidationBonusBps), seizedCollateralAmount, repayAmount]
+      [1n, 2n, 4n, 5n, ethers.parseUnits("2", 8), ethers.parseUnits("1", 8), RAY, RAY, BigInt(asset.liquidationThresholdBps), BigInt(asset.liquidationBonusBps), seizedCollateralAmount, repayAmount]
     );
 
     expect(await collateralToken.balanceOf(liquidator.address)).to.equal(seizedCollateralAmount);

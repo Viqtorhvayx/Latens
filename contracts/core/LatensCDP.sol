@@ -26,6 +26,7 @@ contract LatensCDP is Ownable2Step, Pausable, ReentrancyGuard {
     uint256 public constant PRICE_STALENESS_WINDOW = 1 hours;
     uint256 public constant STABLECOIN_PRICE_E8 = 1e8; // LatensDollar is pegged to $1 by construction
     uint16 public constant MAX_MINT_FEE_BPS = 500; // 5% ceiling on the origination fee
+    uint256 private constant RAY = 1e18;
 
     AssetRegistry public immutable registry;
     ProtocolTreasury public immutable treasury;
@@ -276,17 +277,19 @@ contract LatensCDP is Ownable2Step, Pausable, ReentrancyGuard {
         (uint256 collateralPriceE8, uint256 collateralUpdatedAt) = priceOracle.getPrice(collateralAsset.token);
         _requireFreshPrice(collateralUpdatedAt);
 
-        if (eligibilityPublicInputs.length < 10) revert Errors.InvalidProof();
+        if (eligibilityPublicInputs.length < 12) revert Errors.InvalidProof();
         _requireEq(eligibilityPublicInputs[0], position.collateralCommitment);
         _requireEq(eligibilityPublicInputs[1], position.debtCommitment);
         _requireEq(eligibilityPublicInputs[2], newCollateralCommitment);
         _requireEq(eligibilityPublicInputs[3], newDebtCommitment);
         _requireEq(eligibilityPublicInputs[4], collateralPriceE8);
         _requireEq(eligibilityPublicInputs[5], STABLECOIN_PRICE_E8);
-        _requireEq(eligibilityPublicInputs[6], collateralAsset.liquidationThresholdBps);
-        _requireEq(eligibilityPublicInputs[7], collateralAsset.liquidationBonusBps);
-        _requireEq(eligibilityPublicInputs[8], seizedCollateralAmount);
-        _requireEq(eligibilityPublicInputs[9], repayAmount);
+        _requireEq(eligibilityPublicInputs[6], RAY);
+        _requireEq(eligibilityPublicInputs[7], RAY);
+        _requireEq(eligibilityPublicInputs[8], collateralAsset.liquidationThresholdBps);
+        _requireEq(eligibilityPublicInputs[9], collateralAsset.liquidationBonusBps);
+        _requireEq(eligibilityPublicInputs[10], seizedCollateralAmount);
+        _requireEq(eligibilityPublicInputs[11], repayAmount);
 
         if (!liquidationVerifier.verifyLiquidationEligibility(eligibilityProof, eligibilityPublicInputs)) {
             revert Errors.InvalidProof();
@@ -337,12 +340,14 @@ contract LatensCDP is Ownable2Step, Pausable, ReentrancyGuard {
         (uint256 collateralPriceE8, uint256 collateralUpdatedAt) = priceOracle.getPrice(collateralToken);
         _requireFreshPrice(collateralUpdatedAt);
 
-        if (publicInputs.length < 5) revert Errors.InvalidProof();
+        if (publicInputs.length < 7) revert Errors.InvalidProof();
         _requireEq(publicInputs[0], collateralCommitment);
         _requireEq(publicInputs[1], debtCommitment);
         _requireEq(publicInputs[2], collateralPriceE8);
         _requireEq(publicInputs[3], STABLECOIN_PRICE_E8);
-        _requireEq(publicInputs[4], thresholdBps);
+        _requireEq(publicInputs[4], RAY);
+        _requireEq(publicInputs[5], RAY);
+        _requireEq(publicInputs[6], thresholdBps);
 
         if (!solvencyVerifier.verifySolvency(proof, publicInputs)) revert Errors.InvalidProof();
     }

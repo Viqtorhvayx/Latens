@@ -6,4 +6,6 @@ collateral_commitment = "0x2cf71988324961bda9bccd655216bf0b1dfb219ea3437afc16954
 debt_commitment = "0x0db632fbf3521bf441710b69cfaaa8ccea0edca9c3ad71614c979f38a60a7116"
 collateral_price_e8 = "2"
 debt_price_e8 = "1"
+collateral_index_ray = "1000000000000000000"
+debt_index_ray = "1000000000000000000"
 threshold_bps = "8000"

@@ -86,12 +86,18 @@ contracts/
   kinked rate model per asset (`setInterestRateModel` / `borrowRateBps` / `supplyRateBps`),
   and `LatensPool.repay` charges a genuine, time-weighted fee on top of the repaid amount via
   `quoteRepayInterestFee`, computed over the exact elapsed time since the position's debt was
-  last touched. What this can't do yet: compound onto a position's own hidden principal, or
-  pay suppliers a matching pass-through yield — both require the `commitment_update` and
-  `solvency` circuits to accept a public index-scaling term (there is no `nargo`/`bb`
-  toolchain available to build that here). Until then, collected interest funds
-  `ProtocolTreasury` (and its contribution to the ZEN staking pool) rather than individual
-  suppliers — see `AssetRegistry.supplyRateBps`'s NatSpec for the full reasoning. TVL and
+  last touched.
+- **Suppliers earn a real, compounding yield on the collateral side** — position commitments
+  encode SHARES of a per-asset index (`AssetRegistry.currentSupplyIndexRay`, RAY-scaled),
+  not raw token units. Only the reserve-factor slice of `repay`'s interest fee moves on to
+  `ProtocolTreasury`; the rest stays in the pool and backs the index's growth, so a later
+  `withdrawCollateral` for the same shares returns more real tokens than were deposited — see
+  `test/LatensPool.yield.test.js`. The `solvency` and `liquidation_eligibility` circuits value
+  a position at `amount * index / RAY` before pricing it (see their own NatSpec for why the
+  index is applied to the amount first, not folded into the price). The debt side of a
+  position, and everything about `LatensCDP`, is NOT index-scaled — both circuits accept a
+  `debtIndexRay` input generically, but every caller today just passes RAY (a no-op),
+  matching the same flat-fee interest `LatensPool.repay` already charged before this. TVL and
   Borrow APR shown in the frontend's Markets page are real, live, computed figures built on
   this model, not placeholders.
 - **Four collateral/debt assets, chosen to actually be grounded on Horizen:** ZEN (the
