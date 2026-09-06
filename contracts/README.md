@@ -58,23 +58,30 @@ contracts/
   goes further and drives a real `LatensPool.borrow()` call — collateral deposit, a live
   solvency check, a debt disbursement — through `NoirSolvencyVerifier` end to end, with
   `MockVerifier` only standing in for the other two proof types in that one test.
-  `script/deploy.js` — the testnet/production deployment path — now wires all three real
-  `Noir*Verifier.sol` adapters (deploying each `generated/*HonkVerifier.sol` with its
-  `RelationsLib`/`ZKTranscriptLib` libraries linked) by default; set `MOCK_VERIFIERS=1` to
-  fall back to the old permissive `MockVerifier` behavior for an environment that genuinely
-  needs it (never mainnet). `script/deployLocal.js` — what the frontend's local dev loop
-  actually runs against — stays on `MockVerifier` for all three on purpose: there's no
-  client-side proof generation yet (see `frontend/lib/positionStore.tsx`), so a real verifier
-  there would just make every button in the UI revert. `npm run deploy:real-verifiers`
-  (`script/deployRealVerifiers.js`) demonstrates the real path working end to end anyway,
-  independent of that gap: it deploys all three real verifiers, checks the commitment and
-  solvency ones directly against their own circuit fixtures, then reaches the liquidation
-  fixture's exact starting position (via `MockVerifier`-gated setup calls — a real solvency
-  proof cannot exist for an intentionally-insolvent intermediate state, so the setup has to
-  use the permissive path; only the final call is real) and calls `LatensPool.liquidate()`
-  gated by the REAL `LiquidationHonkVerifier`, with a genuine Barretenberg proof. `ILiquidationVerifier`'s public-input layout below reflects the real
-  circuit, including `liquidationBonusBps`, which the circuit uses to cap a keeper's seized
-  value at the repaid debt's value plus the configured bonus.
+  `test/LatensPool.liquidate.realVerifier.integration.test.js` does the same for the
+  liquidation path: a real `LatensPool.liquidate()` call gated by the REAL
+  `LiquidationHonkVerifier`, reaching the fixture's exact pre-liquidation position via
+  `MockVerifier`-gated setup calls first (a real solvency proof cannot exist for an
+  intentionally-insolvent intermediate state, so the setup has to use the permissive path —
+  only the liquidation call itself is real). `test/LatensCDP.realVerifier.integration.test.js`
+  proves `LatensCDP` is wired the same way: a real `LatensCDP.supplyCollateral()` call gated
+  by the REAL `CommitmentHonkVerifier`. A real-proof MINT test for `LatensCDP` (the
+  solvency-gated path) isn't possible against the existing `circuits/solvency` fixture — it
+  was generated with `debt_price_e8 = 1`, but `LatensCDP` hardcodes
+  `STABLECOIN_PRICE_E8 = 1e8` for LatensDollar's fixed $1 peg, so the fixture's proof can
+  never satisfy that binding check; regenerating a matching fixture needs the `nargo`/`bb`
+  toolchain, unavailable here. `script/deploy.js` — the testnet/production deployment path —
+  wires all three real `Noir*Verifier.sol` adapters (deploying each
+  `generated/*HonkVerifier.sol` with its `RelationsLib`/`ZKTranscriptLib` libraries linked)
+  into BOTH `LatensPool` and `LatensCDP` by default; set `MOCK_VERIFIERS=1` to fall back to
+  the old permissive `MockVerifier` behavior for an environment that genuinely needs it
+  (never mainnet) — this has been run against a live local node end to end in both modes,
+  not just compiled. `script/deployLocal.js` — what the frontend's local dev loop actually
+  runs against — stays on `MockVerifier` for all three, on both contracts, on purpose:
+  there's no client-side proof generation yet (see `frontend/lib/positionStore.tsx`), so a
+  real verifier there would just make every button in the UI revert. `npm run
+  deploy:real-verifiers` (`script/deployRealVerifiers.js`) demonstrates the `LatensPool`
+  liquidation path manually as well, independent of the hardhat test above.
 - **Interest is real and utilization-driven**, not a placeholder: `AssetRegistry` holds a
   kinked rate model per asset (`setInterestRateModel` / `borrowRateBps` / `supplyRateBps`),
   and `LatensPool.repay` charges a genuine, time-weighted fee on top of the repaid amount via

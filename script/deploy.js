@@ -1,14 +1,15 @@
 const { ethers } = require("hardhat");
 
-// Deploys the Latens scaffold wired to the REAL, machine-generated Barretenberg verifiers
-// (contracts/verifiers/generated/*HonkVerifier.sol, via their Noir*Verifier.sol adapters) —
-// not MockVerifier. This is the actual testnet/production deployment path; see the "Status"
-// section of contracts/README.md for what still needs to be true before pointing it at
-// mainnet (there is no real client-side proof generation yet — see lib/positionStore.tsx in
-// the frontend — so nothing can actually call this deployment's supply/borrow/repay/liquidate
-// successfully until that exists; this script deploys the verifying side correctly regardless
-// of that gap). Set MOCK_VERIFIERS=1 to fall back to MockVerifier instead, strictly for
-// environments that intentionally need the old permissive behavior — never mainnet.
+// Deploys the Latens scaffold — LatensPool AND LatensCDP — wired to the REAL, machine-
+// generated Barretenberg verifiers (contracts/verifiers/generated/*HonkVerifier.sol, via
+// their Noir*Verifier.sol adapters) — not MockVerifier. This is the actual testnet/
+// production deployment path; see the "Status" section of contracts/README.md for what
+// still needs to be true before pointing it at mainnet (there is no real client-side proof
+// generation yet — see lib/positionStore.tsx in the frontend — so nothing can actually call
+// this deployment's supply/borrow/repay/liquidate/mint/burn successfully until that exists;
+// this script deploys the verifying side correctly regardless of that gap). Set
+// MOCK_VERIFIERS=1 to fall back to MockVerifier instead, strictly for environments that
+// intentionally need the old permissive behavior — never mainnet.
 async function deployHonkVerifier(fileName, contractName) {
   const sourceName = `contracts/verifiers/generated/${fileName}.sol`;
   // All three generated files declare identically-named shared libraries (RelationsLib,
@@ -86,6 +87,31 @@ async function main() {
   const setPoolTx = await registry.setPool(await pool.getAddress());
   await setPoolTx.wait();
   console.log("AssetRegistry.pool wired to LatensPool.");
+
+  // Confidential stablecoin minting shares the same verifiers (real or mock, per
+  // MOCK_VERIFIERS above) and the same AssetRegistry-listed collateral assets as LatensPool.
+  const LatensDollar = await ethers.getContractFactory("LatensDollar");
+  const latensDollar = await LatensDollar.deploy(deployer.address);
+  await latensDollar.waitForDeployment();
+  console.log("LatensDollar:", await latensDollar.getAddress());
+
+  const LatensCDP = await ethers.getContractFactory("LatensCDP");
+  const cdp = await LatensCDP.deploy(
+    deployer.address,
+    await registry.getAddress(),
+    await treasury.getAddress(),
+    await latensDollar.getAddress(),
+    priceOracleAddress,
+    await commitmentVerifier.getAddress(),
+    await solvencyVerifier.getAddress(),
+    await liquidationVerifier.getAddress()
+  );
+  await cdp.waitForDeployment();
+  console.log("LatensCDP:", await cdp.getAddress());
+
+  const setCDPTx = await latensDollar.setCDP(await cdp.getAddress());
+  await setCDPTx.wait();
+  console.log("LatensDollar.cdp wired to LatensCDP.");
 }
 
 main().catch((error) => {
