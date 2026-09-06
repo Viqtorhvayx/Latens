@@ -42,6 +42,15 @@ module.exports = {
     sources: "./contracts",
     tests: "./test",
   },
+  // Off: this plugin's Sourcify integration POSTs to sourcify.dev/server's old REST verify
+  // path, which 404s against Sourcify's current API. Etherscan verification (below) is the
+  // one that actually works, and needs a free API key — see contracts/README.md.
+  sourcify: {
+    enabled: false,
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY || "",
+  },
   networks: {
     // Horizen is an EVM-native L3 settling on Base. RPC endpoints are placeholders
     // until Horizen publishes its public testnet/mainnet RPC for this deployment.
