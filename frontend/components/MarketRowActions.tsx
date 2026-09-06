@@ -38,14 +38,14 @@ export function MarketRowActions({
 
   return (
     <div className="flex items-center gap-2">
-      <button onClick={() => onAction("supply")} className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover">
+      <button onClick={() => onAction("supply")} className="rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong">
         Supply
       </button>
       <button
         onClick={() => onAction("borrow")}
         disabled={!hasActivePosition}
         title={hasActivePosition ? undefined : "Supply collateral in any market first"}
-        className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
       >
         Borrow
       </button>
