@@ -10,6 +10,7 @@ import { MaskedValue } from "@/components/MaskedValue";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
 import { UtilizationMeter } from "@/components/UtilizationMeter";
 import { MarketRowActions } from "@/components/MarketRowActions";
+import { TokenIcon } from "@/components/TokenIcon";
 import { Skeleton } from "@/components/Skeleton";
 
 type AssetStruct = {
@@ -170,7 +171,7 @@ export default function MarketsPage() {
             return (
               <div key={t.symbol} className="contents">
                 <div className="flex items-center gap-3 border-b border-line py-4.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-xs text-gold">{t.symbol[0]}</div>
+                  <TokenIcon symbol={t.symbol} size={32} />
                   <span className="font-medium">{t.symbol}</span>
                 </div>
                 <div className="flex items-center justify-center border-b border-line py-4.5">

@@ -11,6 +11,7 @@ import { ExportDisclosureModal } from "@/components/ExportDisclosureModal";
 import { ImportBackupModal } from "@/components/ImportBackupModal";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
 import { ActivityLog } from "@/components/ActivityLog";
+import { TokenIcon } from "@/components/TokenIcon";
 import { Skeleton } from "@/components/Skeleton";
 import { usdValueE8 } from "@/lib/valuation";
 import { makeEntry, type DisclosureEntry } from "@/lib/disclosure";
@@ -178,7 +179,7 @@ export default function PortfolioPage() {
               ) : collateralToken && collateralAmount > 0n ? (
                 <div className="flex items-center justify-between border-b border-line py-4.5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-[11px] text-gold">{collateralToken.symbol[0]}</div>
+                    <TokenIcon symbol={collateralToken.symbol} size={30} />
                     <span className="font-medium">{collateralToken.symbol}</span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -203,7 +204,7 @@ export default function PortfolioPage() {
               ) : debtToken && debtAmount > 0n ? (
                 <div className="flex items-center justify-between border-b border-line py-4.5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-[11px] text-gold">{debtToken.symbol[0]}</div>
+                    <TokenIcon symbol={debtToken.symbol} size={30} />
                     <span className="font-medium">{debtToken.symbol}</span>
                   </div>
                   <div className="flex items-center gap-3">

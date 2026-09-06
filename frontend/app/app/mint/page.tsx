@@ -8,6 +8,7 @@ import { useCDPPositionStore } from "@/lib/cdpPositionStore";
 import { MaskedValue } from "@/components/MaskedValue";
 import { CDPActionModal, type CDPActionMode } from "@/components/CDPActionModal";
 import { FaucetButton } from "@/components/FaucetButton";
+import { TokenIcon } from "@/components/TokenIcon";
 import { Skeleton } from "@/components/Skeleton";
 
 type AssetStruct = {
@@ -131,7 +132,7 @@ export default function MintPage() {
             return (
               <div key={t.symbol} className="contents">
                 <div className="flex items-center gap-3 border-b border-line py-4.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-xs text-gold">{t.symbol[0]}</div>
+                  <TokenIcon symbol={t.symbol} size={32} />
                   <span className="font-medium">{t.symbol}</span>
                 </div>
                 <div className="flex items-center justify-center border-b border-line py-4.5">
