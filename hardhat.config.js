@@ -49,11 +49,16 @@ module.exports = {
       url: process.env.HORIZEN_TESTNET_RPC_URL || "",
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
     },
-    // A real, public, reachable testnet in the meantime — see script/deployTestnet.js.
+    // Real, public, reachable testnets in the meantime — see script/deployTestnet.js.
     // sepolia.base.org is Base's own free public RPC (no API key required).
     baseSepolia: {
       url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
       chainId: 84532,
+      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
+    },
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com",
+      chainId: 11155111,
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
     },
   },

@@ -1,12 +1,12 @@
 import { createConfig, http } from "wagmi";
 import { injected, walletConnect } from "wagmi/connectors";
 import { defineChain } from "viem";
-import { baseSepolia } from "viem/chains";
+import { baseSepolia, sepolia } from "viem/chains";
 import deployment from "./deployment.json";
 
 // Local Hardhat node — see script/deployLocal.js. Not reachable from outside this machine,
 // which is why deployment.json's chainId decides which chain the app actually targets (see
-// activeChain below) — Base Sepolia (script/deployTestnet.js) is the real, publicly
+// activeChain below) — Ethereum Sepolia (script/deployTestnet.js) is the real, publicly
 // reachable deployment; eventually Horizen's own L3 RPC, once public — see
 // contracts/README.md and hardhat.config.js's horizenTestnet placeholder.
 export const hardhatLocal = defineChain({
@@ -18,7 +18,7 @@ export const hardhatLocal = defineChain({
   },
 });
 
-const SUPPORTED_CHAINS = [baseSepolia, hardhatLocal] as const;
+const SUPPORTED_CHAINS = [sepolia, baseSepolia, hardhatLocal] as const;
 
 // Whichever chain frontend/lib/deployment.json was actually generated against — falls back
 // to Hardhat Local only if that chainId isn't one of the chains this app knows how to talk
@@ -37,9 +37,10 @@ export const activeChain = SUPPORTED_CHAINS.find((c) => c.id === deployment.chai
 const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
 export const wagmiConfig = createConfig({
-  chains: [baseSepolia, hardhatLocal],
+  chains: [sepolia, baseSepolia, hardhatLocal],
   connectors: [injected(), ...(walletConnectProjectId ? [walletConnect({ projectId: walletConnectProjectId })] : [])],
   transports: {
+    [sepolia.id]: http(),
     [baseSepolia.id]: http(),
     [hardhatLocal.id]: http(),
   },
