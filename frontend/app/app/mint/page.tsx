@@ -124,6 +124,9 @@ export default function MintPage() {
           {tokenList.map((t, i) => {
             const asset = assets?.[i]?.result as AssetStruct | undefined;
             const locked = (totalLocked?.[i]?.result as bigint | undefined) ?? 0n;
+            const activeMode = modal?.symbol === t.symbol ? modal.mode : null;
+            const goldClass = "rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong";
+            const borderedClass = "rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover";
 
             return (
               <div key={t.symbol} className="contents">
@@ -138,30 +141,21 @@ export default function MintPage() {
                   {assetsLoading ? <Skeleton width={50} /> : <span className="font-mono text-sm tabular-nums">{asset ? `${asset.ltvBps / 100}%` : "—"}</span>}
                 </div>
                 <div className="flex items-center gap-2 border-b border-line py-4.5">
-                  <button
-                    onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "supply" })}
-                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
-                  >
+                  <button onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "supply" })} className={activeMode === "supply" ? goldClass : borderedClass}>
                     Supply
                   </button>
                   <button
                     onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "mint" })}
                     disabled={!hasActivePosition}
                     title={hasActivePosition ? undefined : "Supply collateral first"}
-                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+                    className={`${activeMode === "mint" ? goldClass : borderedClass} disabled:cursor-not-allowed disabled:opacity-40`}
                   >
                     Mint
                   </button>
-                  <button
-                    onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "burn" })}
-                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
-                  >
+                  <button onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "burn" })} className={activeMode === "burn" ? goldClass : borderedClass}>
                     Burn
                   </button>
-                  <button
-                    onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "withdraw" })}
-                    className="rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
-                  >
+                  <button onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "withdraw" })} className={activeMode === "withdraw" ? goldClass : borderedClass}>
                     Withdraw
                   </button>
                   <FaucetButton address={t.address} symbol={t.symbol} decimals={t.decimals} />
