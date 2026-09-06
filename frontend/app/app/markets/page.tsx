@@ -197,6 +197,7 @@ export default function MarketsPage() {
                     hasActivePosition={hasActivePosition}
                     canWithdraw={t.assetId === collateralAssetId && collateralAmount > 0n}
                     canRepay={t.assetId === debtAssetId && debtAmount > 0n}
+                    activeMode={modal?.symbol === t.symbol ? modal.mode : null}
                     onAction={(mode) => setModal({ symbol: t.symbol as TokenSymbol, mode })}
                   />
                 </div>
