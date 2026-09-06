@@ -2,6 +2,7 @@ import Image from "next/image";
 
 const TOKEN_LOGOS: Record<string, string> = {
   ZEN: "/tokens/zen.png",
+  ZUSD: "/tokens/zusd.png",
   WBTC: "/tokens/wbtc.png",
   USDC: "/tokens/usdc.png",
 };
