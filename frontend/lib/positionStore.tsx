@@ -97,29 +97,37 @@ function save(store: Store) {
 export type PreparedUpdate = {
   oldCommitment: `0x${string}`;
   newCommitment: `0x${string}`;
+  shareDelta: bigint;
   patch: Partial<AssetPosition>;
 };
 
+export const RAY = 1_000_000_000_000_000_000n;
+
+export function sharesToReal(shares: bigint, indexRay: bigint): bigint {
+  return (shares * indexRay) / RAY;
+}
+
 // Async now that `commitment` is a real (WASM-backed) Pedersen hash rather than a
 // synchronous keccak256 call — every caller of prepare*() below must await it.
-async function prepare(current: AssetPosition, field: "supplied" | "borrowed", delta: bigint, direction: "increase" | "decrease"): Promise<PreparedUpdate> {
+async function prepare(current: AssetPosition, field: "supplied" | "borrowed", delta: bigint, direction: "increase" | "decrease", indexRay: bigint): Promise<PreparedUpdate> {
   const saltField = field === "supplied" ? "suppliedSalt" : "borrowedSalt";
-  const amount = current[field];
+  const shares = current[field];
   const salt = current[saltField];
-  if (direction === "decrease" && delta > amount) {
+  const shareDelta = (delta * RAY) / indexRay;
+  if (direction === "decrease" && shareDelta > shares) {
     throw new Error(field === "supplied" ? "Can't withdraw more than you've supplied." : "Can't repay more than you owe.");
   }
-  const oldCommitment = await commitment(amount, salt);
-  const newAmount = direction === "increase" ? amount + delta : amount - delta;
+  const oldCommitment = await commitment(shares, salt);
+  const newShares = direction === "increase" ? shares + shareDelta : shares - shareDelta;
   const newSalt = randomSalt();
-  const newCommitment = await commitment(newAmount, newSalt);
-  return { oldCommitment, newCommitment, patch: { [field]: newAmount, [saltField]: newSalt } };
+  const newCommitment = await commitment(newShares, newSalt);
+  return { oldCommitment, newCommitment, shareDelta, patch: { [field]: newShares, [saltField]: newSalt } };
 }
 
 const PositionStoreContext = createContext<{
   get: (address: Address | undefined, assetId: number) => AssetPosition;
-  prepareSupply: (address: Address, assetId: number, delta: bigint) => Promise<PreparedUpdate>;
-  prepareWithdraw: (address: Address, assetId: number, delta: bigint) => Promise<PreparedUpdate>;
+  prepareSupply: (address: Address, assetId: number, delta: bigint, indexRay: bigint) => Promise<PreparedUpdate>;
+  prepareWithdraw: (address: Address, assetId: number, delta: bigint, indexRay: bigint) => Promise<PreparedUpdate>;
   prepareBorrow: (address: Address, assetId: number, delta: bigint) => Promise<PreparedUpdate>;
   prepareRepay: (address: Address, assetId: number, delta: bigint) => Promise<PreparedUpdate>;
   commit: (address: Address, assetId: number, patch: Partial<AssetPosition>) => void;
@@ -136,21 +144,21 @@ export function PositionStoreProvider({ children }: { children: React.ReactNode 
         if (!address) return EMPTY;
         return store[address.toLowerCase()]?.[assetId] ?? EMPTY;
       },
-      prepareSupply(address: Address, assetId: number, delta: bigint) {
+      prepareSupply(address: Address, assetId: number, delta: bigint, indexRay: bigint) {
         const current = store[address.toLowerCase()]?.[assetId] ?? EMPTY;
-        return prepare(current, "supplied", delta, "increase");
+        return prepare(current, "supplied", delta, "increase", indexRay);
       },
-      prepareWithdraw(address: Address, assetId: number, delta: bigint) {
+      prepareWithdraw(address: Address, assetId: number, delta: bigint, indexRay: bigint) {
         const current = store[address.toLowerCase()]?.[assetId] ?? EMPTY;
-        return prepare(current, "supplied", delta, "decrease");
+        return prepare(current, "supplied", delta, "decrease", indexRay);
       },
       prepareBorrow(address: Address, assetId: number, delta: bigint) {
         const current = store[address.toLowerCase()]?.[assetId] ?? EMPTY;
-        return prepare(current, "borrowed", delta, "increase");
+        return prepare(current, "borrowed", delta, "increase", RAY);
       },
       prepareRepay(address: Address, assetId: number, delta: bigint) {
         const current = store[address.toLowerCase()]?.[assetId] ?? EMPTY;
-        return prepare(current, "borrowed", delta, "decrease");
+        return prepare(current, "borrowed", delta, "decrease", RAY);
       }, // each returns prepare(...)'s Promise directly — no need to mark these `async` too
       commit(address: Address, assetId: number, patch: Partial<AssetPosition>) {
         const key = address.toLowerCase();

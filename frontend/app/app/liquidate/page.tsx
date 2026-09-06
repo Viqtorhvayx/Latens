@@ -5,7 +5,7 @@ import { useAccount, useChainId, useReadContract, useReadContracts, useWriteCont
 import { formatUnits, recoverMessageAddress, isAddress } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokenList } from "@/lib/contracts";
 import { buildDisclosureMessage, recomputeCommitment, type Disclosure, type DisclosureEntry } from "@/lib/disclosure";
-import { commitment, randomSalt } from "@/lib/positionStore";
+import { commitment, randomSalt, sharesToReal, RAY } from "@/lib/positionStore";
 import { isInsolvent, maxSeizableCollateral } from "@/lib/liquidation";
 import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
@@ -71,12 +71,14 @@ export default function LiquidatePage() {
       { address: assetRegistry.address, abi: assetRegistry.abi, functionName: "getAsset", args: collateralAssetId !== undefined ? [BigInt(collateralAssetId)] : undefined },
       { address: priceOracle.address, abi: priceOracle.abi, functionName: "getPrice", args: collateralToken ? [collateralToken.address] : undefined },
       { address: priceOracle.address, abi: priceOracle.abi, functionName: "getPrice", args: debtToken ? [debtToken.address] : undefined },
+      { address: assetRegistry.address, abi: assetRegistry.abi, functionName: "currentSupplyIndexRay", args: collateralAssetId !== undefined ? [BigInt(collateralAssetId)] : undefined },
     ],
     query: { enabled: collateralAssetId !== undefined && debtAssetId !== undefined },
   });
   const collateralAsset = reads?.[0]?.result as AssetStruct | undefined;
   const collateralPrice = reads?.[1]?.result as PriceTuple | undefined;
   const debtPrice = reads?.[2]?.result as PriceTuple | undefined;
+  const collateralIndexRay = (reads?.[3]?.result as bigint | undefined) ?? RAY;
 
   async function handleCheck() {
     setParseError("");
@@ -143,15 +145,17 @@ export default function LiquidatePage() {
     positionTuple![3] === BigInt(debtEntry!.commitment) &&
     entriesSelfConsistent;
 
+  const collateralRealAmount = collateralEntry ? sharesToReal(BigInt(collateralEntry.amount), collateralIndexRay) : 0n;
+
   const eligible =
     entriesMatchChain && collateralAsset && collateralPrice && debtPrice && collateralToken && debtToken
-      ? isInsolvent(BigInt(collateralEntry!.amount), collateralToken.decimals, collateralPrice[0], BigInt(debtEntry!.amount), debtToken.decimals, debtPrice[0], collateralAsset.liquidationThresholdBps)
+      ? isInsolvent(collateralRealAmount, collateralToken.decimals, collateralPrice[0], BigInt(debtEntry!.amount), debtToken.decimals, debtPrice[0], collateralAsset.liquidationThresholdBps)
       : undefined;
 
   const repayAmount = debtEntry ? BigInt(debtEntry.amount) : 0n; // full liquidation only, in this pass
   const seizeAmount =
     eligible && collateralAsset && collateralPrice && debtPrice && collateralToken && debtToken
-      ? maxSeizableCollateral(repayAmount, debtToken.decimals, debtPrice[0], BigInt(collateralEntry!.amount), collateralToken.decimals, collateralPrice[0], collateralAsset.liquidationBonusBps)
+      ? maxSeizableCollateral(repayAmount, debtToken.decimals, debtPrice[0], collateralRealAmount, collateralToken.decimals, collateralPrice[0], collateralAsset.liquidationBonusBps)
       : 0n;
 
   async function handleLiquidate() {
@@ -159,9 +163,10 @@ export default function LiquidatePage() {
     setSubmitting(true);
     setErrorMessage("");
     try {
-      const newCollateralAmount = BigInt(collateralEntry.amount) - seizeAmount;
+      const seizedShares = (seizeAmount * RAY) / collateralIndexRay;
+      const newCollateralShares = BigInt(collateralEntry.amount) - seizedShares;
       const newDebtAmount = BigInt(debtEntry.amount) - repayAmount;
-      const newCollateralCommitment = await commitment(newCollateralAmount, randomSalt());
+      const newCollateralCommitment = await commitment(newCollateralShares, randomSalt());
       const newDebtCommitment = await commitment(newDebtAmount, randomSalt());
 
       await writeContractAsync({
@@ -190,6 +195,8 @@ export default function LiquidatePage() {
             BigInt(newDebtCommitment),
             collateralPrice[0],
             debtPrice[0],
+            collateralIndexRay,
+            RAY,
             BigInt(collateralAsset.liquidationThresholdBps),
             BigInt(collateralAsset.liquidationBonusBps),
             seizeAmount,

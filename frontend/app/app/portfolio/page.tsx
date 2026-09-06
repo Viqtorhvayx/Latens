@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAccount, useChainId, useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 import { assetRegistry, latensPool, priceOracle, tokenList } from "@/lib/contracts";
-import { usePositionStore } from "@/lib/positionStore";
+import { usePositionStore, sharesToReal, RAY } from "@/lib/positionStore";
 import { MaskedValue } from "@/components/MaskedValue";
 import { HealthGauge } from "@/components/HealthGauge";
 import { ExportDisclosureModal } from "@/components/ExportDisclosureModal";
@@ -59,8 +59,18 @@ export default function PortfolioPage() {
 
   const collateralPosition = collateralToken ? get(address, collateralToken.assetId) : undefined;
   const debtPosition = debtToken ? get(address, debtToken.assetId) : undefined;
-  const collateralAmount = collateralPosition?.supplied ?? 0n;
+  const collateralShares = collateralPosition?.supplied ?? 0n;
   const debtAmount = debtPosition?.borrowed ?? 0n;
+
+  const { data: collateralIndexRayRaw } = useReadContract({
+    address: assetRegistry.address,
+    abi: assetRegistry.abi,
+    functionName: "currentSupplyIndexRay",
+    args: collateralAssetId !== undefined ? [BigInt(collateralAssetId)] : undefined,
+    query: { enabled: collateralAssetId !== undefined },
+  });
+  const collateralIndexRay = (collateralIndexRayRaw as bigint | undefined) ?? RAY;
+  const collateralAmount = sharesToReal(collateralShares, collateralIndexRay);
 
   // makeEntry() now calls a real (WASM-backed) Pedersen hash, so it's async — can't live in
   // a useMemo. Recomputed whenever the underlying position data changes; `cancelled` guards
@@ -70,8 +80,8 @@ export default function PortfolioPage() {
     let cancelled = false;
     async function compute() {
       const out: DisclosureEntry[] = [];
-      if (collateralToken && collateralPosition && collateralAmount > 0n) {
-        out.push(await makeEntry(collateralToken.assetId, collateralToken.symbol, "collateral", collateralAmount, collateralPosition.suppliedSalt));
+      if (collateralToken && collateralPosition && collateralShares > 0n) {
+        out.push(await makeEntry(collateralToken.assetId, collateralToken.symbol, "collateral", collateralShares, collateralPosition.suppliedSalt));
       }
       if (debtToken && debtPosition && debtAmount > 0n) {
         out.push(await makeEntry(debtToken.assetId, debtToken.symbol, "debt", debtAmount, debtPosition.borrowedSalt));
@@ -82,7 +92,7 @@ export default function PortfolioPage() {
     return () => {
       cancelled = true;
     };
-  }, [collateralToken, collateralPosition, collateralAmount, debtToken, debtPosition, debtAmount]);
+  }, [collateralToken, collateralPosition, collateralShares, debtToken, debtPosition, debtAmount]);
 
   const { data: reads } = useReadContracts({
     contracts: [

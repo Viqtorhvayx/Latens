@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 import { assetRegistry, latensPool, priceOracle, tokenList, type TokenSymbol } from "@/lib/contracts";
-import { usePositionStore } from "@/lib/positionStore";
+import { usePositionStore, sharesToReal, RAY } from "@/lib/positionStore";
 import { usdValueE8 } from "@/lib/valuation";
 import { MaskedValue } from "@/components/MaskedValue";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
@@ -81,7 +81,17 @@ export default function MarketsPage() {
   const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
   const debtAssetId = positionTuple?.[7] ? Number(positionTuple[1]) : undefined;
   const collateralToken = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
-  const collateralAmount = collateralToken ? get(address, collateralToken.assetId).supplied : 0n;
+  const collateralShares = collateralToken ? get(address, collateralToken.assetId).supplied : 0n;
+
+  const { data: collateralIndexRayRaw } = useReadContract({
+    address: assetRegistry.address,
+    abi: assetRegistry.abi,
+    functionName: "currentSupplyIndexRay",
+    args: collateralAssetId !== undefined ? [BigInt(collateralAssetId)] : undefined,
+    query: { enabled: collateralAssetId !== undefined },
+  });
+  const collateralAmount = sharesToReal(collateralShares, (collateralIndexRayRaw as bigint | undefined) ?? RAY);
+
   const debtToken = debtAssetId !== undefined ? tokenList.find((t) => t.assetId === debtAssetId) : undefined;
   const debtAmount = debtToken ? get(address, debtToken.assetId).borrowed : 0n;
   const hasActivePosition = Boolean(positionTuple?.[6]);
@@ -202,8 +212,7 @@ export default function MarketsPage() {
 
       <p className="mt-4 text-[11.5px] text-ink-faint">
         TVL and Borrow APR are real, live figures computed from each market&apos;s utilization — not placeholders. Individual position sizes are never disclosed. Borrowers pay this rate as an interest fee charged at
-        repay time; suppliers don&apos;t yet earn a matching pass-through yield, since their committed amounts can&apos;t grow without revealing them — interest collected funds the protocol treasury and ZEN staking pool
-        instead (see contracts/README.md for what a future circuit upgrade would change).
+        repay time; most of it stays in the pool and compounds into supplied collateral automatically — withdraw later and you get back more than you put in, with no separate claim step.
       </p>
 
       {modal && <PositionActionModal symbol={modal.symbol} mode={modal.mode} onClose={() => setModal(null)} />}

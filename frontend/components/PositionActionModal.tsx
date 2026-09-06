@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokens, tokenList, type TokenSymbol } from "@/lib/contracts";
-import { usePositionStore } from "@/lib/positionStore";
+import { usePositionStore, sharesToReal, RAY } from "@/lib/positionStore";
 import { appendActivity } from "@/lib/activityStore";
 import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
@@ -91,6 +91,24 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     query: { enabled: needsSolvencyContext && Boolean(debtTokenForSolvency) },
   });
 
+  const { data: tokenIndexRayRaw } = useReadContract({
+    address: assetRegistry.address,
+    abi: assetRegistry.abi,
+    functionName: "currentSupplyIndexRay",
+    args: [BigInt(token.assetId)],
+    query: { enabled: mode === "supply" || mode === "withdraw" },
+  });
+  const tokenIndexRay = (tokenIndexRayRaw as bigint | undefined) ?? RAY;
+
+  const { data: collateralIndexRayRaw } = useReadContract({
+    address: assetRegistry.address,
+    abi: assetRegistry.abi,
+    functionName: "currentSupplyIndexRay",
+    args: collateralAssetId !== undefined ? [BigInt(collateralAssetId)] : undefined,
+    query: { enabled: mode === "borrow" && collateralAssetId !== undefined },
+  });
+  const collateralIndexRayForBorrow = (collateralIndexRayRaw as bigint | undefined) ?? RAY;
+
   const amount = (() => {
     try {
       return amountInput ? parseUnits(amountInput, token.decimals) : 0n;
@@ -118,7 +136,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
     const debtPriceE8 = (debtPrice as readonly [bigint, bigint])[0];
     if (debtPriceE8 === 0n) return undefined;
-    const collateralValueE8 = usdValueE8(collateralLocal.supplied, collateralTokenForCap.decimals, collateralPriceE8);
+    const collateralValueE8 = usdValueE8(sharesToReal(collateralLocal.supplied, collateralIndexRayForBorrow), collateralTokenForCap.decimals, collateralPriceE8);
     const maxDebtValueE8 = (collateralValueE8 * BigInt(ltvBps)) / 10_000n;
     const currentDebtValueE8 = usdValueE8(local.borrowed, token.decimals, debtPriceE8);
     const headroomValueE8 = maxDebtValueE8 > currentDebtValueE8 ? maxDebtValueE8 - currentDebtValueE8 : 0n;
@@ -126,7 +144,17 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   })();
 
   const available =
-    mode === "withdraw" ? local.supplied : mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance) : mode === "supply" ? walletBalance : mode === "borrow" ? borrowMax : undefined;
+    mode === "withdraw"
+      ? sharesToReal(local.supplied, tokenIndexRay)
+      : mode === "repay"
+        ? local.borrowed < walletBalance
+          ? local.borrowed
+          : walletBalance
+        : mode === "supply"
+          ? walletBalance
+          : mode === "borrow"
+            ? borrowMax
+            : undefined;
   const exceedsAvailable = (available !== undefined && amount > available) || (mode === "repay" && amount + interestFee > walletBalance);
 
   function publishViewingNoteInBackground(assetId: number, isDebt: boolean, newAmount: bigint, newSalt: bigint) {
@@ -162,12 +190,12 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
       setStep("submitting");
 
       if (mode === "supply") {
-        const { oldCommitment, newCommitment, patch } = await prepareSupply(address, token.assetId, amount);
+        const { oldCommitment, newCommitment, shareDelta, patch } = await prepareSupply(address, token.assetId, amount, tokenIndexRay);
         const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
           functionName: "supplyCollateral",
-          args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)]],
+          args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), shareDelta, 1n, BigInt(token.assetId)]],
           gas: POOL_CALL_GAS,
         });
         commit(address, token.assetId, patch);
@@ -208,7 +236,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             "0x",
             [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)],
             "0x",
-            [currentCollateralCommitment, BigInt(newCommitment), collateralPriceE8, debtPriceE8, BigInt(ltvBps)],
+            [currentCollateralCommitment, BigInt(newCommitment), collateralPriceE8, debtPriceE8, collateralIndexRayForBorrow, RAY, BigInt(ltvBps)],
           ],
           gas: POOL_CALL_GAS,
         });
@@ -222,7 +250,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         if (hasDebt && (!collateralAsset || !collateralPrice || !debtPrice)) {
           throw new Error("Still loading solvency data — try again in a moment.");
         }
-        const { oldCommitment, newCommitment, patch } = await prepareWithdraw(address, token.assetId, amount);
+        const { oldCommitment, newCommitment, shareDelta, patch } = await prepareWithdraw(address, token.assetId, amount, tokenIndexRay);
         const debtCommitment = positionTuple[3];
         const ltvBps = collateralAsset ? (collateralAsset as { ltvBps: number }).ltvBps : 0;
         const collateralPriceE8 = collateralPrice ? (collateralPrice as readonly [bigint, bigint])[0] : 0n;
@@ -236,9 +264,9 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             amount,
             BigInt(newCommitment),
             "0x",
-            [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)],
+            [BigInt(oldCommitment), BigInt(newCommitment), shareDelta, 0n, BigInt(token.assetId)],
             "0x",
-            [BigInt(newCommitment), debtCommitment, collateralPriceE8, debtPriceE8, BigInt(ltvBps)],
+            [BigInt(newCommitment), debtCommitment, collateralPriceE8, debtPriceE8, tokenIndexRay, RAY, BigInt(ltvBps)],
           ],
           gas: POOL_CALL_GAS,
         });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commitment, randomSalt } from "./positionStore";
+import { commitment, randomSalt, sharesToReal, RAY } from "./positionStore";
 import { pedersenCommit } from "./pedersen";
 
 describe("commitment", () => {
@@ -8,6 +8,20 @@ describe("commitment", () => {
   // drifted from re-exporting that same real implementation.
   it("is the same function as pedersenCommit — must never diverge from it", () => {
     expect(commitment).toBe(pedersenCommit);
+  });
+});
+
+describe("sharesToReal", () => {
+  it("is the identity at unit index", () => {
+    expect(sharesToReal(1000n, RAY)).toBe(1000n);
+  });
+
+  it("scales up as the index grows past RAY", () => {
+    expect(sharesToReal(1000n, RAY + RAY / 2n)).toBe(1500n);
+  });
+
+  it("floors instead of rounding", () => {
+    expect(sharesToReal(3n, RAY + RAY / 2n)).toBe(4n); // 4.5 -> 4
   });
 });
 
