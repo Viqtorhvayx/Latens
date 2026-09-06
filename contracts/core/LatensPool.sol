@@ -27,7 +27,13 @@ import {Errors} from "../libraries/Errors.sol";
 ///    other transaction — Latens does not hide transaction-level amounts or timing.
 ///  - What stays private is RESTING POSITION STATE: nobody but the position's owner (who
 ///    holds the commitment's opening) can read how much collateral or debt an address has,
-///    before liquidation.
+///    before liquidation. This is why `CollateralUpdated`/`DebtUpdated` do NOT carry the
+///    delta `amount` (they used to — an earlier version emitted it, which let anyone sum a
+///    single address's own event history and recover its exact running total, silently
+///    defeating the commitment scheme for that address even though no storage slot ever
+///    held the plaintext value). An owner who wants their own delta history back gets it
+///    from the same local, opt-in viewing-note channel `publishViewingNote` already
+///    provides, or from their own client-side records — never from a public event.
 ///  - At liquidation, `seizedCollateralAmount` and `repayAmount` become public — see
 ///    `ILiquidationVerifier`'s dev note. Keeping even that private is open design space for
 ///    a later milestone, not something this scaffold claims to have solved.
@@ -51,8 +57,13 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
 
     mapping(address user => DataTypes.Position) public positions;
 
-    event CollateralUpdated(address indexed user, uint256 indexed assetId, uint256 newCommitment, uint256 amount, bool isIncrease);
-    event DebtUpdated(address indexed user, uint256 indexed assetId, uint256 newCommitment, uint256 amount, bool isIncrease);
+    /// @dev No `amount` field, deliberately — see the THREAT MODEL note above. This event
+    /// tells the world a position changed, in which direction, for which asset; it does not
+    /// say by how much. `newCommitment` is enough for the owner (who holds the opening) or
+    /// an audit disclosure to prove what changed; a public observer gets nothing more than
+    /// they'd get from the commitment already sitting in `positions`.
+    event CollateralUpdated(address indexed user, uint256 indexed assetId, uint256 newCommitment, bool isIncrease);
+    event DebtUpdated(address indexed user, uint256 indexed assetId, uint256 newCommitment, bool isIncrease);
     event Liquidated(
         address indexed user,
         address indexed liquidator,
@@ -155,7 +166,7 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         position.lastUpdated = uint64(block.timestamp);
         registry.recordSupply(assetId, amount, true);
 
-        emit CollateralUpdated(msg.sender, assetId, newCommitment, amount, true);
+        emit CollateralUpdated(msg.sender, assetId, newCommitment, true);
     }
 
     /// @param amount ERC20 amount to return to the caller.
@@ -207,7 +218,7 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
 
         IERC20(collateralAsset.token).safeTransfer(msg.sender, amount);
 
-        emit CollateralUpdated(msg.sender, position.collateralAssetId, newCommitment, amount, false);
+        emit CollateralUpdated(msg.sender, position.collateralAssetId, newCommitment, false);
     }
 
     // ── Debt ─────────────────────────────────────────────────────────────────
@@ -261,7 +272,7 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
 
         IERC20(debtAsset.token).safeTransfer(msg.sender, amount);
 
-        emit DebtUpdated(msg.sender, debtAssetId, newCommitment, amount, true);
+        emit DebtUpdated(msg.sender, debtAssetId, newCommitment, true);
     }
 
     /// @dev Simplified revenue model: this scaffold takes `reserveFactorBps` of the
@@ -300,7 +311,7 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
             IERC20(debtAsset.token).safeTransferFrom(msg.sender, address(treasury), reserveCut);
         }
 
-        emit DebtUpdated(msg.sender, position.debtAssetId, newCommitment, amount, false);
+        emit DebtUpdated(msg.sender, position.debtAssetId, newCommitment, false);
     }
 
     // ── Liquidation ──────────────────────────────────────────────────────────

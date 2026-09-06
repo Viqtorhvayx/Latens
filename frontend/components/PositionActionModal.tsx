@@ -6,6 +6,7 @@ import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi
 import { parseUnits, formatUnits } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokens, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore } from "@/lib/positionStore";
+import { appendActivity } from "@/lib/activityStore";
 import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
@@ -171,6 +172,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)]],
         });
         commit(address, token.assetId, patch);
+        appendActivity(address, { kind: "collateral", isIncrease: true, assetId: token.assetId, amount, transactionHash: hash });
         publishViewingNoteInBackground(token.assetId, false, patch.supplied!, patch.suppliedSalt!);
         setTxHash(hash);
       } else if (mode === "repay") {
@@ -182,6 +184,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           args: [amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)]],
         });
         commit(address, token.assetId, patch);
+        appendActivity(address, { kind: "debt", isIncrease: false, assetId: token.assetId, amount, transactionHash: hash });
         publishViewingNoteInBackground(token.assetId, true, patch.borrowed!, patch.borrowedSalt!);
         setTxHash(hash);
       } else if (mode === "borrow") {
@@ -214,6 +217,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           ],
         });
         commit(address, token.assetId, patch);
+        appendActivity(address, { kind: "debt", isIncrease: true, assetId: token.assetId, amount, transactionHash: hash });
         publishViewingNoteInBackground(token.assetId, true, patch.borrowed!, patch.borrowedSalt!);
         setTxHash(hash);
       } else {
@@ -243,6 +247,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           ],
         });
         commit(address, token.assetId, patch);
+        appendActivity(address, { kind: "collateral", isIncrease: false, assetId: token.assetId, amount, transactionHash: hash });
         publishViewingNoteInBackground(token.assetId, false, patch.supplied!, patch.suppliedSalt!);
         setTxHash(hash);
       }

@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePublicClient } from "wagmi";
+import { useMemo } from "react";
 import { formatUnits } from "viem";
 import { tokenList } from "@/lib/contracts";
-import { fetchActivity, activityLabel, type ActivityEntry } from "@/lib/activity";
+import { getActivity, activityLabel, type ActivityEntry } from "@/lib/activityStore";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 
 function shortHash(hash: string) {
@@ -31,30 +30,20 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 }
 
 export function ActivityLog({ address, refreshKey }: { address: `0x${string}`; refreshKey?: number }) {
-  const publicClient = usePublicClient();
-  const [entries, setEntries] = useState<ActivityEntry[] | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!publicClient) return;
-    // Deliberately doesn't reset entries to null before fetching (that setState-in-effect
-    // pattern trips react-hooks/set-state-in-effect) — the previous list stays visible
-    // until the new one resolves, which is a perfectly fine stale-while-revalidating look
-    // for a list that's cheap to refetch.
-    fetchActivity(publicClient, address).then((result) => {
-      if (!cancelled) setEntries(result);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [publicClient, address, refreshKey]);
+  // Local and synchronous now — this used to scan on-chain logs (see lib/activityStore.ts
+  // for why the amount side of that had to move client-side). A plain memo, not an effect:
+  // getActivity() is a pure read with nothing to subscribe to, so there's no external system
+  // to synchronize with. refreshKey isn't read inside the callback — it's a signal that
+  // PositionActionModal just appended a new entry to this address's localStorage history,
+  // which getActivity() has no way to subscribe to on its own; bumping it is what tells this
+  // memo to re-read, not a real input to the computation.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const entries = useMemo(() => getActivity(address), [address, refreshKey]);
 
   return (
     <div className="mt-12">
       <div className="mb-3.5 text-xs font-semibold tracking-wide text-ink-faint uppercase">Recent activity</div>
-      {entries === null ? (
-        <p className="text-sm text-ink-faint">Loading…</p>
-      ) : entries.length === 0 ? (
+      {entries.length === 0 ? (
         <p className="text-sm text-ink-faint">No activity yet.</p>
       ) : (
         <div className="flex flex-col">

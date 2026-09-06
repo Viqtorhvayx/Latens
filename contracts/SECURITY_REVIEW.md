@@ -83,6 +83,31 @@ rather than an unstated gap, per the same "state the threat model plainly" stand
   happens to hold zero or dust of — no funds move that the owner couldn't already move via
   `withdrawRunway`. Not a finding, just confirmed as intentional after reading it.
 
+## Addendum: a real privacy leak, found and fixed
+
+**`CollateralUpdated`/`DebtUpdated` used to emit the plaintext delta `amount` on every
+supply/withdraw/borrow/repay.** Both events are indexed by `user`, so this didn't just leak
+one transaction's size — it let anyone watching a single address's own event history sum
+every increase and decrease and recover its exact current collateral/debt amount, with no
+need to touch the Pedersen commitment in `positions` at all. This is exactly the kind of
+"resting position state" this contract's own THREAT MODEL comment claims stays private; as
+written, that claim didn't hold against the most basic on-chain analysis (summing an
+address's own logs is what a block explorer shows by default).
+
+Fixed by dropping `amount` from both events — they now only say a position changed, in
+which direction, for which asset; `newCommitment` is all a public observer or a later
+disclosure needs. An owner who wants their own delta history back (e.g. this frontend's
+"Recent activity" list) now gets it from a client-side-only record
+(`frontend/lib/activityStore.ts`) written at the moment their own transaction confirms, the
+same trust boundary `positionStore.ts` already draws around a position's plaintext amount
+and salt — never read back from a public event. Regression test:
+`test/LatensPool.test.js`, "CollateralUpdated/DebtUpdated never carry the delta amount...".
+
+The ERC20 `Transfer` log still exposes the same delta at the token layer, and that part is
+unchanged and separately disclosed above — this fix closes the pool's own event, not the
+underlying transaction visibility the THREAT MODEL note already names as out of scope for
+this scaffold.
+
 ## Recommendation
 
 Treat this document as a description of what one more pair of eyes looked for and found —

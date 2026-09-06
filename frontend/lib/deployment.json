@@ -2,7 +2,7 @@
   "chainId": 31337,
   "contracts": {
     "LatensPool": {
-      "address": "0xf4B146FbA71F41E0592668ffbF264F1D186b2Ca8",
+      "address": "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
       "abi": [
         {
           "inputs": [
@@ -141,12 +141,6 @@
             },
             {
               "indexed": false,
-              "internalType": "uint256",
-              "name": "amount",
-              "type": "uint256"
-            },
-            {
-              "indexed": false,
               "internalType": "bool",
               "name": "isIncrease",
               "type": "bool"
@@ -174,12 +168,6 @@
               "indexed": false,
               "internalType": "uint256",
               "name": "newCommitment",
-              "type": "uint256"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "amount",
               "type": "uint256"
             },
             {
@@ -335,6 +323,43 @@
             }
           ],
           "name": "VerifiersUpdated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "assetId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "bool",
+              "name": "isDebt",
+              "type": "bool"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "bytes",
+              "name": "ciphertext",
+              "type": "bytes"
+            }
+          ],
+          "name": "ViewingNotePublished",
           "type": "event"
         },
         {
@@ -578,6 +603,29 @@
           "type": "function"
         },
         {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "assetId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bool",
+              "name": "isDebt",
+              "type": "bool"
+            },
+            {
+              "internalType": "bytes",
+              "name": "ciphertext",
+              "type": "bytes"
+            }
+          ],
+          "name": "publishViewingNote",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
           "inputs": [],
           "name": "registry",
           "outputs": [
@@ -781,7 +829,7 @@
       ]
     },
     "AssetRegistry": {
-      "address": "0x0355B7B8cb128fA5692729Ab3AAa199C1753f726",
+      "address": "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
       "abi": [
         {
           "inputs": [
@@ -1337,7 +1385,7 @@
       ]
     },
     "MockPriceOracle": {
-      "address": "0x21dF544947ba3E8b3c32561399E88B52Dc8b2823",
+      "address": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
       "abi": [
         {
           "inputs": [],
@@ -1395,6 +1443,29 @@
             }
           ],
           "name": "setPrice",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "asset",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "priceE8",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "updatedAt",
+              "type": "uint256"
+            }
+          ],
+          "name": "setPriceWithTimestamp",
           "outputs": [],
           "stateMutability": "nonpayable",
           "type": "function"
@@ -1755,25 +1826,25 @@
   },
   "tokens": {
     "ZEN": {
-      "address": "0x1fA02b2d6A771842690194Cf62D91bdd92BfE28d",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
       "symbol": "ZEN",
       "decimals": 18,
       "assetId": 0
     },
     "USDC": {
-      "address": "0xdbC43Ba45381e02825b14322cDdd15eC4B3164E6",
+      "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
       "symbol": "USDC",
       "decimals": 6,
       "assetId": 1
     },
     "WBTC": {
-      "address": "0x04C89607413713Ec9775E14b954286519d836FEf",
+      "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
       "symbol": "WBTC",
       "decimals": 8,
       "assetId": 2
     },
     "DAI": {
-      "address": "0x4C4a2f8c81640e47606d3fd77B353E87Ba015584",
+      "address": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
       "symbol": "DAI",
       "decimals": 18,
       "assetId": 3

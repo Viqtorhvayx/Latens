@@ -94,6 +94,53 @@ describe("LatensPool", function () {
     expect(asset.totalSupplied).to.equal(amount);
   });
 
+  it("CollateralUpdated/DebtUpdated never carry the delta amount, only the new commitment and direction", async function () {
+    // Regression test for a real privacy leak: these events used to include a plaintext
+    // `amount` field, which — because they're indexed by `user` — let anyone sum a single
+    // address's own event history and recover its exact running total, without ever
+    // touching the Pedersen commitment in storage. `.withArgs` fails if the event carries
+    // any argument beyond the four listed here, so this fails loudly if `amount` ever
+    // creeps back in rather than silently passing alongside it.
+    const { alice, collateralToken, debtToken, pool, collateralAssetId, debtAssetId } = await deployFixture();
+
+    const supplyAmount = ethers.parseUnits("100", 18);
+    const supplyCommitment = 111n;
+    await collateralToken.connect(alice).approve(await pool.getAddress(), supplyAmount);
+    await expect(
+      pool
+        .connect(alice)
+        .supplyCollateral(
+          collateralAssetId,
+          supplyAmount,
+          supplyCommitment,
+          "0x",
+          commitmentUpdateInputs({ oldCommitment: 0n, newCommitment: supplyCommitment, delta: supplyAmount, isIncrease: true, assetId: collateralAssetId })
+        )
+    )
+      .to.emit(pool, "CollateralUpdated")
+      .withArgs(alice.address, collateralAssetId, supplyCommitment, true);
+
+    const collateralPriceE8 = ethers.parseUnits("2", 8);
+    const debtPriceE8 = ethers.parseUnits("1", 8);
+    const borrowAmount = ethers.parseUnits("50", 6);
+    const debtCommitment = 222n;
+    await expect(
+      pool
+        .connect(alice)
+        .borrow(
+          debtAssetId,
+          borrowAmount,
+          debtCommitment,
+          "0x",
+          commitmentUpdateInputs({ oldCommitment: 0n, newCommitment: debtCommitment, delta: borrowAmount, isIncrease: true, assetId: debtAssetId }),
+          "0x",
+          solvencyInputs({ collateralCommitment: supplyCommitment, debtCommitment, collateralPriceE8, debtPriceE8, thresholdBps: 8_000 })
+        )
+    )
+      .to.emit(pool, "DebtUpdated")
+      .withArgs(alice.address, debtAssetId, debtCommitment, true);
+  });
+
   it("rejects a commitment-update proof whose public inputs don't match the call", async function () {
     const { alice, collateralToken, pool, collateralAssetId } = await deployFixture();
     const amount = ethers.parseUnits("100", 18);
