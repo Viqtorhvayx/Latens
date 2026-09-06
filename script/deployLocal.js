@@ -112,6 +112,15 @@ async function main() {
   await (await latensDollar.setCDP(await cdp.getAddress())).wait();
   await (await cdp.setMintFee(50)).wait();
 
+  const SupplyRewards = await ethers.getContractFactory("SupplyRewards");
+  const epochDuration = 24n * 60n * 60n;
+  const rewardPerEpoch = ethers.parseUnits("10", 18);
+  const rewards = await SupplyRewards.deploy(deployer.address, await pool.getAddress(), await zusd.getAddress(), epochDuration, rewardPerEpoch);
+  await rewards.waitForDeployment();
+  await (await zusd.mint(deployer.address, ethers.parseUnits("500000", 18))).wait();
+  await (await zusd.connect(deployer).approve(await rewards.getAddress(), ethers.parseUnits("500000", 18))).wait();
+  await (await rewards.connect(deployer).fund(ethers.parseUnits("500000", 18))).wait();
+
   const artifactsDir = path.join(__dirname, "..", "artifacts", "contracts");
   function abiOf(rel) {
     return JSON.parse(fs.readFileSync(path.join(artifactsDir, rel))).abi;
@@ -126,6 +135,7 @@ async function main() {
       MockERC20: { abi: abiOf("mocks/MockERC20.sol/MockERC20.json") },
       LatensCDP: { address: await cdp.getAddress(), abi: abiOf("core/LatensCDP.sol/LatensCDP.json") },
       LatensDollar: { address: await latensDollar.getAddress(), abi: abiOf("core/LatensDollar.sol/LatensDollar.json") },
+      SupplyRewards: { address: await rewards.getAddress(), abi: abiOf("core/SupplyRewards.sol/SupplyRewards.json") },
     },
     tokens: {
       ZEN: { address: await zen.getAddress(), symbol: "ZEN", decimals: 18, assetId: Number(zenAssetId) },
@@ -147,6 +157,7 @@ async function main() {
   console.log("USDC:", await usdc.getAddress());
   console.log("LatensCDP:", await cdp.getAddress());
   console.log("LatensDollar:", await latensDollar.getAddress());
+  console.log("SupplyRewards:", await rewards.getAddress());
   console.log("Wrote frontend/lib/deployment.json");
 }
 

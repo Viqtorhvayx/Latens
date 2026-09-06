@@ -28,6 +28,11 @@ export const latensDollar = {
   abi: deployment.contracts.LatensDollar.abi as Abi,
 };
 
+export const supplyRewards = {
+  address: deployment.contracts.SupplyRewards.address as `0x${string}`,
+  abi: deployment.contracts.SupplyRewards.abi as Abi,
+};
+
 export const erc20Abi = deployment.contracts.MockERC20.abi as Abi;
 
 export type TokenSymbol = keyof typeof deployment.tokens;

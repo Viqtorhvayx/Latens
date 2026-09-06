@@ -9,6 +9,7 @@ const links = [
   { href: "/app/markets", label: "Markets" },
   { href: "/app/mint", label: "Mint" },
   { href: "/app/portfolio", label: "Portfolio" },
+  { href: "/app/rewards", label: "Rewards" },
   { href: "/app/liquidate", label: "Liquidate" },
   { href: "/app/verify", label: "Verify" },
   { href: "/app/viewing-key", label: "Viewing key" },
@@ -24,9 +25,6 @@ export function AppNav() {
           <Logo size={28} />
           <span className="hidden font-display text-[17px] sm:inline">Latens</span>
         </Link>
-        {/* Scrolls independently instead of forcing the whole nav (and page) to overflow
-            horizontally when all four links don't fit next to the logo and wallet button
-            on a narrow viewport. */}
         <div className="flex gap-4 overflow-x-auto sm:gap-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {links.map((link) => (
             <Link key={link.href} href={link.href} className={`shrink-0 text-sm font-medium transition-colors ${pathname === link.href ? "text-ink" : "text-ink-muted hover:text-ink"}`}>

@@ -13,6 +13,7 @@ const REVERT_MESSAGES: Record<string, string> = {
   StaleOraclePrice: "Price data is stale right now — try again in a moment.",
   ExceedsGrantIndicativeRange: "That amount is outside this deployment's configured range.",
   ExceedsMaxFee: "That fee is outside this deployment's configured range.",
+  NoActivePosition: "Supply collateral in a market first — rewards need an active position.",
 };
 
 export function humanizeError(err: unknown): string {
