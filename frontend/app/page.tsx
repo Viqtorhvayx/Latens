@@ -197,6 +197,9 @@ export default function Home() {
       {/* FINAL CTA */}
       <div className="border-t border-line px-8 py-24 text-center md:px-16">
         <Reveal>
+          <div className="mb-9 flex justify-center">
+            <Logo size={112} variant="outline" />
+          </div>
           <h2 className="mb-8 font-display text-[38px] font-medium">Ready to lend without exposure?</h2>
           <Link href="/app/markets" className="rounded-[10px] bg-gold px-8 py-4 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong">
             Launch App
