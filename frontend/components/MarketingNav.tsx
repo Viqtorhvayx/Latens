@@ -8,16 +8,21 @@ export function MarketingNav() {
         <Logo size={32} />
         <span className="font-display text-xl">Latens</span>
       </Link>
+      {/* Root-relative anchors, not bare fragments: this nav also renders on /docs, where
+          "#protocol" would look for a section that only exists on the landing page. */}
       <div className="hidden items-center gap-10 md:flex">
-        <a href="#protocol" className="text-sm font-medium text-ink-muted transition-colors hover:text-ink">
+        <Link href="/#protocol" className="text-sm font-medium text-ink-muted transition-colors hover:text-ink">
           Protocol
-        </a>
-        <a href="#security" className="text-sm font-medium text-ink-muted transition-colors hover:text-ink">
+        </Link>
+        <Link href="/docs" className="text-sm font-medium text-ink-muted transition-colors hover:text-ink">
+          Docs
+        </Link>
+        <Link href="/#security" className="text-sm font-medium text-ink-muted transition-colors hover:text-ink">
           Security
-        </a>
-        <a href="#roadmap" className="text-sm font-medium text-ink-muted transition-colors hover:text-ink">
+        </Link>
+        <Link href="/#roadmap" className="text-sm font-medium text-ink-muted transition-colors hover:text-ink">
           Roadmap
-        </a>
+        </Link>
       </div>
       <Link href="/app/markets" className="rounded-[10px] bg-gold px-6 py-3 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong">
         Launch App

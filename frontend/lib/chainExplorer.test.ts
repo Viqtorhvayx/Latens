@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { explorerTxUrl } from "./chainExplorer";
+import { explorerAddressUrl, explorerTxUrl } from "./chainExplorer";
 
 describe("explorerTxUrl", () => {
   it("builds a Basescan URL for Base mainnet", () => {
@@ -16,5 +16,17 @@ describe("explorerTxUrl", () => {
   });
   it("returns undefined for any unrecognized chain", () => {
     expect(explorerTxUrl(1, "0xabc")).toBeUndefined();
+  });
+});
+
+describe("explorerAddressUrl", () => {
+  it("builds a Basescan address URL for Base mainnet", () => {
+    expect(explorerAddressUrl(8453, "0xdead")).toBe("https://basescan.org/address/0xdead");
+  });
+  it("builds an Etherscan Sepolia address URL for Ethereum Sepolia", () => {
+    expect(explorerAddressUrl(11155111, "0xdead")).toBe("https://sepolia.etherscan.io/address/0xdead");
+  });
+  it("returns undefined for local Hardhat, which has no real explorer", () => {
+    expect(explorerAddressUrl(31337, "0xdead")).toBeUndefined();
   });
 });

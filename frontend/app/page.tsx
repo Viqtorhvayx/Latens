@@ -24,14 +24,14 @@ const heroStars = [
   { top: "84%", left: "36%", size: 1.5, duration: 2.7, delay: 1.9 },
 ];
 
-// Soft light lobes that travel behind the disc. Only the part of each that reaches past
-// the disc's edge is ever visible, so what you see is light spilling around a limb rather
-// than a ring drawn on top of one. Sizes/offsets are px within the 1100px disc box, and
-// each offset clears the 550px radius so the lobe actually breaks past the edge.
+// Soft light lobes that orbit behind the disc. Only the part of each that reaches past the
+// disc's edge is ever visible, so what you see is light spilling around a limb rather than
+// a ring drawn on top of one. Sizes/offsets are px within the 320px disc box, and each
+// offset clears the 160px radius so the lobe actually breaks past the edge.
 const coronaLobes = [
-  { size: 780, offset: 400, sway: "corona-sway-a", period: 15, breathe: 9, blur: 80, color: "rgba(224,190,120,0.55)", delay: 0 },
-  { size: 660, offset: 470, sway: "corona-sway-b", period: 24, breathe: 13, blur: 100, color: "rgba(201,167,92,0.45)", delay: -6 },
-  { size: 950, offset: 365, sway: "corona-sway-c", period: 37, breathe: 17, blur: 125, color: "rgba(224,190,120,0.30)", delay: -14 },
+  { size: 240, offset: 130, orbit: 15, breathe: 9, blur: 26, color: "rgba(224,190,120,0.55)", reverse: false, delay: 0 },
+  { size: 200, offset: 150, orbit: 24, breathe: 13, blur: 32, color: "rgba(201,167,92,0.45)", reverse: true, delay: -6 },
+  { size: 300, offset: 120, orbit: 37, breathe: 17, blur: 40, color: "rgba(224,190,120,0.30)", reverse: false, delay: -14 },
 ];
 
 const problems = [
@@ -160,14 +160,14 @@ export default function Home() {
               }}
             />
           ))}
-          <div className="absolute inset-x-0 top-[450px] flex justify-center">
-            <div className="relative h-[1100px] w-[1100px]">
+          <div className="absolute inset-x-0 bottom-[150px] flex justify-center">
+            <div className="relative h-[320px] w-[320px]">
               {coronaLobes.map((lobe, i) => (
                 <div
                   key={i}
                   className="absolute inset-0"
                   style={{
-                    animation: `${lobe.sway} ${lobe.period}s ease-in-out infinite`,
+                    animation: `eclipse-spin ${lobe.orbit}s linear infinite${lobe.reverse ? " reverse" : ""}`,
                     animationDelay: `${lobe.delay}s`,
                   }}
                 >
@@ -188,27 +188,34 @@ export default function Home() {
                   />
                 </div>
               ))}
-              {/* The eclipsing body. Filled with the page's own background so it reads as
-                  a silhouette rather than an object — it's invisible except where it cuts
-                  the light behind it, which is exactly what draws the crisp limb. The
-                  box-shadow is the faint corona that survives all the way around, under
-                  the brighter lobes that drift across it. */}
+              {/* Grain goes under the disc and spreads wider than it, so it textures the
+                  corona only. Over the disc it would lighten the one thing on screen that
+                  has to stay the darkest — the silhouette reads as a hole in the light,
+                  and a lit hole isn't one. */}
               <div
-                className="absolute inset-0 rounded-full bg-canvas"
-                style={{ boxShadow: "0 0 80px 10px rgba(201,167,92,0.12)" }}
-              />
-              <div
-                className="absolute inset-0 rounded-full opacity-[0.06] mix-blend-overlay"
+                className="absolute inset-[-40%] rounded-full opacity-[0.07] mix-blend-overlay"
                 style={{
                   animation: "grain-shift 0.9s steps(4) infinite",
                   backgroundImage:
                     "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
                 }}
               />
+              {/* The eclipsing body, painted last so it occludes everything above. Filled
+                  with the page's own background so it reads as a silhouette rather than an
+                  object — invisible except where it cuts the light behind it, which is
+                  exactly what draws the crisp limb. The box-shadow is the faint corona
+                  that survives all the way around, under the brighter lobes that orbit
+                  across it. */}
+              <div
+                className="absolute inset-0 rounded-full bg-canvas"
+                style={{ boxShadow: "0 0 40px 6px rgba(201,167,92,0.12)" }}
+              />
             </div>
           </div>
         </div>
-        <div className="relative mx-auto flex max-w-[1440px] flex-col gap-16 px-8 py-24 md:flex-row md:items-center md:gap-20 md:px-16 md:py-32">
+        {/* The tall bottom padding is what gives the eclipse below the copy room to sit
+            as a complete circle without the hero's own overflow clipping it. */}
+        <div className="relative mx-auto flex max-w-[1440px] flex-col gap-16 px-8 pt-24 pb-[300px] md:flex-row md:items-center md:gap-20 md:px-16 md:pt-32 md:pb-[300px]">
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} className="flex max-w-[600px] flex-1 flex-col gap-7">
             <div className="flex items-center gap-2.5">
               <span className="relative flex h-1.5 w-1.5">
@@ -225,12 +232,12 @@ export default function Home() {
               <Link href="/app/markets" className="rounded-[10px] bg-gold px-6 py-3.5 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong">
                 Launch App
               </Link>
-              <a href="#docs" className="flex items-center gap-2 rounded-[10px] border border-line-strong px-6 py-3.5 text-[14.5px] font-semibold transition-colors hover:bg-surface-hover">
-                Read the litepaper
+              <Link href="/docs" className="flex items-center gap-2 rounded-[10px] border border-line-strong px-6 py-3.5 text-[14.5px] font-semibold transition-colors hover:bg-surface-hover">
+                Read the docs
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                  <path d="M3 11 L11 3 M11 3 H5 M11 3 V9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M2.5 7 H11 M7.5 3.5 L11 7 L7.5 10.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-              </a>
+              </Link>
             </div>
             <p className="mt-2 text-xs text-ink-faint">Built for Horizen · Base L3 · Thrive Season 2 Builder Ecosystem Fund</p>
           </motion.div>
@@ -390,9 +397,12 @@ export default function Home() {
           </div>
           <div className="flex flex-col gap-2.5">
             <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Company</span>
-            <a href="#" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
-              Litepaper
-            </a>
+            <Link href="/docs" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
+              Docs
+            </Link>
+            <Link href="/docs#status" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
+              Status &amp; limits
+            </Link>
             <a href="#security" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
               Security
             </a>

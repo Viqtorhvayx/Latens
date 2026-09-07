@@ -12,3 +12,10 @@ export function explorerTxUrl(chainId: number, hash: string): string | undefined
   const base = EXPLORERS[chainId];
   return base ? `${base}/tx/${hash}` : undefined;
 }
+
+/// Same fallback rule as `explorerTxUrl`: no known explorer means no link, rather than a
+/// link that 404s. The docs page renders the bare address in that case.
+export function explorerAddressUrl(chainId: number, address: string): string | undefined {
+  const base = EXPLORERS[chainId];
+  return base ? `${base}/address/${address}` : undefined;
+}
