@@ -5,8 +5,10 @@ import { ImageResponse } from "next/og";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Satori has no access to the public/ URL space while this renders at build time, so the
-// mark is inlined from disk rather than fetched.
+// Inlined from disk rather than fetched: Satori has no access to the public/ URL space
+// while this renders at build time. A raster of the mark rather than its SVG, because
+// Satori's handling of the mark's group transform (which includes a negative scale) isn't
+// worth gambling a social card on.
 const markDataUri = `data:image/png;base64,${readFileSync(join(process.cwd(), "public", "logo-mark.png")).toString("base64")}`;
 
 export default function OpengraphImage() {
@@ -25,7 +27,7 @@ export default function OpengraphImage() {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 48 }}>
-        <img src={markDataUri} alt="" style={{ width: 72, height: 72 }} />
+        <img src={markDataUri} alt="" style={{ width: 56, height: 56 }} />
         <span style={{ fontSize: 34, fontWeight: 600 }}>Latens</span>
       </div>
       <div style={{ display: "flex", fontSize: 60, fontWeight: 600, lineHeight: 1.15, maxWidth: 980 }}>Lending, kept between you and the chain.</div>

@@ -33,9 +33,8 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://latens.example"),
   title,
   description,
-  // opengraph-image.tsx, icon.png and apple-icon.png (all under app/) are picked up
-  // automatically by Next's file convention — no need to reference them here, just the
-  // text fields.
+  // opengraph-image.tsx and apple-icon.tsx (both under app/) are picked up automatically by
+  // Next's file convention — no need to reference them here, just the text fields.
   openGraph: { title, description, type: "website" },
   twitter: { card: "summary_large_image", title, description },
 };

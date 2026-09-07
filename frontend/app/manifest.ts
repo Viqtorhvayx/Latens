@@ -9,8 +9,6 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: "#12100D",
     theme_color: "#1C1A17",
-    // Served straight from public/ rather than the app/icon.png route, so the URL stays
-    // stable and the entry is the 512×512 size PWA installers actually want.
-    icons: [{ src: "/logo-mark.png", sizes: "512x512", type: "image/png" }],
+    icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }],
   };
 }
