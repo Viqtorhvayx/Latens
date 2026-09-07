@@ -70,7 +70,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   });
 
   const positionTuple = position as PositionTuple | undefined;
-  const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
+  const collateralAssetId = positionTuple?.[6] ? Number(positionTuple[0]) : undefined;
   const debtLastUpdated = positionTuple?.[5] ?? 0n;
   const debtTokenForSolvency = mode === "borrow" ? token : positionTuple?.[7] ? tokenList.find((t) => t.assetId === Number(positionTuple[1])) : undefined;
 
@@ -337,7 +337,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
       >
         <div className="mb-6 flex items-center justify-between">
           <span className="font-display text-xl capitalize">
-            {mode} {symbol}
+            {showCollateralStep ? "Add collateral" : `${mode} ${symbol}`}
           </span>
           <button onClick={onClose} className="text-ink-muted transition-colors hover:text-ink">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

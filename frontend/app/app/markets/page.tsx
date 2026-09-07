@@ -80,7 +80,7 @@ export default function MarketsPage() {
   });
 
   const positionTuple = position as PositionTuple | undefined;
-  const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
+  const collateralAssetId = positionTuple?.[6] ? Number(positionTuple[0]) : undefined;
   const debtAssetId = positionTuple?.[7] ? Number(positionTuple[1]) : undefined;
   const collateralToken = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
   const collateralShares = collateralToken ? get(address, collateralToken.assetId).supplied : 0n;

@@ -69,7 +69,7 @@ export default function MintPage() {
   });
 
   const positionTuple = position as CDPPositionTuple | undefined;
-  const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
+  const collateralAssetId = positionTuple?.[4] ? Number(positionTuple[0]) : undefined;
   const collateralToken = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
   const collateralAmount = collateralToken ? get(address, collateralToken.assetId).collateral : 0n;
   const debtAmount = collateralToken ? get(address, collateralToken.assetId).debt : 0n;

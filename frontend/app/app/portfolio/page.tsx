@@ -53,7 +53,7 @@ export default function PortfolioPage() {
   });
 
   const positionTuple = position as PositionTuple | undefined;
-  const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
+  const collateralAssetId = positionTuple?.[6] ? Number(positionTuple[0]) : undefined;
   const debtAssetId = positionTuple?.[7] ? Number(positionTuple[1]) : undefined;
   const collateralToken = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
   const debtToken = debtAssetId !== undefined ? tokenList.find((t) => t.assetId === debtAssetId) : undefined;

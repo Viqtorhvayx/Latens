@@ -66,7 +66,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
   });
 
   const positionTuple = position as CDPPositionTuple | undefined;
-  const collateralAssetId = positionTuple ? Number(positionTuple[0]) : undefined;
+  const collateralAssetId = positionTuple?.[4] ? Number(positionTuple[0]) : undefined;
 
   const { data: collateralAsset } = useReadContract({
     address: assetRegistry.address,
