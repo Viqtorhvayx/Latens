@@ -24,13 +24,14 @@ const heroStars = [
   { top: "84%", left: "36%", size: 1.5, duration: 2.7, delay: 1.9 },
 ];
 
-// Soft light lobes that orbit the disc behind it. Only the part of each that reaches past
+// Soft light lobes that travel behind the disc. Only the part of each that reaches past
 // the disc's edge is ever visible, so what you see is light spilling around a limb rather
-// than a ring drawn on top of one. Sizes/offsets are px within the 900px disc box.
+// than a ring drawn on top of one. Sizes/offsets are px within the 1100px disc box, and
+// each offset clears the 550px radius so the lobe actually breaks past the edge.
 const coronaLobes = [
-  { size: 640, offset: 330, orbit: 15, breathe: 9, blur: 70, color: "rgba(224,190,120,0.55)", reverse: false, delay: 0 },
-  { size: 540, offset: 385, orbit: 24, breathe: 13, blur: 85, color: "rgba(201,167,92,0.45)", reverse: true, delay: -6 },
-  { size: 780, offset: 300, orbit: 37, breathe: 17, blur: 110, color: "rgba(224,190,120,0.30)", reverse: false, delay: -14 },
+  { size: 780, offset: 400, sway: "corona-sway-a", period: 15, breathe: 9, blur: 80, color: "rgba(224,190,120,0.55)", delay: 0 },
+  { size: 660, offset: 470, sway: "corona-sway-b", period: 24, breathe: 13, blur: 100, color: "rgba(201,167,92,0.45)", delay: -6 },
+  { size: 950, offset: 365, sway: "corona-sway-c", period: 37, breathe: 17, blur: 125, color: "rgba(224,190,120,0.30)", delay: -14 },
 ];
 
 const problems = [
@@ -159,14 +160,14 @@ export default function Home() {
               }}
             />
           ))}
-          <div className="absolute inset-x-0 top-[-300px] flex justify-center">
-            <div className="relative h-[900px] w-[900px]">
+          <div className="absolute inset-x-0 top-[450px] flex justify-center">
+            <div className="relative h-[1100px] w-[1100px]">
               {coronaLobes.map((lobe, i) => (
                 <div
                   key={i}
                   className="absolute inset-0"
                   style={{
-                    animation: `eclipse-spin ${lobe.orbit}s linear infinite${lobe.reverse ? " reverse" : ""}`,
+                    animation: `${lobe.sway} ${lobe.period}s ease-in-out infinite`,
                     animationDelay: `${lobe.delay}s`,
                   }}
                 >
@@ -194,7 +195,7 @@ export default function Home() {
                   the brighter lobes that drift across it. */}
               <div
                 className="absolute inset-0 rounded-full bg-canvas"
-                style={{ boxShadow: "0 0 60px 8px rgba(201,167,92,0.10)" }}
+                style={{ boxShadow: "0 0 80px 10px rgba(201,167,92,0.12)" }}
               />
               <div
                 className="absolute inset-0 rounded-full opacity-[0.06] mix-blend-overlay"

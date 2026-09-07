@@ -46,17 +46,44 @@
   color: var(--color-ink);
 }
 
-@keyframes eclipse-spin {
-  to {
-    transform: rotate(360deg);
+/* The disc sits low enough that only its top arc is on screen, so a lobe on a full 360°
+   orbit would spend most of its cycle hidden below the fold and the light would appear to
+   blink in and out. These sway it back and forth across the visible arc instead: always
+   lit, still travelling. Each lobe gets its own range and direction. */
+@keyframes corona-sway-a {
+  0%,
+  100% {
+    transform: rotate(-46deg);
+  }
+  50% {
+    transform: rotate(38deg);
   }
 }
 
-/* Each corona lobe rides its own orbit (eclipse-spin) at its own period and direction
-   while independently fading in and out on this one. Because the periods don't divide
-   evenly into each other, the combined light never repeats the same arrangement twice in
-   a row — that beat between them is what keeps the glow reading as drifting light rather
-   than a texture on a turntable. */
+@keyframes corona-sway-b {
+  0%,
+  100% {
+    transform: rotate(34deg);
+  }
+  50% {
+    transform: rotate(-52deg);
+  }
+}
+
+@keyframes corona-sway-c {
+  0%,
+  100% {
+    transform: rotate(-16deg);
+  }
+  50% {
+    transform: rotate(28deg);
+  }
+}
+
+/* Each corona lobe sways on its own period while independently fading in and out on this
+   one. Because the periods don't divide evenly into each other, the combined light never
+   repeats the same arrangement twice in a row — that beat between them is what keeps the
+   glow reading as drifting light rather than a texture on a turntable. */
 @keyframes corona-breathe {
   0%,
   100% {
