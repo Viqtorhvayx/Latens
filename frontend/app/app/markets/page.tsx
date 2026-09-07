@@ -5,7 +5,7 @@ import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 import { assetRegistry, latensPool, priceOracle, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore, sharesToReal, RAY } from "@/lib/positionStore";
-import { usdValueE8 } from "@/lib/valuation";
+import { usdValueE8, formatUsd, formatApr } from "@/lib/valuation";
 import { MaskedValue } from "@/components/MaskedValue";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
 import { UtilizationMeter } from "@/components/UtilizationMeter";
@@ -29,14 +29,6 @@ type AssetStruct = {
 };
 type PriceTuple = readonly [bigint, bigint];
 type PositionTuple = readonly [bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
-
-function formatUsd(valueE8: bigint): string {
-  return (Number(valueE8) / 1e8).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-}
-
-function formatApr(bps: number): string {
-  return `${(bps / 100).toFixed(2)}%`;
-}
 
 export default function MarketsPage() {
   const { address } = useAccount();

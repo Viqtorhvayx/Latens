@@ -14,7 +14,7 @@ import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { sanitizeAmountInput } from "@/lib/amountInput";
-import { usdValueE8 } from "@/lib/valuation";
+import { usdValueE8, formatUsd, formatApr } from "@/lib/valuation";
 import { useViewingKey } from "@/lib/viewingKeyContext";
 import { encryptNote } from "@/lib/viewingKey";
 
@@ -114,6 +114,15 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   });
   const collateralIndexRayForBorrow = (collateralIndexRayRaw as bigint | undefined) ?? RAY;
 
+  const { data: supplyRateBpsRaw } = useReadContract({
+    address: assetRegistry.address,
+    abi: assetRegistry.abi,
+    functionName: "supplyRateBps",
+    args: [BigInt(token.assetId)],
+    query: { enabled: mode === "supply" },
+  });
+  const supplyApyBps = supplyRateBpsRaw !== undefined ? Number(supplyRateBpsRaw as bigint) : undefined;
+
   const amount = (() => {
     try {
       return amountInput ? parseUnits(amountInput, token.decimals) : 0n;
@@ -135,13 +144,16 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
 
   const collateralLocal = collateralAssetId !== undefined ? get(address, collateralAssetId) : undefined;
   const collateralTokenForCap = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
+  const ltvBps = mode === "borrow" && collateralAsset ? (collateralAsset as { ltvBps: number }).ltvBps : undefined;
+  const collateralRealAmountForBorrow = collateralLocal ? sharesToReal(collateralLocal.supplied, collateralIndexRayForBorrow) : undefined;
+  const collateralValueE8 =
+    mode === "borrow" && collateralRealAmountForBorrow !== undefined && collateralTokenForCap && collateralPrice
+      ? usdValueE8(collateralRealAmountForBorrow, collateralTokenForCap.decimals, (collateralPrice as readonly [bigint, bigint])[0])
+      : undefined;
   const borrowMax = (() => {
-    if (mode !== "borrow" || !collateralAsset || !collateralPrice || !debtPrice || !collateralLocal || !collateralTokenForCap) return undefined;
-    const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
-    const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
+    if (mode !== "borrow" || collateralValueE8 === undefined || ltvBps === undefined || !debtPrice) return undefined;
     const debtPriceE8 = (debtPrice as readonly [bigint, bigint])[0];
     if (debtPriceE8 === 0n) return undefined;
-    const collateralValueE8 = usdValueE8(sharesToReal(collateralLocal.supplied, collateralIndexRayForBorrow), collateralTokenForCap.decimals, collateralPriceE8);
     const maxDebtValueE8 = (collateralValueE8 * BigInt(ltvBps)) / 10_000n;
     const currentDebtValueE8 = usdValueE8(local.borrowed, token.decimals, debtPriceE8);
     const headroomValueE8 = maxDebtValueE8 > currentDebtValueE8 ? maxDebtValueE8 - currentDebtValueE8 : 0n;
@@ -295,7 +307,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
 
   const canBorrow = mode !== "borrow" || (collateralAssetId !== undefined && Boolean(collateralAsset) && Boolean(collateralPrice) && Boolean(debtPrice));
 
-  const availableLabel = mode === "withdraw" ? "Supplied" : mode === "repay" ? "Owed" : mode === "borrow" ? "Max" : "Balance";
+  const availableLabel = mode === "withdraw" ? "Supplied" : mode === "repay" ? "Owed" : mode === "borrow" ? "Available to borrow" : "Balance";
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-28">
@@ -352,6 +364,34 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
                 <span className="font-mono text-base text-ink-muted">{symbol}</span>
               </div>
             </div>
+
+            {mode === "supply" && supplyApyBps !== undefined && (
+              <div className="mb-4 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-4 py-3">
+                <div>
+                  <div className="text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Supply APY</div>
+                  <div className="font-mono text-sm text-success">{formatApr(supplyApyBps)}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Also becomes</div>
+                  <div className="text-sm text-ink">Your collateral</div>
+                </div>
+              </div>
+            )}
+            {mode === "borrow" && canBorrow && collateralTokenForCap && ltvBps !== undefined && collateralRealAmountForBorrow !== undefined && (
+              <div className="mb-4 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-4 py-3">
+                <div>
+                  <div className="text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Backed by</div>
+                  <div className="text-sm text-ink">
+                    {formatUnits(collateralRealAmountForBorrow, collateralTokenForCap.decimals)} {collateralTokenForCap.symbol}
+                    {collateralValueE8 !== undefined && <span className="text-ink-faint"> ({formatUsd(collateralValueE8)})</span>}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Max LTV</div>
+                  <div className="font-mono text-sm text-gold">{(ltvBps / 100).toFixed(0)}%</div>
+                </div>
+              </div>
+            )}
 
             {mode === "borrow" && !canBorrow && <p className="mb-4 text-xs text-warning">Supply collateral in another asset first — this position has none yet.</p>}
             {mode === "repay" && interestFee > 0n && (

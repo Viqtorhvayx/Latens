@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { usdValueE8 } from "./valuation";
+import { usdValueE8, formatUsd, formatApr } from "./valuation";
 
 describe("usdValueE8", () => {
   it("values a whole token at its price", () => {
@@ -25,5 +25,25 @@ describe("usdValueE8", () => {
 
   it("returns zero for a zero amount", () => {
     expect(usdValueE8(0n, 18, 200_000_000n)).toBe(0n);
+  });
+});
+
+describe("formatUsd", () => {
+  it("formats an 8-decimal value as whole-dollar USD", () => {
+    expect(formatUsd(12_340_000_000_000n)).toBe("$123,400");
+  });
+
+  it("formats zero as $0", () => {
+    expect(formatUsd(0n)).toBe("$0");
+  });
+});
+
+describe("formatApr", () => {
+  it("formats bps as a percentage with two decimals", () => {
+    expect(formatApr(432)).toBe("4.32%");
+  });
+
+  it("formats zero bps as 0.00%", () => {
+    expect(formatApr(0)).toBe("0.00%");
   });
 });

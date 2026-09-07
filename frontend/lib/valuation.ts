@@ -11,3 +11,11 @@
 export function usdValueE8(amountBaseUnits: bigint, decimals: number, priceE8: bigint): bigint {
   return (amountBaseUnits * priceE8) / 10n ** BigInt(decimals);
 }
+
+export function formatUsd(valueE8: bigint): string {
+  return (Number(valueE8) / 1e8).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+}
+
+export function formatApr(bps: number): string {
+  return `${(bps / 100).toFixed(2)}%`;
+}
