@@ -9,14 +9,14 @@ import { Reveal } from "@/components/Reveal";
 import { Logo } from "@/components/Logo";
 
 const heroStars = [
-  { top: "6%", left: "22%", size: 2, duration: 3.4, delay: 0 },
-  { top: "14%", left: "84%", size: 1.5, duration: 2.8, delay: 0.6 },
-  { top: "88%", left: "12%", size: 2, duration: 3.1, delay: 1.1 },
-  { top: "80%", left: "92%", size: 1.5, duration: 2.6, delay: 0.3 },
-  { top: "42%", left: "3%", size: 1.5, duration: 3.6, delay: 1.6 },
-  { top: "30%", left: "95%", size: 1.5, duration: 2.9, delay: 0.9 },
+  { top: "40%", left: "18%", size: 2, duration: 3.4, delay: 0 },
+  { top: "48%", left: "86%", size: 1.5, duration: 2.8, delay: 0.6 },
+  { top: "88%", left: "10%", size: 2, duration: 3.1, delay: 1.1 },
+  { top: "80%", left: "94%", size: 1.5, duration: 2.6, delay: 0.3 },
+  { top: "62%", left: "4%", size: 1.5, duration: 3.6, delay: 1.6 },
+  { top: "58%", left: "96%", size: 1.5, duration: 2.9, delay: 0.9 },
   { top: "94%", left: "55%", size: 2, duration: 3.3, delay: 0.4 },
-  { top: "3%", left: "58%", size: 1.5, duration: 3.0, delay: 1.4 },
+  { top: "38%", left: "58%", size: 1.5, duration: 3.0, delay: 1.4 },
 ];
 
 const problems = [
@@ -129,22 +129,25 @@ export default function Home() {
 
       {/* HERO */}
       <div className="relative overflow-hidden">
-        <div className="hero-eclipse pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+        <div className="hero-eclipse pointer-events-none absolute inset-x-0 top-[-300px] flex justify-center">
           <div className="relative h-[900px] w-[900px]" style={{ animation: "eclipse-breathe 9s ease-in-out infinite" }}>
-            {/* Corona: a full ring around the disc, its bright point slowly orbiting — the
-                dark center needs no fill of its own since it's just the hero's own canvas
-                background showing through. */}
+            {/* Corona: a ring around the (mostly off-canvas) disc, its bright point
+                continuously orbiting — brightness varies smoothly all the way around
+                rather than switching a patch fully off, so the motion reads as a flowing
+                light rather than something blinking in and out. The dark center needs no
+                fill of its own since it's just the hero's own canvas background showing
+                through. */}
             <div
               className="absolute inset-0 rounded-full"
               style={{
-                animation: "eclipse-spin 48s linear infinite",
+                animation: "eclipse-spin 16s linear infinite",
                 background:
-                  "conic-gradient(from 0deg, rgba(224,190,120,0.32) 0deg, rgba(201,167,92,0.10) 85deg, rgba(20,18,15,0) 150deg, rgba(20,18,15,0) 210deg, rgba(201,167,92,0.10) 275deg, rgba(224,190,120,0.32) 360deg)",
+                  "conic-gradient(from 0deg, rgba(224,190,120,0.40) 0deg, rgba(201,167,92,0.22) 60deg, rgba(201,167,92,0.09) 120deg, rgba(201,167,92,0.05) 180deg, rgba(201,167,92,0.09) 240deg, rgba(201,167,92,0.22) 300deg, rgba(224,190,120,0.40) 360deg)",
                 WebkitMaskImage:
                   "radial-gradient(circle at 50% 50%, transparent 0%, transparent 50%, black 64%, black 74%, transparent 92%)",
                 maskImage:
                   "radial-gradient(circle at 50% 50%, transparent 0%, transparent 50%, black 64%, black 74%, transparent 92%)",
-                filter: "blur(26px)",
+                filter: "blur(18px)",
               }}
             />
             <div
