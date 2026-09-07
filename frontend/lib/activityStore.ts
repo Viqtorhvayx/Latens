@@ -5,6 +5,7 @@
 // salts, this history is local to the browser that made each transaction — it doesn't
 // follow the user to a new device; ExportDisclosureModal/ImportBackupModal cover that.
 import type { Address } from "viem";
+import { latensPool } from "./contracts";
 
 export type ActivityEntry = {
   kind: "collateral" | "debt";
@@ -18,7 +19,10 @@ export type ActivityEntry = {
 type SerializedEntry = Omit<ActivityEntry, "amount"> & { amount: string };
 type Store = Record<string, SerializedEntry[]>; // keyed by lowercase address, newest first
 
-const STORAGE_KEY = "latens.activity.v1";
+// Scoped to the pool's own address — a redeploy's tx hashes belong to a different chain
+// history than any previous deployment's, so showing them side by side would be misleading
+// even though nothing here reverts on it the way positionStore's commitments do.
+const STORAGE_KEY = `latens.activity.v1.${latensPool.address.toLowerCase()}`;
 const MAX_ENTRIES_PER_ADDRESS = 100;
 
 function load(): Store {

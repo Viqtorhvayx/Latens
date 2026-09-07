@@ -22,6 +22,7 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import type { Address } from "viem";
 import { pedersenCommit } from "./pedersen";
+import { latensPool } from "./contracts";
 
 export type AssetPosition = {
   supplied: bigint;
@@ -34,7 +35,17 @@ type PositionsByAsset = Record<number, AssetPosition>;
 type Store = Record<string, PositionsByAsset>; // keyed by lowercase address
 
 const EMPTY: AssetPosition = { supplied: 0n, suppliedSalt: 0n, borrowed: 0n, borrowedSalt: 0n };
-const STORAGE_KEY = "latens.positions.v1";
+
+// Scoped to the pool's own address, not just "latens.positions.v1" — a redeploy gives every
+// contract a new address, so a stale local commitment from a previous deployment simply
+// lives under a different, now-unreachable key instead of silently getting reused as this
+// deployment's own state. This matters more than it looks: prepare() below computes
+// oldCommitment from whatever this store currently holds, and the pool checks that value
+// against its own on-chain position — a stale entry from an old deployment doesn't match a
+// genuinely fresh on-chain position (collateralCommitment 0), so every action reverts with
+// InvalidProof until the mismatch is cleared. Scoping the key means there's no mismatch to
+// clear: state from a different pool address was never "this deployment's" to begin with.
+const STORAGE_KEY = `latens.positions.v1.${latensPool.address.toLowerCase()}`;
 
 export function randomSalt(): bigint {
   const bytes = crypto.getRandomValues(new Uint8Array(31)); // stay under the BN254 field size

@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import type { Address } from "viem";
 import { commitment, randomSalt } from "./positionStore";
+import { latensCDP } from "./contracts";
 
 export type CDPAssetPosition = {
   collateral: bigint;
@@ -15,7 +16,11 @@ type PositionsByAsset = Record<number, CDPAssetPosition>;
 type Store = Record<string, PositionsByAsset>;
 
 const EMPTY: CDPAssetPosition = { collateral: 0n, collateralSalt: 0n, debt: 0n, debtSalt: 0n };
-const STORAGE_KEY = "latens.cdp.positions.v1";
+
+// Scoped to the CDP's own address — see positionStore.tsx's STORAGE_KEY comment for why: a
+// stale commitment left over from a previous deployment doesn't match a genuinely fresh
+// on-chain position, and every call reverts with InvalidProof until that mismatch clears.
+const STORAGE_KEY = `latens.cdp.positions.v1.${latensCDP.address.toLowerCase()}`;
 
 function load(): Store {
   if (typeof window === "undefined") return {};
