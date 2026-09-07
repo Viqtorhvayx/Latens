@@ -310,6 +310,15 @@ export default function Home() {
             <a href="#security" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
               Security
             </a>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Social</span>
+            <a href="#" target="_blank" rel="noopener noreferrer" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
+              X
+            </a>
+            <a href="#" target="_blank" rel="noopener noreferrer" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
+              Discord
+            </a>
             <a href="https://github.com/Viqtorhvayx/Latens" target="_blank" rel="noopener noreferrer" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
               GitHub
             </a>
