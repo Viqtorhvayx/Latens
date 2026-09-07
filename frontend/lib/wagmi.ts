@@ -18,9 +18,33 @@ export const activeChain = SUPPORTED_CHAINS.find((c) => c.id === deployment.chai
 // it means the UI matches Latens's own design system without fighting RainbowKit's.
 const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
+// Without an explicit `metadata`, WalletConnect falls back to a generic letter-avatar (the
+// app name's first initial) instead of Latens's own mark, in both its own modal and on the
+// connecting wallet's side (MetaMask's connection prompt, a mobile wallet's WC screen) —
+// this is the one place that icon is actually sourced from for the WalletConnect connector.
+// `url` doubles as the base the wallet resolves `icons` against, so it needs to be the same
+// placeholder as layout.tsx's `metadataBase` until there's a real domain — update both
+// together once one exists.
+const appUrl = "https://latens.example";
+
 export const wagmiConfig = createConfig({
   chains: [sepolia, baseSepolia],
-  connectors: [injected(), ...(walletConnectProjectId ? [walletConnect({ projectId: walletConnectProjectId })] : [])],
+  connectors: [
+    injected(),
+    ...(walletConnectProjectId
+      ? [
+          walletConnect({
+            projectId: walletConnectProjectId,
+            metadata: {
+              name: "Latens",
+              description: "Confidential borrow-lend market for Horizen. Collateral, borrow size, and health factor stay provably hidden, verified by zero-knowledge proofs.",
+              url: appUrl,
+              icons: [`${appUrl}/logo-mark.png`],
+            },
+          }),
+        ]
+      : []),
+  ],
   transports: {
     [sepolia.id]: http(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com"),
     [baseSepolia.id]: http(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org"),
