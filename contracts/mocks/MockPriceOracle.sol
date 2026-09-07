@@ -28,6 +28,22 @@ contract MockPriceOracle is IPriceOracle {
         _updatedAt[asset] = updatedAt;
     }
 
+    /// @notice Bumps `updatedAt` to now without touching the price itself — permissionless
+    /// on purpose. A real oracle updates on its own; this mock only advances when someone
+    /// calls setPrice(), so on a live testnet a price set once at deploy time silently ages
+    /// past PRICE_STALENESS_WINDOW (1 hour, in both LatensPool and LatensCDP) and every
+    /// solvency-gated call starts reverting with StaleOraclePrice regardless of whether
+    /// anything else about the call is correct — not a market-data problem, just this mock
+    /// needing a heartbeat. Doesn't need to be owner-gated: it can't change what price an
+    /// asset reports, only how recently that same price counts as checked, so it can't be
+    /// used to manipulate a position's valuation — only to keep a genuinely-set price from
+    /// going stale. Reverts on an asset that was never priced, rather than manufacturing a
+    /// fresh timestamp for a price that doesn't exist.
+    function refreshTimestamp(address asset) external {
+        require(_priceE8[asset] != 0, "MockPriceOracle: no price set");
+        _updatedAt[asset] = block.timestamp;
+    }
+
     function getPrice(address asset) external view returns (uint256 priceE8, uint256 updatedAt) {
         return (_priceE8[asset], _updatedAt[asset]);
     }

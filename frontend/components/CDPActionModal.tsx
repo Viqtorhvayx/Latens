@@ -7,6 +7,7 @@ import { useAccount, useChainId, usePublicClient, useReadContract, useWriteContr
 import { parseUnits, formatUnits } from "viem";
 import { latensCDP, latensDollar, assetRegistry, priceOracle, erc20Abi, tokens, type TokenSymbol } from "@/lib/contracts";
 import { useCDPPositionStore } from "@/lib/cdpPositionStore";
+import { RAY } from "@/lib/positionStore";
 import { TokenIcon } from "./TokenIcon";
 import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
@@ -84,9 +85,18 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
     query: { enabled: needsSolvencyContext && Boolean(collateralAsset) },
   });
 
+  // mint/burn move LatensDollar itself (always 18 decimals) regardless of what the
+  // collateral asset's own decimals are — supply/withdraw are the only modes actually
+  // denominated in the collateral token. Using token.decimals unconditionally here parsed
+  // every mint/burn amount as if it were collateral-denominated: harmless by coincidence
+  // for 18-decimal ZUSD collateral, but silently wrong by a factor of 10^10 for WBTC (8
+  // decimals) or 10^12 for USDC (6) — a "20" typed by the user would mint or burn a
+  // vanishingly small fraction of a LATD instead of 20 of them.
+  const amountDecimals = mode === "mint" || mode === "burn" ? 18 : token.decimals;
+
   const amount = (() => {
     try {
-      return amountInput ? parseUnits(amountInput, token.decimals) : 0n;
+      return amountInput ? parseUnits(amountInput, amountDecimals) : 0n;
     } catch {
       return 0n;
     }
@@ -170,7 +180,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
             "0x",
             [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)],
             "0x",
-            [currentCollateralCommitment, BigInt(newCommitment), collateralPriceE8, STABLECOIN_PRICE_E8, BigInt(ltvBps)],
+            [currentCollateralCommitment, BigInt(newCommitment), collateralPriceE8, STABLECOIN_PRICE_E8, RAY, RAY, BigInt(ltvBps)],
           ],
           gas: CDP_CALL_GAS,
         });
@@ -198,7 +208,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
             "0x",
             [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)],
             "0x",
-            [BigInt(newCommitment), debtCommitment, collateralPriceE8, STABLECOIN_PRICE_E8, BigInt(ltvBps)],
+            [BigInt(newCommitment), debtCommitment, collateralPriceE8, STABLECOIN_PRICE_E8, RAY, RAY, BigInt(ltvBps)],
           ],
           gas: CDP_CALL_GAS,
         });
@@ -215,8 +225,8 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
   }
 
   const availableLabel = mode === "withdraw" ? "Supplied" : mode === "burn" ? "Owed" : mode === "mint" ? "Max" : "Balance";
-  const displaySymbol = mode === "burn" ? "LATD" : symbol;
-  const displayDecimals = mode === "burn" ? 18 : token.decimals;
+  const displaySymbol = mode === "mint" || mode === "burn" ? "LATD" : symbol;
+  const displayDecimals = amountDecimals;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-28">
