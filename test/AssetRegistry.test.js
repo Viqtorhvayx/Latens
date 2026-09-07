@@ -31,6 +31,20 @@ describe("AssetRegistry interest rate model", function () {
     expect(await registry.utilizationBps(assetId)).to.equal(4_000n);
   });
 
+  it("seedTotalSupplied books protocol-owned liquidity into utilization the same as a real supply would", async function () {
+    const { registry, assetId } = await deployRegistry();
+    expect(await registry.utilizationBps(assetId)).to.equal(0n);
+    await registry.seedTotalSupplied(assetId, 1_000n);
+    await registry.recordBorrow(assetId, 400n, true);
+    expect(await registry.utilizationBps(assetId)).to.equal(4_000n);
+  });
+
+  it("rejects seedTotalSupplied from a non-owner", async function () {
+    const { registry, assetId } = await deployRegistry();
+    const [, stranger] = await ethers.getSigners();
+    await expect(registry.connect(stranger).seedTotalSupplied(assetId, 1_000n)).to.be.revertedWithCustomError(registry, "OwnableUnauthorizedAccount");
+  });
+
   it("charges only the base rate below the kink", async function () {
     const { registry, assetId } = await deployRegistry();
     await registry.setInterestRateModel(assetId, 200, 1_000, 30_000, 8_000);

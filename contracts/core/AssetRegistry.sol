@@ -162,6 +162,17 @@ contract AssetRegistry is Ownable2Step {
         else asset.totalSupplied -= amount;
     }
 
+    /// @notice Books protocol-owned liquidity (e.g. tokens transferred to the pool directly,
+    /// outside any user's `supplyCollateral`) into `totalSupplied`, so utilization, borrow
+    /// APR, and supply APY correctly reflect it. Unlike a real supply, this is not backed by
+    /// any user position or share commitment — there's no share ledger in this contract for
+    /// it to disturb — it exists purely so seed liquidity isn't invisible to those aggregates.
+    function seedTotalSupplied(uint256 assetId, uint256 amount) external onlyOwner {
+        DataTypes.Asset storage asset = _requireListed(assetId);
+        _checkpointSupplyIndex(assetId);
+        asset.totalSupplied += amount;
+    }
+
     function recordBorrow(uint256 assetId, uint256 amount, bool increase) external onlyPool {
         DataTypes.Asset storage asset = _requireListed(assetId);
         _checkpointSupplyIndex(assetId);

@@ -79,15 +79,31 @@ async function main() {
   await (await registry.setInterestRateModel(usdcAssetId, 50, 800, 10_000, 9_000, nextNonce())).wait();
   console.log("Markets listed with interest rate models.");
 
+  // Seeding via a raw transfer (rather than a real supplyCollateral() call) means
+  // AssetRegistry.totalSupplied never sees this liquidity on its own — it only moves inside
+  // recordSupply(), which only the pool can call as part of that flow. seedTotalSupplied()
+  // books the same amount into the aggregate directly, so utilization/APR/APY reflect the
+  // real tokens now sitting in the pool instead of reading as 0% forever.
+  const zenSeed = ethers.parseUnits("5000", 18);
   await (await zen.mint(deployer.address, ethers.parseUnits("10000", 18), nextNonce())).wait();
-  await (await zen.transfer(await pool.getAddress(), ethers.parseUnits("5000", 18), nextNonce())).wait();
+  await (await zen.transfer(await pool.getAddress(), zenSeed, nextNonce())).wait();
+  await (await registry.seedTotalSupplied(zenAssetId, zenSeed, nextNonce())).wait();
+
+  const zusdSeed = ethers.parseUnits("50000", 18);
   await (await zusd.mint(deployer.address, ethers.parseUnits("100000", 18), nextNonce())).wait();
-  await (await zusd.transfer(await pool.getAddress(), ethers.parseUnits("50000", 18), nextNonce())).wait();
+  await (await zusd.transfer(await pool.getAddress(), zusdSeed, nextNonce())).wait();
+  await (await registry.seedTotalSupplied(zusdAssetId, zusdSeed, nextNonce())).wait();
+
+  const wbtcSeed = ethers.parseUnits("5", 8);
   await (await wbtc.mint(deployer.address, ethers.parseUnits("10", 8), nextNonce())).wait();
-  await (await wbtc.transfer(await pool.getAddress(), ethers.parseUnits("5", 8), nextNonce())).wait();
+  await (await wbtc.transfer(await pool.getAddress(), wbtcSeed, nextNonce())).wait();
+  await (await registry.seedTotalSupplied(wbtcAssetId, wbtcSeed, nextNonce())).wait();
+
+  const usdcSeed = ethers.parseUnits("50000", 6);
   await (await usdc.mint(deployer.address, ethers.parseUnits("100000", 6), nextNonce())).wait();
-  await (await usdc.transfer(await pool.getAddress(), ethers.parseUnits("50000", 6), nextNonce())).wait();
-  console.log("Pool liquidity seeded.");
+  await (await usdc.transfer(await pool.getAddress(), usdcSeed, nextNonce())).wait();
+  await (await registry.seedTotalSupplied(usdcAssetId, usdcSeed, nextNonce())).wait();
+  console.log("Pool liquidity seeded and booked into totalSupplied.");
 
   const LatensDollar = await ethers.getContractFactory("LatensDollar");
   const latensDollar = await LatensDollar.deploy(deployer.address, nextNonce());

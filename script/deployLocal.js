@@ -75,14 +75,28 @@ async function main() {
   await (await registry.setInterestRateModel(usdcAssetId, 50, 800, 10_000, 9_000)).wait();
 
   // Seed pool liquidity and test-account balances so the frontend has something to show.
+  // A raw transfer alone never touches AssetRegistry.totalSupplied (only recordSupply(),
+  // called through a real supplyCollateral(), does) — seedTotalSupplied() books the same
+  // amount into the aggregate directly, so utilization/APR/APY don't read as 0% forever.
+  const zenSeed = ethers.parseUnits("50000", 18);
   await (await zen.mint(deployer.address, ethers.parseUnits("100000", 18))).wait();
-  await (await zen.transfer(await pool.getAddress(), ethers.parseUnits("50000", 18))).wait();
+  await (await zen.transfer(await pool.getAddress(), zenSeed)).wait();
+  await (await registry.seedTotalSupplied(zenAssetId, zenSeed)).wait();
+
+  const zusdSeed = ethers.parseUnits("500000", 18);
   await (await zusd.mint(deployer.address, ethers.parseUnits("1000000", 18))).wait();
-  await (await zusd.transfer(await pool.getAddress(), ethers.parseUnits("500000", 18))).wait();
+  await (await zusd.transfer(await pool.getAddress(), zusdSeed)).wait();
+  await (await registry.seedTotalSupplied(zusdAssetId, zusdSeed)).wait();
+
+  const wbtcSeed = ethers.parseUnits("50", 8);
   await (await wbtc.mint(deployer.address, ethers.parseUnits("100", 8))).wait();
-  await (await wbtc.transfer(await pool.getAddress(), ethers.parseUnits("50", 8))).wait();
+  await (await wbtc.transfer(await pool.getAddress(), wbtcSeed)).wait();
+  await (await registry.seedTotalSupplied(wbtcAssetId, wbtcSeed)).wait();
+
+  const usdcSeed = ethers.parseUnits("500000", 6);
   await (await usdc.mint(deployer.address, ethers.parseUnits("1000000", 6))).wait();
-  await (await usdc.transfer(await pool.getAddress(), ethers.parseUnits("500000", 6))).wait();
+  await (await usdc.transfer(await pool.getAddress(), usdcSeed)).wait();
+  await (await registry.seedTotalSupplied(usdcAssetId, usdcSeed)).wait();
 
   await (await zen.mint(alice.address, ethers.parseUnits("10000", 18))).wait();
   await (await zusd.mint(alice.address, ethers.parseUnits("50000", 18))).wait();

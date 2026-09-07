@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, useReadContract, useReadContracts, useWriteContract } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAccount, usePublicClient, useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { formatUnits } from "viem";
 import { latensPool, supplyRewards, tokenList } from "@/lib/contracts";
 import { humanizeError } from "@/lib/errors";
+import { waitForConfirmation } from "@/lib/waitForTx";
 import { Skeleton } from "@/components/Skeleton";
 
 type PositionTuple = readonly [bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
@@ -16,6 +18,8 @@ const CLAIM_GAS = 120_000n;
 export default function RewardsPage() {
   const { address } = useAccount();
   const { writeContractAsync, isPending } = useWriteContract();
+  const publicClient = usePublicClient();
+  const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState("");
 
   const { data: position, isLoading: positionLoading } = useReadContract({
@@ -52,10 +56,12 @@ export default function RewardsPage() {
   const streakActive = hasCheckpoint && currentEpoch !== undefined && lastEpoch === currentEpoch;
 
   async function handleCheckpoint() {
-    if (!address) return;
+    if (!address || !publicClient) return;
     setErrorMessage("");
     try {
-      await writeContractAsync({ address: supplyRewards.address, abi: supplyRewards.abi, functionName: "checkpoint", gas: CHECKPOINT_GAS });
+      const hash = await writeContractAsync({ address: supplyRewards.address, abi: supplyRewards.abi, functionName: "checkpoint", gas: CHECKPOINT_GAS });
+      await waitForConfirmation(publicClient, hash);
+      await queryClient.invalidateQueries();
       await refetch();
     } catch (err) {
       setErrorMessage(humanizeError(err));
@@ -63,10 +69,12 @@ export default function RewardsPage() {
   }
 
   async function handleClaim() {
-    if (!address) return;
+    if (!address || !publicClient) return;
     setErrorMessage("");
     try {
-      await writeContractAsync({ address: supplyRewards.address, abi: supplyRewards.abi, functionName: "claim", gas: CLAIM_GAS });
+      const hash = await writeContractAsync({ address: supplyRewards.address, abi: supplyRewards.abi, functionName: "claim", gas: CLAIM_GAS });
+      await waitForConfirmation(publicClient, hash);
+      await queryClient.invalidateQueries();
       await refetch();
     } catch (err) {
       setErrorMessage(humanizeError(err));
