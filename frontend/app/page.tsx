@@ -8,15 +8,29 @@ import { HealthGauge } from "@/components/HealthGauge";
 import { Reveal } from "@/components/Reveal";
 import { Logo } from "@/components/Logo";
 
+// Scattered across the whole hero, not the disc's own box — the disc paints after this
+// layer, so any star that happens to fall behind it is occluded, the way the moon in the
+// reference blots out the sky it passes over.
 const heroStars = [
-  { top: "40%", left: "18%", size: 2, duration: 3.4, delay: 0 },
-  { top: "48%", left: "86%", size: 1.5, duration: 2.8, delay: 0.6 },
-  { top: "88%", left: "10%", size: 2, duration: 3.1, delay: 1.1 },
-  { top: "80%", left: "94%", size: 1.5, duration: 2.6, delay: 0.3 },
-  { top: "62%", left: "4%", size: 1.5, duration: 3.6, delay: 1.6 },
-  { top: "58%", left: "96%", size: 1.5, duration: 2.9, delay: 0.9 },
-  { top: "94%", left: "55%", size: 2, duration: 3.3, delay: 0.4 },
-  { top: "38%", left: "58%", size: 1.5, duration: 3.0, delay: 1.4 },
+  { top: "18%", left: "6%", size: 2, duration: 3.4, delay: 0 },
+  { top: "34%", left: "13%", size: 1.5, duration: 2.8, delay: 0.6 },
+  { top: "62%", left: "4%", size: 2, duration: 3.1, delay: 1.1 },
+  { top: "78%", left: "17%", size: 1.5, duration: 2.6, delay: 0.3 },
+  { top: "22%", left: "91%", size: 1.5, duration: 3.6, delay: 1.6 },
+  { top: "48%", left: "96%", size: 2, duration: 2.9, delay: 0.9 },
+  { top: "71%", left: "88%", size: 1.5, duration: 3.3, delay: 0.4 },
+  { top: "88%", left: "76%", size: 1.5, duration: 3.0, delay: 1.4 },
+  { top: "12%", left: "43%", size: 1.5, duration: 3.5, delay: 2.1 },
+  { top: "84%", left: "36%", size: 1.5, duration: 2.7, delay: 1.9 },
+];
+
+// Soft light lobes that orbit the disc behind it. Only the part of each that reaches past
+// the disc's edge is ever visible, so what you see is light spilling around a limb rather
+// than a ring drawn on top of one. Sizes/offsets are px within the 900px disc box.
+const coronaLobes = [
+  { size: 640, offset: 330, orbit: 15, breathe: 9, blur: 70, color: "rgba(224,190,120,0.55)", reverse: false, delay: 0 },
+  { size: 540, offset: 385, orbit: 24, breathe: 13, blur: 85, color: "rgba(201,167,92,0.45)", reverse: true, delay: -6 },
+  { size: 780, offset: 300, orbit: 37, breathe: 17, blur: 110, color: "rgba(224,190,120,0.30)", reverse: false, delay: -14 },
 ];
 
 const problems = [
@@ -129,48 +143,68 @@ export default function Home() {
 
       {/* HERO */}
       <div className="relative overflow-hidden">
-        <div className="hero-eclipse pointer-events-none absolute inset-x-0 top-[-300px] flex justify-center">
-          <div className="relative h-[900px] w-[900px]" style={{ animation: "eclipse-breathe 9s ease-in-out infinite" }}>
-            {/* Corona: a ring around the (mostly off-canvas) disc, its bright point
-                continuously orbiting — brightness varies smoothly all the way around
-                rather than switching a patch fully off, so the motion reads as a flowing
-                light rather than something blinking in and out. The dark center needs no
-                fill of its own since it's just the hero's own canvas background showing
-                through. */}
-            <div
-              className="absolute inset-0 rounded-full"
+        <div className="hero-eclipse pointer-events-none absolute inset-0 overflow-hidden">
+          {/* Sky first, so the disc below can eclipse whatever it passes over. */}
+          {heroStars.map((s, i) => (
+            <span
+              key={i}
+              className="absolute rounded-full bg-gold-strong"
               style={{
-                animation: "eclipse-spin 16s linear infinite",
-                background:
-                  "conic-gradient(from 0deg, rgba(224,190,120,0.40) 0deg, rgba(201,167,92,0.22) 60deg, rgba(201,167,92,0.09) 120deg, rgba(201,167,92,0.05) 180deg, rgba(201,167,92,0.09) 240deg, rgba(201,167,92,0.22) 300deg, rgba(224,190,120,0.40) 360deg)",
-                WebkitMaskImage:
-                  "radial-gradient(circle at 50% 50%, transparent 0%, transparent 50%, black 64%, black 74%, transparent 92%)",
-                maskImage:
-                  "radial-gradient(circle at 50% 50%, transparent 0%, transparent 50%, black 64%, black 74%, transparent 92%)",
-                filter: "blur(18px)",
+                top: s.top,
+                left: s.left,
+                width: s.size,
+                height: s.size,
+                animation: `star-twinkle ${s.duration}s ease-in-out infinite`,
+                animationDelay: `${s.delay}s`,
               }}
             />
-            <div
-              className="absolute inset-0 rounded-full opacity-[0.05] mix-blend-overlay"
-              style={{
-                backgroundImage:
-                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-              }}
-            />
-            {heroStars.map((s, i) => (
-              <span
-                key={i}
-                className="absolute rounded-full bg-gold-strong"
+          ))}
+          <div className="absolute inset-x-0 top-[-300px] flex justify-center">
+            <div className="relative h-[900px] w-[900px]">
+              {coronaLobes.map((lobe, i) => (
+                <div
+                  key={i}
+                  className="absolute inset-0"
+                  style={{
+                    animation: `eclipse-spin ${lobe.orbit}s linear infinite${lobe.reverse ? " reverse" : ""}`,
+                    animationDelay: `${lobe.delay}s`,
+                  }}
+                >
+                  <div
+                    className="absolute rounded-full"
+                    style={{
+                      width: lobe.size,
+                      height: lobe.size,
+                      left: "50%",
+                      top: "50%",
+                      marginLeft: -lobe.size / 2,
+                      marginTop: -lobe.size / 2 - lobe.offset,
+                      background: `radial-gradient(circle, ${lobe.color} 0%, transparent 70%)`,
+                      filter: `blur(${lobe.blur}px)`,
+                      animation: `corona-breathe ${lobe.breathe}s ease-in-out infinite`,
+                      animationDelay: `${lobe.delay}s`,
+                    }}
+                  />
+                </div>
+              ))}
+              {/* The eclipsing body. Filled with the page's own background so it reads as
+                  a silhouette rather than an object — it's invisible except where it cuts
+                  the light behind it, which is exactly what draws the crisp limb. The
+                  box-shadow is the faint corona that survives all the way around, under
+                  the brighter lobes that drift across it. */}
+              <div
+                className="absolute inset-0 rounded-full bg-canvas"
+                style={{ boxShadow: "0 0 60px 8px rgba(201,167,92,0.10)" }}
+              />
+              <div
+                className="absolute inset-0 rounded-full opacity-[0.06] mix-blend-overlay"
                 style={{
-                  top: s.top,
-                  left: s.left,
-                  width: s.size,
-                  height: s.size,
-                  animation: `star-twinkle ${s.duration}s ease-in-out infinite`,
-                  animationDelay: `${s.delay}s`,
+                  animation: "grain-shift 0.9s steps(4) infinite",
+                  backgroundImage:
+                    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
                 }}
               />
-            ))}
+            </div>
           </div>
         </div>
         <div className="relative mx-auto flex max-w-[1440px] flex-col gap-16 px-8 py-24 md:flex-row md:items-center md:gap-20 md:px-16 md:py-32">
