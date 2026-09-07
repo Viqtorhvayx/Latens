@@ -8,6 +8,16 @@ import { HealthGauge } from "@/components/HealthGauge";
 import { Reveal } from "@/components/Reveal";
 import { Logo } from "@/components/Logo";
 
+const heroStars = [
+  { top: "85%", left: "12%", size: 2, opacity: 0.5, duration: 3.4, delay: 0 },
+  { top: "91%", left: "24%", size: 1.5, opacity: 0.35, duration: 2.8, delay: 0.6 },
+  { top: "88%", left: "68%", size: 2, opacity: 0.45, duration: 3.1, delay: 1.1 },
+  { top: "94%", left: "80%", size: 1.5, opacity: 0.3, duration: 2.6, delay: 0.3 },
+  { top: "97%", left: "40%", size: 1.5, opacity: 0.4, duration: 3.6, delay: 1.6 },
+  { top: "86%", left: "50%", size: 1.5, opacity: 0.35, duration: 2.9, delay: 0.9 },
+  { top: "96%", left: "90%", size: 2, opacity: 0.4, duration: 3.3, delay: 0.4 },
+];
+
 const problems = [
   {
     title: "Positions are a target",
@@ -118,10 +128,39 @@ export default function Home() {
 
       {/* HERO */}
       <div className="relative overflow-hidden">
-        <div
-          className="pointer-events-none absolute top-[-220px] left-1/2 h-[560px] w-[900px] -translate-x-1/2 opacity-[0.14]"
-          style={{ background: "radial-gradient(ellipse at center, #C9A75C 0%, transparent 68%)" }}
-        />
+        <div className="pointer-events-none absolute inset-x-0 top-[-1180px] flex justify-center">
+          <div className="relative h-[1440px] w-[1440px]">
+            <div
+              className="absolute inset-0 rounded-full blur-[2px]"
+              style={{
+                background:
+                  "radial-gradient(circle at 50% 50%, transparent 0%, transparent 60%, rgba(224,190,120,0.16) 66%, rgba(201,167,92,0.09) 72%, rgba(201,167,92,0.03) 80%, transparent 90%)",
+              }}
+            />
+            <div
+              className="absolute inset-0 rounded-full opacity-[0.05] mix-blend-overlay"
+              style={{
+                backgroundImage:
+                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+              }}
+            />
+            {heroStars.map((s, i) => (
+              <span
+                key={i}
+                className="absolute animate-pulse rounded-full bg-gold-strong"
+                style={{
+                  top: s.top,
+                  left: s.left,
+                  width: s.size,
+                  height: s.size,
+                  opacity: s.opacity,
+                  animationDuration: `${s.duration}s`,
+                  animationDelay: `${s.delay}s`,
+                }}
+              />
+            ))}
+          </div>
+        </div>
         <div className="relative mx-auto flex max-w-[1440px] flex-col gap-16 px-8 py-24 md:flex-row md:items-center md:gap-20 md:px-16 md:py-32">
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} className="flex max-w-[600px] flex-1 flex-col gap-7">
             <div className="flex items-center gap-2.5">
