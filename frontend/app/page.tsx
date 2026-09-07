@@ -9,13 +9,14 @@ import { Reveal } from "@/components/Reveal";
 import { Logo } from "@/components/Logo";
 
 const heroStars = [
-  { top: "85%", left: "12%", size: 2, opacity: 0.5, duration: 3.4, delay: 0 },
-  { top: "91%", left: "24%", size: 1.5, opacity: 0.35, duration: 2.8, delay: 0.6 },
-  { top: "88%", left: "68%", size: 2, opacity: 0.45, duration: 3.1, delay: 1.1 },
-  { top: "94%", left: "80%", size: 1.5, opacity: 0.3, duration: 2.6, delay: 0.3 },
-  { top: "97%", left: "40%", size: 1.5, opacity: 0.4, duration: 3.6, delay: 1.6 },
-  { top: "86%", left: "50%", size: 1.5, opacity: 0.35, duration: 2.9, delay: 0.9 },
-  { top: "96%", left: "90%", size: 2, opacity: 0.4, duration: 3.3, delay: 0.4 },
+  { top: "6%", left: "22%", size: 2, duration: 3.4, delay: 0 },
+  { top: "14%", left: "84%", size: 1.5, duration: 2.8, delay: 0.6 },
+  { top: "88%", left: "12%", size: 2, duration: 3.1, delay: 1.1 },
+  { top: "80%", left: "92%", size: 1.5, duration: 2.6, delay: 0.3 },
+  { top: "42%", left: "3%", size: 1.5, duration: 3.6, delay: 1.6 },
+  { top: "30%", left: "95%", size: 1.5, duration: 2.9, delay: 0.9 },
+  { top: "94%", left: "55%", size: 2, duration: 3.3, delay: 0.4 },
+  { top: "3%", left: "58%", size: 1.5, duration: 3.0, delay: 1.4 },
 ];
 
 const problems = [
@@ -128,13 +129,22 @@ export default function Home() {
 
       {/* HERO */}
       <div className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-x-0 top-[-1180px] flex justify-center">
-          <div className="relative h-[1440px] w-[1440px]">
+        <div className="hero-eclipse pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+          <div className="relative h-[900px] w-[900px]" style={{ animation: "eclipse-breathe 9s ease-in-out infinite" }}>
+            {/* Corona: a full ring around the disc, its bright point slowly orbiting — the
+                dark center needs no fill of its own since it's just the hero's own canvas
+                background showing through. */}
             <div
-              className="absolute inset-0 rounded-full blur-[2px]"
+              className="absolute inset-0 rounded-full"
               style={{
+                animation: "eclipse-spin 48s linear infinite",
                 background:
-                  "radial-gradient(circle at 50% 50%, transparent 0%, transparent 60%, rgba(224,190,120,0.16) 66%, rgba(201,167,92,0.09) 72%, rgba(201,167,92,0.03) 80%, transparent 90%)",
+                  "conic-gradient(from 0deg, rgba(224,190,120,0.32) 0deg, rgba(201,167,92,0.10) 85deg, rgba(20,18,15,0) 150deg, rgba(20,18,15,0) 210deg, rgba(201,167,92,0.10) 275deg, rgba(224,190,120,0.32) 360deg)",
+                WebkitMaskImage:
+                  "radial-gradient(circle at 50% 50%, transparent 0%, transparent 50%, black 64%, black 74%, transparent 92%)",
+                maskImage:
+                  "radial-gradient(circle at 50% 50%, transparent 0%, transparent 50%, black 64%, black 74%, transparent 92%)",
+                filter: "blur(26px)",
               }}
             />
             <div
@@ -147,14 +157,13 @@ export default function Home() {
             {heroStars.map((s, i) => (
               <span
                 key={i}
-                className="absolute animate-pulse rounded-full bg-gold-strong"
+                className="absolute rounded-full bg-gold-strong"
                 style={{
                   top: s.top,
                   left: s.left,
                   width: s.size,
                   height: s.size,
-                  opacity: s.opacity,
-                  animationDuration: `${s.duration}s`,
+                  animation: `star-twinkle ${s.duration}s ease-in-out infinite`,
                   animationDelay: `${s.delay}s`,
                 }}
               />

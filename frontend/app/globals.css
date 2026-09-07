@@ -45,3 +45,35 @@
   background: var(--color-gold-dim);
   color: var(--color-ink);
 }
+
+@keyframes eclipse-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes eclipse-breathe {
+  0%,
+  100% {
+    opacity: 0.82;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-eclipse * {
+    animation: none !important;
+  }
+}
