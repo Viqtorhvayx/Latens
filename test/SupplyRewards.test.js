@@ -151,9 +151,16 @@ describe("SupplyRewards", function () {
     expect((await rewards.checkpoints(bob.address)).pendingReward).to.equal(0n);
   });
 
-  it("only the owner can fund, or change the epoch duration and reward rate", async function () {
+  it("only the owner can change the epoch duration and reward rate", async function () {
     const { alice, rewards } = await deployFixture();
     await expect(rewards.connect(alice).setRewardPerEpoch(0)).to.be.revertedWithCustomError(rewards, "OwnableUnauthorizedAccount");
     await expect(rewards.connect(alice).setEpochDuration(1)).to.be.revertedWithCustomError(rewards, "OwnableUnauthorizedAccount");
+  });
+
+  it("lets anyone fund the pool, not just the owner — ProtocolTreasury relies on this to top it up from swept interest", async function () {
+    const { alice, rewards, rewardToken } = await deployFixture();
+    await rewardToken.mint(alice.address, ethers.parseUnits("100", 18));
+    await rewardToken.connect(alice).approve(await rewards.getAddress(), ethers.parseUnits("100", 18));
+    await expect(rewards.connect(alice).fund(ethers.parseUnits("100", 18))).to.emit(rewards, "Funded").withArgs(ethers.parseUnits("100", 18));
   });
 });

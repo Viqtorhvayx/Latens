@@ -134,7 +134,14 @@ async function main() {
   await (await zusd.mint(deployer.address, ethers.parseUnits("50000", 18), nextNonce())).wait();
   await (await zusd.connect(deployer).approve(await rewards.getAddress(), ethers.parseUnits("50000", 18), nextNonce())).wait();
   await (await rewards.connect(deployer).fund(ethers.parseUnits("50000", 18), nextNonce())).wait();
-  console.log("SupplyRewards deployed and funded.");
+
+  // The 50,000 ZUSD above is a bootstrap grant, not the program's only source of funds: wire
+  // the treasury to top SupplyRewards back up out of real ZUSD-market interest on every
+  // sweep, so the program's runway scales with actual usage instead of only ever counting
+  // down from a fixed number.
+  await (await treasury.setSupplyRewards(await rewards.getAddress(), nextNonce())).wait();
+  await (await treasury.setRewardsContributionRate(1_500, nextNonce())).wait();
+  console.log("SupplyRewards deployed, funded, and wired to the treasury sweep.");
 
   const artifactsDir = path.join(__dirname, "..", "artifacts", "contracts");
   function abiOf(rel) {

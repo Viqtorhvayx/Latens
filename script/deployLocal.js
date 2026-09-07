@@ -135,6 +135,11 @@ async function main() {
   await (await zusd.connect(deployer).approve(await rewards.getAddress(), ethers.parseUnits("500000", 18))).wait();
   await (await rewards.connect(deployer).fund(ethers.parseUnits("500000", 18))).wait();
 
+  // Bootstrap grant aside, wire the treasury to top SupplyRewards back up out of real
+  // ZUSD-market interest on every sweep, so the program's runway scales with usage.
+  await (await treasury.setSupplyRewards(await rewards.getAddress())).wait();
+  await (await treasury.setRewardsContributionRate(1_500)).wait();
+
   const artifactsDir = path.join(__dirname, "..", "artifacts", "contracts");
   function abiOf(rel) {
     return JSON.parse(fs.readFileSync(path.join(artifactsDir, rel))).abi;

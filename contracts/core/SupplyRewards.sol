@@ -54,7 +54,13 @@ contract SupplyRewards is Ownable2Step {
         emit RewardPerEpochUpdated(rewardPerEpoch_);
     }
 
-    function fund(uint256 amount) external onlyOwner {
+    /// @notice Permissionless on purpose, matching ProtocolTreasury.sweep(): funding is
+    /// strictly additive (there is no way to add reward tokens that harms an existing
+    /// claimant), and ProtocolTreasury calls this directly to route a share of ongoing
+    /// interest revenue here on every sweep, rather than this pool only ever holding a
+    /// single fixed grant that runs out regardless of how much the protocol is actually
+    /// earning.
+    function fund(uint256 amount) external {
         rewardToken.safeTransferFrom(msg.sender, address(this), amount);
         emit Funded(amount);
     }
