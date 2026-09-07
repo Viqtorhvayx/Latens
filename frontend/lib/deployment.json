@@ -2,7 +2,7 @@
   "chainId": 11155111,
   "contracts": {
     "LatensPool": {
-      "address": "0xFe149a1cfbFe4D2fe44A8e463E44ef22B970BE51",
+      "address": "0x77fE2a011218a9A8d3BDB0911Ae99f13E092a801",
       "abi": [
         {
           "inputs": [
@@ -834,7 +834,7 @@
       ]
     },
     "AssetRegistry": {
-      "address": "0x4981aAD058046fc1be247D53e0488BEa7ceE467d",
+      "address": "0x535d17041c7E906d0A55F27CBbA8D9036eeEb109",
       "abi": [
         {
           "inputs": [
@@ -1623,7 +1623,7 @@
       ]
     },
     "MockPriceOracle": {
-      "address": "0x1c06dFfc8E55d5C934E56E77f8bc0D9e80f6bbbd",
+      "address": "0x6aA5bb6d65E880A60691B43BbC41F72F4E6A1Eea",
       "abi": [
         {
           "inputs": [],
@@ -1665,6 +1665,19 @@
             }
           ],
           "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "asset",
+              "type": "address"
+            }
+          ],
+          "name": "refreshTimestamp",
+          "outputs": [],
+          "stateMutability": "nonpayable",
           "type": "function"
         },
         {
@@ -2062,7 +2075,7 @@
       ]
     },
     "LatensCDP": {
-      "address": "0x3819150feB0934E35298911dA7815f21C4ECE505",
+      "address": "0x78997Ec230A633BD928ce8Dc5814bBf7AFBe1f66",
       "abi": [
         {
           "inputs": [
@@ -2927,7 +2940,7 @@
       ]
     },
     "LatensDollar": {
-      "address": "0x21C40329526ED8B4e0823F9C7f8392e12588Ad05",
+      "address": "0x5cd5Fc702D7C986D379D87383d8563b83d469c0D",
       "abi": [
         {
           "inputs": [
@@ -3441,7 +3454,7 @@
       ]
     },
     "SupplyRewards": {
-      "address": "0x9577253D5060b6967c8052E970844206e1BABfaB",
+      "address": "0x92B5857e5a3aF1140a2Dcea24b23bD8Ae311e63B",
       "abi": [
         {
           "inputs": [
@@ -3861,25 +3874,25 @@
   },
   "tokens": {
     "ZEN": {
-      "address": "0xf38Fc1Bb89f9121141f8664693079817F8762f99",
+      "address": "0x80b9b16c8e664594f91778D6620B4E2C5eAF94Eb",
       "symbol": "ZEN",
       "decimals": 18,
       "assetId": 0
     },
     "ZUSD": {
-      "address": "0x6D5ED6E3683495c2D3963098A8E629e6905164d0",
+      "address": "0xF27B3946181F6ADB63AF12934499CD02A9C13679",
       "symbol": "ZUSD",
       "decimals": 18,
       "assetId": 1
     },
     "WBTC": {
-      "address": "0xd7425B509bf386d53A6855A83aC80E6C4eF2C06B",
+      "address": "0x1f567490BdF261cdfDE799fF090dF9e14F5d4449",
       "symbol": "WBTC",
       "decimals": 8,
       "assetId": 2
     },
     "USDC": {
-      "address": "0x3e8135DCB29F2F71F9EFB9ef770A14aF23FcBA98",
+      "address": "0x03A190ecA93d26F47a7beEE5636603Da4B0cFCD7",
       "symbol": "USDC",
       "decimals": 6,
       "assetId": 3
