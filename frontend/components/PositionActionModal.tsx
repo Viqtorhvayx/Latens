@@ -9,12 +9,14 @@ import { parseUnits, formatUnits } from "viem";
 import { latensPool, assetRegistry, priceOracle, erc20Abi, tokens, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore, sharesToReal, RAY } from "@/lib/positionStore";
 import { TokenIcon } from "./TokenIcon";
+import { BorrowCollateralStep } from "./BorrowCollateralStep";
 import { appendActivity } from "@/lib/activityStore";
 import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { sanitizeAmountInput } from "@/lib/amountInput";
 import { usdValueE8, formatUsd, formatApr } from "@/lib/valuation";
+import { borrowCapacity } from "@/lib/borrow";
 import { useViewingKey } from "@/lib/viewingKeyContext";
 import { encryptNote } from "@/lib/viewingKey";
 
@@ -151,13 +153,16 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
       ? usdValueE8(collateralRealAmountForBorrow, collateralTokenForCap.decimals, (collateralPrice as readonly [bigint, bigint])[0])
       : undefined;
   const borrowMax = (() => {
-    if (mode !== "borrow" || collateralValueE8 === undefined || ltvBps === undefined || !debtPrice) return undefined;
-    const debtPriceE8 = (debtPrice as readonly [bigint, bigint])[0];
-    if (debtPriceE8 === 0n) return undefined;
-    const maxDebtValueE8 = (collateralValueE8 * BigInt(ltvBps)) / 10_000n;
-    const currentDebtValueE8 = usdValueE8(local.borrowed, token.decimals, debtPriceE8);
-    const headroomValueE8 = maxDebtValueE8 > currentDebtValueE8 ? maxDebtValueE8 - currentDebtValueE8 : 0n;
-    return (headroomValueE8 * 10n ** BigInt(token.decimals)) / debtPriceE8;
+    if (mode !== "borrow" || collateralRealAmountForBorrow === undefined || collateralTokenForCap === undefined || ltvBps === undefined || !collateralPrice || !debtPrice) return undefined;
+    return borrowCapacity({
+      collateralAmount: collateralRealAmountForBorrow,
+      collateralDecimals: collateralTokenForCap.decimals,
+      collateralPriceE8: (collateralPrice as readonly [bigint, bigint])[0],
+      ltvBps,
+      existingDebt: local.borrowed,
+      debtDecimals: token.decimals,
+      debtPriceE8: (debtPrice as readonly [bigint, bigint])[0],
+    });
   })();
 
   const available =
@@ -173,6 +178,17 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             ? borrowMax
             : undefined;
   const exceedsAvailable = (available !== undefined && amount > available) || (mode === "repay" && amount + interestFee > walletBalance);
+
+  // Borrow has two ways in. If this position already has collateral with headroom — which
+  // is what supplying gets you, since a supply IS the collateral — borrowing proceeds
+  // directly. If it doesn't, borrowing isn't refused; it just gains a collateral step in
+  // front of it, in this same modal. `collateralOverride` lets someone with headroom open
+  // that step deliberately (to borrow more than their current limit allows).
+  const hasActivePosition = Boolean(positionTuple?.[6]);
+  const solvencyContextLoaded = hasActivePosition ? Boolean(collateralAsset) && Boolean(collateralPrice) && Boolean(debtPrice) : true;
+  const borrowContextLoaded = mode === "borrow" && positionTuple !== undefined && solvencyContextLoaded;
+  const [collateralOverride, setCollateralOverride] = useState(false);
+  const showCollateralStep = mode === "borrow" && (collateralOverride || (borrowContextLoaded && (borrowMax === undefined || borrowMax === 0n)));
 
   function publishViewingNoteInBackground(assetId: number, isDebt: boolean, newAmount: bigint, newSalt: bigint) {
     if (!viewingKeyEnabled) return;
@@ -337,6 +353,12 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
               Close
             </button>
           </div>
+        ) : showCollateralStep ? (
+          <BorrowCollateralStep
+            fixedSymbol={hasActivePosition ? (collateralTokenForCap?.symbol as TokenSymbol | undefined) : undefined}
+            excludeSymbol={symbol}
+            onDeposited={() => setCollateralOverride(false)}
+          />
         ) : (
           <>
             <div className="mb-2 flex items-baseline justify-between">
@@ -393,7 +415,6 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
               </div>
             )}
 
-            {mode === "borrow" && !canBorrow && <p className="mb-4 text-xs text-warning">Supply collateral in another asset first — this position has none yet.</p>}
             {mode === "repay" && interestFee > 0n && (
               <p className="mb-4 text-xs text-ink-faint">
                 Plus a {formatUnits(interestFee, token.decimals)} {symbol} interest fee (live, time-weighted — see Markets).
@@ -409,6 +430,11 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
                       ? "That would push this position past its LTV limit."
                       : "You don't have that much in your wallet."}
               </p>
+            )}
+            {mode === "borrow" && exceedsAvailable && (
+              <button onClick={() => setCollateralOverride(true)} className="mb-4 w-full rounded-[10px] border border-line-strong py-2.5 text-[13px] font-semibold transition-colors hover:bg-surface-hover">
+                Add collateral to raise the limit
+              </button>
             )}
 
             <AnimatePresence mode="wait">

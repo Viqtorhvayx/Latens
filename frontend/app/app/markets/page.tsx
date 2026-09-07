@@ -114,7 +114,8 @@ export default function MarketsPage() {
 
       {address && !positionLoading && !hasActivePosition && (
         <p className="mb-6 rounded-xl border border-line bg-surface px-4 py-3 text-[13px] text-ink-muted">
-          Supply a market below before borrowing — borrowing draws against collateral you&apos;ve already supplied, so Borrow stays disabled until you have an active position.
+          Two ways in: supply a market to earn Supply APY, and that same supply becomes the collateral you can borrow against. Or go straight to Borrow — it will take the collateral deposit first, then let you
+          draw against it.
         </p>
       )}
 

@@ -52,12 +52,11 @@ export function MarketRowActions({
       </button>
       <button
         onClick={() => onAction("borrow")}
-        disabled={!hasActivePosition}
-        title={hasActivePosition ? undefined : "Supply collateral in any market first"}
+        title={hasActivePosition ? undefined : "Borrow — you'll deposit collateral first"}
         className={
           activeMode === "borrow"
-            ? "rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
-            : "rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+            ? "rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong"
+            : "rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
         }
       >
         Borrow
