@@ -191,7 +191,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
         if (!positionTuple) throw new Error("No position found.");
         const hasDebt = positionTuple[5];
         if (hasDebt && (!collateralAsset || !collateralPrice)) {
-          throw new Error("Still loading solvency data — try again in a moment.");
+          throw new Error("Still loading solvency data. Try again in a moment.");
         }
         const { oldCommitment, newCommitment, patch } = await prepareWithdraw(address, token.assetId, amount);
         const debtCommitment = positionTuple[2];
@@ -282,7 +282,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
               </div>
             </div>
 
-            {mode === "mint" && !canMint && <p className="mb-4 text-xs text-warning">Supply {symbol} collateral first — this position has none yet.</p>}
+            {mode === "mint" && !canMint && <p className="mb-4 text-xs text-warning">Supply {symbol} collateral first. This position has none yet.</p>}
             {exceedsAvailable && (
               <p className="mb-4 text-xs text-warning">
                 {mode === "withdraw"
@@ -326,7 +326,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
                     disabled={!address || amount === 0n || isPending || !canMint || exceedsAvailable}
                     className="w-full rounded-[10px] bg-gold py-3.5 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {step === "approving" ? "Approving…" : step === "submitting" ? "Confirming…" : `Confirm ${ACTION_LABEL[mode]} — sign a private proof`}
+                    {step === "approving" ? "Approving…" : step === "submitting" ? "Confirming…" : `Confirm ${ACTION_LABEL[mode]}, sign a private proof`}
                   </button>
                   {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}
                   <p className="mt-3 text-center text-[11.5px] text-ink-faint">Your position details are never broadcast in the clear.</p>

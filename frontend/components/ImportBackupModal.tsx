@@ -52,10 +52,10 @@ export function ImportBackupModal({ address, onClose }: { address: `0x${string}`
         signature: parsed.signature,
       });
       if (recovered.toLowerCase() !== address.toLowerCase()) {
-        throw new Error("Signature doesn't match — this file may have been tampered with.");
+        throw new Error("Signature doesn't match. This file may have been tampered with.");
       }
 
-      if (!positionTuple) throw new Error("Couldn't read your live position — try again in a moment.");
+      if (!positionTuple) throw new Error("Couldn't read your live position. Try again in a moment.");
 
       let restored = 0;
       for (const entry of parsed.entries) {
@@ -116,7 +116,7 @@ export function ImportBackupModal({ address, onClose }: { address: `0x${string}`
           ) : (
             <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <p className="mt-1 mb-4 text-[13.5px] leading-relaxed text-ink-muted">
-                Paste one of your own previously-exported disclosure files to restore your local position — useful if you&apos;ve cleared browser storage or switched devices. Only entries that still match your live
+                Paste one of your own previously-exported disclosure files to restore your local position. Useful if you&apos;ve cleared browser storage or switched devices. Only entries that still match your live
                 on-chain position are restored.
               </p>
               <textarea

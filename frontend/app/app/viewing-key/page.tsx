@@ -56,7 +56,7 @@ export default function ViewingKeyPage() {
       return;
     }
     if (!publicClient) {
-      setDecodeError("Not connected to a network yet — try again in a moment.");
+      setDecodeError("Not connected to a network yet. Try again in a moment.");
       return;
     }
     setDecoding(true);
@@ -75,8 +75,8 @@ export default function ViewingKeyPage() {
       <div className="mb-8 max-w-[640px]">
         <span className="font-display text-[28px]">Viewing key</span>
         <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-muted">
-          A standing alternative to exporting a fresh disclosure file after every change. Turn this on and every future action also publishes a self-encrypted note on-chain — share the private key below with an auditor
-          once, and they get passive, ongoing access to every note from then on, the same shape as a Zcash viewing key.
+          A standing alternative to exporting a fresh disclosure file after every change. Turn this on and every future action also publishes a self-encrypted note on-chain. Share the private key below with an auditor
+          once and they get passive, ongoing access to every note from then on, the same shape as a Zcash viewing key.
         </p>
       </div>
 
@@ -93,7 +93,7 @@ export default function ViewingKeyPage() {
           </div>
           <p className="mb-4 text-[13px] leading-relaxed text-ink-faint">
             {enabled
-              ? "Every supply, withdrawal, borrow, and repayment from here on also publishes an encrypted note — this doesn't change what LatensPool verifies or requires, it's purely additional information for whoever you choose to share the key below with."
+              ? "Every supply, withdrawal, borrow and repayment from here on also publishes an encrypted note. This doesn't change what LatensPool verifies or requires, it's purely additional information for whoever you choose to share the key below with."
               : "Off by default. Turning this on will ask you to sign once (to derive your viewing key) and will publish one extra on-chain note alongside each future action."}
           </p>
 
@@ -109,7 +109,7 @@ export default function ViewingKeyPage() {
                 </div>
               </div>
               <div>
-                <span className="text-xs font-semibold tracking-wide text-warning uppercase">Private key — hand this to your auditor, nobody else</span>
+                <span className="text-xs font-semibold tracking-wide text-warning uppercase">Private key, hand this to your auditor, nobody else</span>
                 <div className="mt-1 flex items-center gap-2 rounded-lg border border-line bg-canvas-raised px-3 py-2">
                   <span className="flex-1 truncate font-mono text-xs text-ink">{revealed.secretKey}</span>
                   <button onClick={() => copySecret(revealed.secretKey)} className="shrink-0 text-xs text-ink-faint transition-colors hover:text-ink">
@@ -118,7 +118,7 @@ export default function ViewingKeyPage() {
                 </div>
               </div>
               <p className="text-[11.5px] text-ink-faint">
-                Deterministic from a signature — you can always recover this by clicking below again, so there&apos;s nothing you need to back up. Treat it exactly like the disclosure file&apos;s export: anyone holding
+                Deterministic from a signature, so you can always recover this by clicking below again, so there&apos;s nothing you need to back up. Treat it exactly like the disclosure file&apos;s export: anyone holding
                 it can read every note you publish from now on.
               </p>
             </div>
@@ -140,7 +140,7 @@ export default function ViewingKeyPage() {
       <div className="max-w-[640px]">
         <span className="font-display text-lg">Decode a viewing key</span>
         <p className="mt-1.5 mb-4 text-[13.5px] leading-relaxed text-ink-muted">
-          For auditors handed a viewing private key. Reconstructs a position&apos;s full note history directly from on-chain events — no fresh export needed from the owner.
+          For auditors handed a viewing private key. Reconstructs a position&apos;s full note history directly from on-chain events, with no fresh export needed from the owner.
         </p>
 
         <div className="flex flex-col gap-3">
@@ -178,11 +178,11 @@ export default function ViewingKeyPage() {
                   <div key={note.transactionHash + note.assetId} className="flex items-center justify-between border-b border-line py-3 text-sm">
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium">
-                        {note.isDebt ? "Debt" : "Collateral"} — {note.symbol}
+                        {note.isDebt ? "Debt" : "Collateral"} · {note.symbol}
                       </span>
                       <span className="text-xs text-ink-faint">{new Date(Number(note.timestamp) * 1000).toLocaleString()}</span>
                     </div>
-                    <span className="font-mono">{note.decodeFailed ? <span className="text-danger">Couldn&#39;t decrypt — wrong key?</span> : `${formatUnits(note.amount, token?.decimals ?? 18)} ${note.symbol}`}</span>
+                    <span className="font-mono">{note.decodeFailed ? <span className="text-danger">Couldn&#39;t decrypt. Wrong key?</span> : `${formatUnits(note.amount, token?.decimals ?? 18)} ${note.symbol}`}</span>
                   </div>
                 );
               })

@@ -31,7 +31,7 @@ type PriceTuple = readonly [bigint, bigint];
 // first supply and never changes it, so topping up an existing position can only ever go
 // into that same asset. Only a brand-new position gets to choose — and the choice can never
 // include the asset being borrowed itself (collateralTokens filters it out below): a
-// position can't be its own collateral, and LTV is bounded well under 100% specifically so
+// position can't be its own collateral and LTV is bounded well under 100% specifically so
 // collateral value always sits above debt value even before the liquidation buffer, which is
 // what keeps a bearish move liquidatable instead of the pool taking a loss.
 export function BorrowCollateralStep({
@@ -173,8 +173,8 @@ export function BorrowCollateralStep({
     <>
       <p className="mb-4 text-[13px] leading-relaxed text-ink-muted">
         {fixedSymbol
-          ? `Borrowing draws against collateral, and this position doesn't have enough yet. Add ${fixedSymbol} to raise your limit — this position is set to ${fixedSymbol} collateral and can't be changed.`
-          : `Borrowing draws against collateral, and you haven't supplied any yet. Choose a different asset to put up as collateral for this ${excludeSymbol} loan — it can't be ${excludeSymbol} itself, and it can't be swapped later. It earns Supply APY the whole time.`}
+          ? `Borrowing draws against collateral and this position doesn't have enough yet. Add ${fixedSymbol} to raise your limit. This position is set to ${fixedSymbol} collateral and can't be changed.`
+          : `Borrowing draws against collateral and you haven't supplied any yet. Choose a different asset to put up as collateral for this ${excludeSymbol} loan. It can't be ${excludeSymbol} itself and it can't be swapped later. It earns Supply APY the whole time.`}
       </p>
 
       {!fixedSymbol && (
@@ -259,7 +259,7 @@ export function BorrowCollateralStep({
         disabled={amount === 0n || busy || exceeds}
         className="w-full rounded-[10px] bg-gold py-3.5 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {phase === "approving" ? "Approving…" : phase === "submitting" ? "Depositing…" : "Deposit collateral — continue to borrow"}
+        {phase === "approving" ? "Approving…" : phase === "submitting" ? "Depositing…" : "Deposit collateral, then borrow"}
       </button>
       {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}
       <p className="mt-3 text-center text-[11.5px] text-ink-faint">

@@ -52,7 +52,7 @@ export function MarketRowActions({
       </button>
       <button
         onClick={() => onAction("borrow")}
-        title={hasActivePosition ? undefined : "Borrow — you'll deposit collateral first"}
+        title={hasActivePosition ? undefined : "Borrow. You'll deposit collateral first"}
         className={
           activeMode === "borrow"
             ? "rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong"

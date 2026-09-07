@@ -48,7 +48,7 @@ export default function VerifyPage() {
       return;
     }
     if (!parsed.address || !parsed.signature || !Array.isArray(parsed.entries)) {
-      setParseError("Missing address, signature, or entries — this doesn't look like a Latens disclosure file.");
+      setParseError("Missing address, signature, or entries. This doesn't look like a Latens disclosure file.");
       return;
     }
 
@@ -83,7 +83,7 @@ export default function VerifyPage() {
       const results = await Promise.all(
         disclosure.entries.map(async (entry) => {
           const token = tokenList.find((t) => t.assetId === entry.assetId);
-          const label = `${entry.kind} — ${entry.symbol}`;
+          const label = `${entry.kind} · ${entry.symbol}`;
           const amountDisplay = token ? formatUnits(BigInt(entry.amount), token.decimals) : entry.amount;
           const selfConsistent = (await recomputeCommitment(entry)) === entry.commitment;
 
@@ -117,7 +117,7 @@ export default function VerifyPage() {
       <div className="mb-8">
         <span className="font-display text-[28px]">Verify a disclosure</span>
         <p className="mt-1.5 max-w-[560px] text-[13.5px] text-ink-muted">
-          For auditors, accountants, or regulators handed a Latens disclosure file. This checks it against live on-chain state — it doesn&apos;t just trust the numbers in the file.
+          For auditors, accountants, or regulators handed a Latens disclosure file. This checks it against live on-chain state, so it doesn&apos;t just trust the numbers in the file.
         </p>
       </div>
 

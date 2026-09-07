@@ -98,7 +98,7 @@ export default function LiquidatePage() {
       return;
     }
     if (!parsed.address || !parsed.signature || !Array.isArray(parsed.entries)) {
-      setParseError("Missing address, signature, or entries — this doesn't look like a Latens disclosure file.");
+      setParseError("Missing address, signature, or entries. This doesn't look like a Latens disclosure file.");
       return;
     }
     try {
@@ -225,7 +225,7 @@ export default function LiquidatePage() {
       <div className="mb-8 max-w-[640px]">
         <span className="font-display text-[28px]">Liquidate</span>
         <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-muted">
-          Paste a position&apos;s disclosure file to check eligibility and liquidate it if it&apos;s genuinely insolvent. This isn&apos;t a shortcut — an independent keeper has no way to see a confidential
+          Paste a position&apos;s disclosure file to check eligibility and liquidate it if it&apos;s genuinely insolvent. This isn&apos;t a shortcut. An independent keeper has no way to see a confidential
           position&apos;s real amounts otherwise, which is exactly why this is the one place privacy has to give way.
         </p>
       </div>
@@ -258,12 +258,12 @@ export default function LiquidatePage() {
 
             {!entriesMatchChain ? (
               <p className="text-sm text-warning">
-                This file doesn&apos;t match the target&apos;s live on-chain position — it may be stale, incomplete (needs both a collateral and a debt entry), or for a different deployment.
+                This file doesn&apos;t match the target&apos;s live on-chain position. It may be stale, incomplete (needs both a collateral and a debt entry), or for a different deployment.
               </p>
             ) : eligible === undefined ? (
               <p className="text-sm text-ink-faint">Reading live prices…</p>
             ) : !eligible ? (
-              <p className="text-sm text-success">This position is currently healthy — not eligible for liquidation.</p>
+              <p className="text-sm text-success">This position is currently healthy, so it is not eligible for liquidation.</p>
             ) : (
               <>
                 <p className="mb-4 text-sm text-danger">Insolvent. Eligible for liquidation.</p>

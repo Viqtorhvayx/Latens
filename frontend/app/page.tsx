@@ -8,9 +8,8 @@ import { HealthGauge } from "@/components/HealthGauge";
 import { Reveal } from "@/components/Reveal";
 import { Logo } from "@/components/Logo";
 
-// Scattered across the whole hero, not the disc's own box — the disc paints after this
-// layer, so any star that happens to fall behind it is occluded, the way the moon in the
-// reference blots out the sky it passes over.
+// Scattered across the whole hero, not the disc's own box, since the disc paints after
+// this layer and eclipses any star that falls behind it.
 const heroStars = [
   { top: "18%", left: "6%", size: 2, duration: 3.4, delay: 0 },
   { top: "34%", left: "13%", size: 1.5, duration: 2.8, delay: 0.6 },
@@ -25,27 +24,28 @@ const heroStars = [
 ];
 
 // Soft light lobes that orbit behind the disc. Only the part of each that reaches past the
-// disc's edge is ever visible, so what you see is light spilling around a limb rather than
-// a ring drawn on top of one. Sizes/offsets are px within the 1100px disc box, and each
-// offset clears the 550px radius so the lobe actually breaks past the edge.
+// disc's edge is ever visible, so what shows is light spilling around a limb rather than a
+// ring drawn on top of one. Every measurement is a fraction of the disc's own diameter
+// (--d) rather than a pixel value, so the whole eclipse scales with the viewport in one
+// piece: blur radii included, which a fixed-px version would leave behind.
 const coronaLobes = [
-  { size: 780, offset: 400, orbit: 15, breathe: 9, blur: 80, color: "rgba(224,190,120,0.55)", reverse: false, delay: 0 },
-  { size: 660, offset: 470, orbit: 24, breathe: 13, blur: 100, color: "rgba(201,167,92,0.45)", reverse: true, delay: -6 },
-  { size: 950, offset: 365, orbit: 37, breathe: 17, blur: 125, color: "rgba(224,190,120,0.30)", reverse: false, delay: -14 },
+  { size: 0.709, offset: 0.364, orbit: 15, breathe: 9, blur: 0.073, color: "rgba(224,190,120,0.55)", reverse: false, delay: 0 },
+  { size: 0.6, offset: 0.427, orbit: 24, breathe: 13, blur: 0.091, color: "rgba(201,167,92,0.45)", reverse: true, delay: -6 },
+  { size: 0.864, offset: 0.332, orbit: 37, breathe: 17, blur: 0.114, color: "rgba(224,190,120,0.30)", reverse: false, delay: -14 },
 ];
 
 const problems = [
   {
     title: "Positions are a target",
-    body: "A public collateral ratio is a standing invitation — MEV bots watch for the exact block where a position crosses its threshold, and whales get front-run the moment they move.",
+    body: "A public collateral ratio is a standing invitation. MEV bots watch for the exact block where a position crosses its threshold and whales get front-run the moment they move.",
   },
   {
     title: "Size leaks strategy",
-    body: "Anyone can see what you hold, how leveraged you are, and when you're about to act. For an institution or a fund, that's not a minor inconvenience — it's information a competitor shouldn't have.",
+    body: "Anyone can see what you hold, how leveraged you are and when you are about to act. For an institution or a fund, that is not a minor inconvenience. It is information a competitor should not have.",
   },
   {
-    title: "Privacy and compliance don't have to fight",
-    body: "Most \"private\" designs make audits harder. Latens keeps a viewing key in the owner's hands — provably compliant on demand, provably hidden until then.",
+    title: "Privacy and compliance",
+    body: "Most private designs make an audit harder. Latens keeps a viewing key in the owner's hands, so a position stays hidden by default and can still be proven on demand.",
   },
 ];
 
@@ -63,8 +63,8 @@ const steps = [
   },
   {
     n: 2,
-    title: "Borrow",
-    body: "Your health factor is proven safe with a zero-knowledge proof — never published in the clear.",
+    title: "Borrow or mint",
+    body: "Borrow against your collateral or mint the protocol's own stablecoin against it. Either way your health factor is proven safe by a zero-knowledge proof and never published in the clear.",
     icon: (
       <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
         <path d="M10 24 A12 12 0 0 1 24 10" stroke="#C9A75C" strokeWidth="1.6" strokeLinecap="round" />
@@ -75,7 +75,7 @@ const steps = [
   {
     n: 3,
     title: "Repay on your terms",
-    body: "Interest compounds automatically into supplier yield — repay whenever suits you. If a position ever does fall under-collateralized, liquidation is checked against the proof alone, never exposed to the market beforehand.",
+    body: "Interest compounds automatically into supplier yield, so you repay whenever it suits you. If a position ever does fall under-collateralized, liquidation is checked against the proof alone and never exposed to the market beforehand.",
     icon: (
       <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
         <path d="M12 20 L18 26 L28 14" stroke="#C9A75C" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -88,54 +88,90 @@ const steps = [
 const benefits = [
   {
     title: "Confidential by default",
-    body: "Positions are masked everywhere in the interface until you choose to reveal them — not an opt-in setting.",
+    body: "Positions are masked everywhere in the interface until you choose to reveal them. It is not an opt-in setting.",
   },
   {
     title: "Provably solvent",
-    body: "The protocol's solvency is verifiable on-chain at all times, even though individual positions aren't.",
+    body: "The protocol's solvency is verifiable on-chain at all times, even though individual positions are not.",
   },
   {
-    title: "Composable with the cluster",
-    body: "Built to integrate with Horizen's private DEX, cross-chain bridge, and yield infrastructure as they come online.",
+    title: "Viewing keys",
+    body: "Turn one on and every future action also publishes a self-encrypted note on-chain. Share the key with an auditor once and they keep passive access to every note from then on, the same shape as a Zcash viewing key.",
   },
   {
-    title: "Selective disclosure, on your terms",
-    body: "Hand a viewing key to your own auditor, accountant, or regulator to reveal your position in the clear — without it ever touching the public chain. Confidential and compliant stop being a contradiction.",
+    title: "Verify without trusting us",
+    body: "Anyone handed a disclosure can check it on the Verify page, which tests the file against live on-chain state rather than trusting the numbers written inside it.",
   },
 ];
 
 const trustPoints = [
   {
     title: "Every contract, publicly verifiable",
-    body: "Source code for every deployed contract is verified on Etherscan — read exactly what you're trusting, not just what we say it does.",
+    body: "Source code for every deployed contract is verified on the block explorer, so you can read exactly what you are trusting.",
   },
   {
     title: "Honest about where we are",
     body: "This is a testnet build with permissive proof verification, disclosed on every page. Nothing here is dressed up as more finished than it is.",
   },
   {
-    title: "Independent audit, before mainnet exposure",
-    body: "A third-party security review of the proof system and liquidation logic is scheduled before any real deposits are possible — see the roadmap below.",
+    title: "Independent audit before mainnet",
+    body: "A third-party security review of the proof system and liquidation logic is scheduled before any real deposits are possible. See the roadmap below.",
   },
 ];
 
 const milestones = [
   {
-    tag: "M1 — [Q1 2027]",
+    tag: "M1 · Q1 2027",
     title: "Core privacy capability",
-    body: "Confidential deposit, borrow, and health-factor proofs live on testnet.",
+    body: "Confidential deposit, borrow and health-factor proofs live on testnet.",
   },
   {
-    tag: "M2 — [Q2 2027]",
+    tag: "M2 · Q2 2027",
     title: "Independent security audit",
     body: "Third-party review of the proof system and liquidation logic before mainnet exposure.",
   },
   {
-    tag: "M3 — [Q3 2027]",
+    tag: "M3 · Q3 2027",
     title: "Mainnet usage",
     body: "Real deposits and borrows on Horizen, demonstrating product-market fit.",
   },
 ];
+
+const footerColumns = [
+  {
+    heading: "Protocol",
+    links: [
+      { label: "Markets", href: "/app/markets", external: false },
+      { label: "Portfolio", href: "/app/portfolio", external: false },
+      { label: "Mint", href: "/app/mint", external: false },
+      { label: "Liquidations", href: "/app/liquidate", external: false },
+      { label: "Verify", href: "/app/verify", external: false },
+      { label: "Viewing key", href: "/app/viewing-key", external: false },
+    ],
+  },
+  {
+    heading: "Developers",
+    links: [
+      { label: "Documentation", href: "/docs", external: false },
+      { label: "Proof system", href: "/docs#proofs", external: false },
+      { label: "Contracts", href: "/docs#deployment", external: false },
+      { label: "Status", href: "/docs#status", external: false },
+      { label: "GitHub", href: "https://github.com/Viqtorhvayx/Latens", external: true },
+    ],
+  },
+  {
+    heading: "Community",
+    links: [
+      { label: "X", href: "#", external: true },
+      { label: "Discord", href: "#", external: true },
+    ],
+  },
+];
+
+// The disc's diameter, and the unit every other measurement in the eclipse is expressed
+// in. Capped so it never exceeds the viewport, which is what keeps a full circle a full
+// circle instead of something the page edge crops back into an arc.
+const ECLIPSE_DIAMETER = "min(1400px, 94vw)";
 
 export default function Home() {
   return (
@@ -143,8 +179,17 @@ export default function Home() {
       <MarketingNav />
 
       {/* HERO */}
-      <div className="relative overflow-hidden">
-        <div className="hero-eclipse pointer-events-none absolute inset-0 overflow-hidden">
+      {/* overflow-x-clip, not overflow-hidden: the disc has to keep overflowing downward
+          past the hero, but the grain layer spreads 40% wider than the disc and would push
+          out a horizontal scrollbar. Clipping one axis while the other stays visible is
+          exactly the case `clip` exists for; `hidden` would force the vertical axis to
+          scroll and crop the disc again. */}
+      <div className="relative overflow-x-clip">
+        {/* No overflow clipping here on purpose: the disc is deliberately taller than the
+            hero, arcing over the copy at the top and reaching its widest point down in the
+            section below. Its width is capped against the viewport instead, so nothing
+            spills sideways and no horizontal scrollbar appears. */}
+        <div className="hero-eclipse pointer-events-none absolute inset-0">
           {/* Sky first, so the disc below can eclipse whatever it passes over. */}
           {heroStars.map((s, i) => (
             <span
@@ -160,20 +205,17 @@ export default function Home() {
               }}
             />
           ))}
-          {/* top-[450px] is the placement this was in when it read as an arc across the
-              lower hero; the hero below is simply padded tall enough to contain the whole
-              1100px circle now, so the first screen is unchanged and the rest of the disc
-              comes into view on scroll rather than being sliced off by the hero's edge. */}
-          <div className="absolute inset-x-0 top-[450px] flex justify-center">
-            {/* Scaled down rather than resized below xl: 1100px is wider than the viewport
-                on a phone or a small laptop, and the hero's overflow would crop the sides
-                back into the semicircle this is meant not to be. Scaling shrinks the blur
-                radii with it, which resizing the box alone would not. */}
-            {/* shrink-0 matters: as a flex item this box is 1100px wide, and below that
-                viewport width flexbox would squeeze the width while the height stayed
-                fixed — turning the disc into an ellipse. The scale below is what fits it
-                on smaller screens, not the flex shrink. */}
-            <div className="relative h-[1100px] w-[1100px] shrink-0 scale-[0.34] md:scale-[0.62] xl:scale-100">
+          <div className="absolute inset-x-0 top-[40px] flex justify-center">
+            <div
+              className="relative shrink-0"
+              style={
+                {
+                  "--d": ECLIPSE_DIAMETER,
+                  width: "var(--d)",
+                  height: "var(--d)",
+                } as React.CSSProperties
+              }
+            >
               {coronaLobes.map((lobe, i) => (
                 <div
                   key={i}
@@ -186,14 +228,14 @@ export default function Home() {
                   <div
                     className="absolute rounded-full"
                     style={{
-                      width: lobe.size,
-                      height: lobe.size,
+                      width: `calc(var(--d) * ${lobe.size})`,
+                      height: `calc(var(--d) * ${lobe.size})`,
                       left: "50%",
                       top: "50%",
-                      marginLeft: -lobe.size / 2,
-                      marginTop: -lobe.size / 2 - lobe.offset,
+                      marginLeft: `calc(var(--d) * ${-lobe.size / 2})`,
+                      marginTop: `calc(var(--d) * ${-(lobe.size / 2 + lobe.offset)})`,
                       background: `radial-gradient(circle, ${lobe.color} 0%, transparent 70%)`,
-                      filter: `blur(${lobe.blur}px)`,
+                      filter: `blur(calc(var(--d) * ${lobe.blur}))`,
                       animation: `corona-breathe ${lobe.breathe}s ease-in-out infinite`,
                       animationDelay: `${lobe.delay}s`,
                     }}
@@ -202,15 +244,13 @@ export default function Home() {
               ))}
               {/* Grain goes under the disc and spreads wider than it, so it textures the
                   corona only. Over the disc it would lighten the one thing on screen that
-                  has to stay the darkest — the silhouette reads as a hole in the light,
-                  and a lit hole isn't one. */}
+                  has to stay darkest: the silhouette reads as a hole in the light, and a
+                  lit hole is not one. Faded at its own rim too, since overlay-blending a
+                  hard-edged circle over a dark page turns it into a visible disc. */}
               <div
                 className="absolute inset-[-40%] rounded-full opacity-[0.07] mix-blend-overlay"
                 style={{
                   animation: "grain-shift 0.9s steps(4) infinite",
-                  // Faded out at its own rim. Overlay-blending a hard-edged circle over a
-                  // dark page lightens it into a visible disc of its own — invisible at a
-                  // small size, obvious once this box got big.
                   WebkitMaskImage: "radial-gradient(circle, black 35%, transparent 70%)",
                   maskImage: "radial-gradient(circle, black 35%, transparent 70%)",
                   backgroundImage:
@@ -219,31 +259,20 @@ export default function Home() {
               />
               {/* The eclipsing body, painted last so it occludes everything above. Filled
                   with the page's own background so it reads as a silhouette rather than an
-                  object — invisible except where it cuts the light behind it, which is
-                  exactly what draws the crisp limb. The box-shadow is the faint corona
-                  that survives all the way around, under the brighter lobes that orbit
-                  across it. */}
+                  object: invisible except where it cuts the light behind it, which is
+                  exactly what draws the crisp limb. */}
               <div
                 className="absolute inset-0 rounded-full bg-canvas"
-                style={{ boxShadow: "0 0 80px 10px rgba(201,167,92,0.12)" }}
+                style={{ boxShadow: "0 0 calc(var(--d) * 0.073) calc(var(--d) * 0.009) rgba(201,167,92,0.12)" }}
               />
             </div>
           </div>
         </div>
-        {/* The tall bottom padding is what gives the eclipse below the copy room to sit
-            as a complete circle without the hero's own overflow clipping it. */}
-        <div className="relative mx-auto flex max-w-[1440px] flex-col gap-16 px-8 pt-24 pb-[420px] md:flex-row md:items-center md:gap-20 md:px-16 md:pt-32 md:pb-[900px] xl:pb-[1100px]">
+        <div className="relative mx-auto flex max-w-[1440px] flex-col gap-16 px-8 pt-24 pb-[120px] md:flex-row md:items-center md:gap-20 md:px-16 md:pt-32 md:pb-[180px]">
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} className="flex max-w-[600px] flex-1 flex-col gap-7">
-            <div className="flex items-center gap-2.5">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
-              </span>
-              <span className="text-xs font-semibold tracking-[0.14em] text-ink-muted uppercase">Testnet live · Applying to the Thrive Horizen Grant Program</span>
-            </div>
             <h1 className="font-display text-5xl leading-[1.06] font-medium tracking-tight md:text-[60px]">Lending, kept between you and the chain.</h1>
             <p className="text-lg leading-relaxed text-ink-muted">
-              Latens is a confidential borrow-lend market for Horizen. Collateral, borrow size, and health factor stay provably hidden — verified by zero-knowledge proofs instead of a public ledger.
+              Latens is a confidential borrow-lend market for Horizen. Collateral, borrow size and health factor stay provably hidden, verified by zero-knowledge proofs instead of a public ledger.
             </p>
             <div className="mt-2 flex items-center gap-4">
               <Link href="/app/markets" className="rounded-[10px] bg-gold px-6 py-3.5 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong">
@@ -256,13 +285,13 @@ export default function Home() {
                 </svg>
               </Link>
             </div>
-            <p className="mt-2 text-xs text-ink-faint">Built for Horizen · Base L3 · Thrive Season 2 Builder Ecosystem Fund</p>
+            <p className="mt-2 text-xs text-ink-faint">Built for Horizen · Lend, borrow and mint without exposing your position</p>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} className="flex flex-1 justify-center">
             <div className="w-full max-w-[420px] rounded-[20px] border border-line bg-surface p-8 shadow-[0_24px_64px_rgba(0,0,0,0.4)]">
               <div className="mb-6 flex items-center justify-between">
-                <span className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Your position</span>
+                <span className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Positions</span>
                 <span className="rounded-full border border-line-strong px-2.5 py-1 text-[10.5px] font-semibold tracking-wide text-ink-faint uppercase">Example</span>
               </div>
               <div className="flex flex-col gap-5">
@@ -283,7 +312,7 @@ export default function Home() {
       </div>
 
       {/* PROBLEM */}
-      <div className="mx-auto max-w-[1200px] px-8 pb-8 md:px-16">
+      <div className="relative mx-auto max-w-[1200px] px-8 pb-8 md:px-16">
         <Reveal className="mb-14 max-w-[640px]">
           <p className="text-xs font-semibold tracking-[0.16em] text-gold uppercase">Why it matters</p>
           <h2 className="mt-3 font-display text-3xl font-medium md:text-4xl">Public lending was never built for size.</h2>
@@ -300,10 +329,10 @@ export default function Home() {
       </div>
 
       {/* HOW IT WORKS */}
-      <div id="protocol" className="mx-auto max-w-[1200px] px-8 py-24 text-center md:px-16">
+      <div id="protocol" className="relative mx-auto max-w-[1200px] px-8 py-24 text-center md:px-16">
         <Reveal>
           <p className="text-xs font-semibold tracking-[0.16em] text-gold uppercase">How confidential lending works</p>
-          <h2 className="mt-3 mb-16 font-display text-3xl font-medium md:text-4xl">Nothing about your position is public — not even to us.</h2>
+          <h2 className="mt-3 mb-16 font-display text-3xl font-medium md:text-4xl">Nothing about your position is public, not even to us.</h2>
         </Reveal>
         <div className="flex flex-col gap-12 text-left md:flex-row">
           {steps.map((step, i) => (
@@ -320,7 +349,7 @@ export default function Home() {
       </div>
 
       {/* BENEFITS */}
-      <div className="mx-auto max-w-[1200px] px-8 pb-24 md:px-16">
+      <div className="relative mx-auto max-w-[1200px] px-8 pb-24 md:px-16">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {benefits.map((b, i) => (
             <Reveal key={b.title} delay={i * 0.1} className="rounded-2xl border border-line bg-surface p-7">
@@ -332,7 +361,7 @@ export default function Home() {
       </div>
 
       {/* SECURITY */}
-      <div id="security" className="border-y border-line bg-canvas-raised px-8 py-24 md:px-16">
+      <div id="security" className="relative border-y border-line bg-canvas-raised px-8 py-24 md:px-16">
         <div className="mx-auto max-w-[1200px]">
           <Reveal className="mb-14 max-w-[640px]">
             <p className="text-xs font-semibold tracking-[0.16em] text-gold uppercase">Security</p>
@@ -376,9 +405,8 @@ export default function Home() {
           <p className="text-xs font-semibold tracking-[0.16em] text-gold uppercase">Ecosystem alignment</p>
           <h2 className="mt-3 mb-5 font-display text-[30px] font-medium">Building inside the Horizen cluster</h2>
           <p className="text-[15.5px] leading-relaxed text-ink-muted">
-            Latens is grounded in Horizen&apos;s own assets — ZEN and the natively-issued ZUSD stablecoin sit alongside bridged majors as collateral — and contributes a share of protocol fees to the ZEN staking
-            rewards pool, aligning its long-term incentives with the ecosystem it&apos;s built on. Latens is applying to the Thrive Horizen Grant Program (Season 2, Builder Ecosystem Fund) to fund the path to
-            mainnet.
+            Latens is grounded in Horizen&apos;s own assets. ZEN and the natively-issued ZUSD stablecoin sit alongside bridged majors as collateral, with the same confidential machinery covering lending, borrowing
+            and minting the protocol&apos;s own stablecoin.
           </p>
         </Reveal>
       </div>
@@ -397,47 +425,40 @@ export default function Home() {
       </div>
 
       {/* FOOTER */}
-      <div className="flex flex-col gap-8 border-t border-line px-8 py-12 md:flex-row md:items-center md:justify-between md:px-16">
-        <div className="flex items-center gap-3">
-          <Logo size={24} />
-          <span className="font-display text-[15px]">Latens</span>
-        </div>
-        <div className="flex gap-16">
-          <div className="flex flex-col gap-2.5">
-            <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Product</span>
-            <Link href="/app/markets" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
-              Markets
-            </Link>
-            <Link href="/app/portfolio" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
-              Portfolio
-            </Link>
+      <div className="border-t border-line px-8 py-16 md:px-16">
+        <div className="mx-auto flex max-w-[1200px] flex-col gap-12 md:flex-row md:justify-between">
+          <div className="flex items-center gap-3">
+            <Logo size={24} />
+            <span className="font-display text-[15px]">Latens</span>
           </div>
-          <div className="flex flex-col gap-2.5">
-            <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Company</span>
-            <Link href="/docs" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
-              Docs
-            </Link>
-            <Link href="/docs#status" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
-              Status &amp; limits
-            </Link>
-            <a href="#security" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
-              Security
-            </a>
-          </div>
-          <div className="flex flex-col gap-2.5">
-            <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Social</span>
-            <a href="#" target="_blank" rel="noopener noreferrer" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
-              X
-            </a>
-            <a href="#" target="_blank" rel="noopener noreferrer" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
-              Discord
-            </a>
-            <a href="https://github.com/Viqtorhvayx/Latens" target="_blank" rel="noopener noreferrer" className="text-[13px] text-ink-muted transition-colors hover:text-ink">
-              GitHub
-            </a>
+          <div className="grid grid-cols-2 gap-10 sm:grid-cols-3 md:gap-20">
+            {footerColumns.map((col) => (
+              <div key={col.heading} className="flex flex-col gap-3">
+                <span className="text-xs font-semibold tracking-[0.12em] text-ink-faint uppercase">{col.heading}</span>
+                {col.links.map((link) =>
+                  link.external ? (
+                    <a
+                      key={link.label}
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[13.5px] text-ink-muted transition-colors hover:text-ink"
+                    >
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link key={link.label} href={link.href} className="text-[13.5px] text-ink-muted transition-colors hover:text-ink">
+                      {link.label}
+                    </Link>
+                  ),
+                )}
+              </div>
+            ))}
           </div>
         </div>
-        <span className="text-xs text-ink-faint">© 2026 Latens. Built for Horizen.</span>
+        <div className="mx-auto mt-12 flex max-w-[1200px] border-t border-line pt-8">
+          <span className="text-xs text-ink-faint">© 2026 Latens. Built for Horizen.</span>
+        </div>
       </div>
     </div>
   );

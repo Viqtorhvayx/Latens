@@ -86,13 +86,13 @@ export default function RewardsPage() {
       <div className="mb-8">
         <span className="font-display text-[28px]">Rewards</span>
         <p className="mt-1.5 text-[13.5px] text-ink-muted">
-          A flat, per-epoch {symbol} reward for keeping an active supply position — check in once every epoch to keep your streak alive.
+          A flat, per-epoch {symbol} reward for keeping an active supply position. Check in once every epoch to keep your streak alive.
         </p>
       </div>
 
       {address && !positionLoading && !hasActivePosition && (
         <p className="mb-6 rounded-xl border border-line bg-surface px-4 py-3 text-[13px] text-ink-muted">
-          Supply collateral in any market first — checking in requires an active position.
+          Supply collateral in any market first, since checking in requires an active position.
         </p>
       )}
 
@@ -125,7 +125,7 @@ export default function RewardsPage() {
 
           <div className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-[13px] text-ink-muted">
-              {streakActive ? "You've checked in for this epoch — come back next epoch to keep the streak going." : "Check in this epoch to keep your streak alive and start earning next epoch."}
+              {streakActive ? "You've checked in for this epoch. Come back next epoch to keep the streak going." : "Check in this epoch to keep your streak alive and start earning next epoch."}
             </span>
             <div className="flex gap-2">
               <button

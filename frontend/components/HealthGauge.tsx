@@ -33,7 +33,7 @@ export function HealthGauge({ zone, width = 280 }: { zone: Zone; width?: number 
           <motion.div key={s} className="flex-1 rounded-full" animate={{ backgroundColor: s === zone ? ZONE_COLOR[zone] : dim }} transition={{ duration: 0.3 }} />
         ))}
       </div>
-      <span className="text-[11.5px] leading-relaxed text-ink-faint">Exact value verified locally via zero-knowledge proof — never sent to the network.</span>
+      <span className="text-[11.5px] leading-relaxed text-ink-faint">Exact value verified locally via zero-knowledge proof, never sent to the network.</span>
     </div>
   );
 }

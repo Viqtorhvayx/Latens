@@ -5,9 +5,9 @@ import deployment from "@/lib/deployment.json";
 import { explorerAddressUrl } from "@/lib/chainExplorer";
 
 export const metadata: Metadata = {
-  title: "Documentation — Latens",
+  title: "Documentation · Latens",
   description:
-    "How Latens keeps a lending position confidential: the commitment scheme, the three zero-knowledge proofs, the contracts they gate, and an honest account of what is and isn't finished.",
+    "How Latens keeps a lending position confidential: the commitment scheme, the three zero-knowledge proofs, the contracts they gate and an honest account of what is and isn't finished.",
 };
 
 const sections = [
@@ -29,26 +29,26 @@ const proofs = [
     name: "Commitment update",
     used: "Every deposit, withdraw, borrow and repay",
     statement:
-      "I know the opening of the old commitment, and the new commitment correctly adds or subtracts the public delta.",
+      "I know the opening of the old commitment and the new commitment correctly adds or subtracts the public delta.",
   },
   {
     name: "Solvency",
     used: "Borrow, withdraw",
     statement:
-      "This position's collateral and debt, at current public prices, satisfy the LTV threshold — without revealing either amount.",
+      "This position's collateral and debt, at current public prices, satisfy the LTV threshold, without revealing either amount.",
   },
   {
     name: "Liquidation eligibility",
     used: "Liquidate",
     statement:
-      "This position is below the liquidation threshold, and here are the post-liquidation commitments. The hardest of the three.",
+      "This position is below the liquidation threshold and here are the post-liquidation commitments. The hardest of the three.",
   },
 ];
 
 const contractRows = [
   { name: "LatensPool", role: "Entrypoint for supplyCollateral, withdrawCollateral, borrow, repay and liquidate. Binds every value a proof is checked against before calling a verifier." },
   { name: "AssetRegistry", role: "Public market config, per-asset aggregates and the kinked interest rate model. Owner-governed." },
-  { name: "LatensCDP", role: "Confidential stablecoin minting — lock committed collateral, mint LatensDollar against it." },
+  { name: "LatensCDP", role: "Confidential stablecoin minting. Lock committed collateral and mint LatensDollar against it." },
   { name: "LatensDollar", role: "The protocol's own stablecoin. Minted and burned only by LatensCDP." },
   { name: "ProtocolTreasury", role: "Collects the reserve-factor slice of interest and routes it to ZEN staking and the supply-rewards programme." },
   { name: "SupplyRewards", role: "Epoch-based supplier incentives, topped up from real protocol revenue on every treasury sweep." },
@@ -72,8 +72,8 @@ function Section({ id, title, children }: { id: string; title: string; children:
 
 export default function Docs() {
   const chainId = deployment.chainId;
-  // MockERC20 is in here as an ABI only — one shared ABI for the four token contracts,
-  // with no address of its own — so entries without an address are skipped rather than
+  // MockERC20 is in here as an ABI only, one shared ABI for the four token contracts
+  // with no address of its own, so entries without an address are skipped rather than
   // rendered as a blank row.
   const deployedContracts = Object.entries(deployment.contracts).flatMap(([name, c]) =>
     "address" in c ? [{ name, address: c.address }] : [],
@@ -106,13 +106,13 @@ export default function Docs() {
             </h1>
             <p className="mt-5 text-lg leading-relaxed text-ink-muted">
               Latens is a borrow-lend market where the size of a position is never published. Collateral and debt live on-chain as
-              cryptographic commitments, and every action that would normally require reading those balances is gated by a
-              zero-knowledge proof instead. This page describes how that works, and is deliberately explicit about what is finished
+              cryptographic commitments and every action that would normally require reading those balances is gated by a
+              zero-knowledge proof instead. This page describes how that works and is deliberately explicit about what is finished
               and what is not.
             </p>
             <div className="mt-6 rounded-[12px] border border-line bg-canvas-raised px-5 py-4 text-[14px] leading-relaxed text-ink-muted">
               <span className="font-semibold text-ink">Testnet build.</span> The currently deployed instance verifies proofs with a
-              permissive mock, and has not been audited. Read{" "}
+              permissive mock and has not been audited. Read{" "}
               <a href="#status" className="text-gold hover:text-gold-strong">
                 Status and limits
               </a>{" "}
@@ -123,13 +123,13 @@ export default function Docs() {
           <Section id="overview" title="Overview">
             <p>
               A conventional lending market publishes every position. Anyone can read how much collateral an address holds, how much
-              it has borrowed, and therefore exactly how far it is from liquidation. That is useful for liquidators and corrosive for
+              it has borrowed and therefore exactly how far it is from liquidation. That is useful for liquidators and corrosive for
               everyone else: it makes large positions a standing target and turns any institution&apos;s balance sheet into public
               information.
             </p>
             <p>
               Latens stores a position&apos;s collateral and debt as Pedersen commitments. The amounts are never written or read in the
-              clear — they are opened only inside a proof circuit, which returns a yes-or-no answer about a property (is this position
+              clear. They are opened only inside a proof circuit, which returns a yes-or-no answer about a property (is this position
               solvent? does this new commitment correctly reflect this deposit?) without revealing the values it reasoned over.
             </p>
           </Section>
@@ -142,11 +142,11 @@ export default function Docs() {
             <ul className="flex list-none flex-col gap-3 pl-0">
               <li>
                 <span className="font-semibold text-ink">Private:</span> a position&apos;s resting collateral and debt amounts. Never
-                stored or read in the clear — only as commitments, opened exclusively inside the circuits.
+                stored or read in the clear, only as commitments opened exclusively inside the circuits.
               </li>
               <li>
                 <span className="font-semibold text-ink">Public, on purpose:</span> per-market aggregates (total supplied and
-                borrowed), oracle prices, and the ERC-20 transfer amounts that fund each deposit, borrow or repay. A lending market
+                borrowed), oracle prices and the ERC-20 transfer amounts that fund each deposit, borrow or repay. A lending market
                 needs public liquidity and price data to function at all.
               </li>
               <li>
@@ -160,7 +160,7 @@ export default function Docs() {
           <Section id="proofs" title="The three proofs">
             <p>
               Every state-changing call is gated by at least one of three proofs. In each case the contract itself computes or
-              fetches every value the proof is checked against — old and new commitments, deltas, asset IDs, live oracle prices — and
+              fetches every value the proof is checked against (old and new commitments, deltas, asset IDs, live oracle prices) and
               binds them before calling the verifier, so a valid proof from one call can never be replayed against another.
             </p>
             <div className="mt-2 overflow-x-auto">
@@ -189,13 +189,13 @@ export default function Docs() {
             <p>
               The circuits are written in Noir, chosen over Circom mainly for its type system and range-checked arithmetic, which
               removes much of the manual bookkeeping where under-constrained circuit bugs tend to appear. That trades away Circom&apos;s
-              cheaper Groth16 verification gas and deeper audit precedent — a deliberate call for a first pass at this design.
+              cheaper Groth16 verification gas and deeper audit precedent, a deliberate call for a first pass at this design.
             </p>
             <p>
               A shared <span className="font-mono text-[13px] text-gold">latens_common</span> library holds the single{" "}
               <span className="font-mono text-[13px] text-gold">commit()</span> function every circuit uses. Only the commitment-update
               circuit ever writes a commitment; the other two only open commitments it wrote. If that function diverged between
-              circuits — even by a different domain separator — every downstream proof would silently stop verifying against real
+              circuits, even by a different domain separator, every downstream proof would silently stop verifying against real
               on-chain state, so there is exactly one implementation rather than three copies that could drift.
             </p>
             <p>
@@ -203,13 +203,13 @@ export default function Docs() {
               rather than assumed: that <span className="font-mono text-[13px] text-gold">u128</span> arithmetic is checked (so
               overflow and underflow fail proving instead of wrapping), that{" "}
               <span className="font-mono text-[13px] text-gold">Field as u128</span> is a truncating cast and therefore unsafe to
-              compute balances through, and that an if/else only enforces the constraints of the branch actually taken. The second of
+              compute balances through and that an if/else only enforces the constraints of the branch actually taken. The second of
               those invalidated an earlier draft that would have let a withdrawal larger than the balance wrap into a plausible-looking
               new balance.
             </p>
             <p>
               The full prove-and-verify pipeline has been run end to end against a real toolchain, producing a real Solidity verifier
-              that is deployed, called with real proofs in tests, and confirmed to reject tampered public inputs.
+              that is deployed, called with real proofs in tests and confirmed to reject tampered public inputs.
             </p>
           </Section>
 
@@ -230,25 +230,25 @@ export default function Docs() {
 
           <Section id="interest" title="Interest and yield">
             <p>
-              Interest is utilization-driven, not a placeholder. The registry holds a kinked rate model per asset, and repayment
+              Interest is utilization-driven, not a placeholder. The registry holds a kinked rate model per asset and repayment
               charges a genuine time-weighted fee computed over the exact elapsed time since the position&apos;s debt was last touched.
             </p>
             <p>
               Suppliers earn a real compounding yield: position commitments encode shares of a per-asset index rather than raw token
-              units. Only the reserve-factor slice of a repayment&apos;s interest moves on to the treasury — the rest stays in the pool
+              units. Only the reserve-factor slice of a repayment&apos;s interest moves on to the treasury. The rest stays in the pool
               and backs the index&apos;s growth, so withdrawing the same shares later returns more tokens than were deposited. The
               solvency and liquidation circuits value a position at amount × index ÷ RAY before pricing it.
             </p>
             <p>
               The debt side is not index-scaled today. Both circuits accept a debt index generically, but every caller currently passes
-              RAY, which is a no-op — matching the flat-fee interest the pool already charged.
+              RAY, which is a no-op, matching the flat-fee interest the pool already charged.
             </p>
           </Section>
 
           <Section id="stablecoin" title="Confidential minting">
             <p>
               LatensCDP applies the same commitment and solvency discipline to stablecoin minting: lock committed collateral, mint
-              LatensDollar against it, and pay a one-time origination fee. That fee is the entire revenue mechanism on this path,
+              LatensDollar against it and pay a one-time origination fee. That fee is the entire revenue mechanism on this path,
               since per-position minted amounts can&apos;t be distributed proportionally without revealing them.
             </p>
             <p>
@@ -268,9 +268,9 @@ export default function Docs() {
               ))}
             </div>
             <p className="mt-2">
-              A caveat on the two bridged assets: EON is mid-migration to a new Base-settling L3, and the final bridged-asset list for
+              A caveat on the two bridged assets: EON is mid-migration to a new Base-settling L3 and the final bridged-asset list for
               that network isn&apos;t published yet. Treat WBTC and USDC as best-available and sourced rather than confirmed. DAI was
-              dropped for exactly this reason — it had no Horizen-specific grounding.
+              dropped for exactly this reason: it had no Horizen-specific grounding.
             </p>
           </Section>
 
@@ -287,17 +287,17 @@ export default function Docs() {
 
           <Section id="status" title="Status and limits">
             <p>
-              This is a working protocol scaffold, not a finished product, and the distinction is worth stating plainly.
+              This is a working protocol scaffold, not a finished product and the distinction is worth stating plainly.
             </p>
             <ul className="flex list-none flex-col gap-3 pl-0">
               <li>
                 <span className="font-semibold text-ink">No independent audit has been done.</span> A security self-review exists in
-                the repository. It is a genuine review, by the same author as the code, and explicitly not a substitute for an
+                the repository. It is a genuine review, by the same author as the code and explicitly not a substitute for an
                 independent one.
               </li>
               <li>
                 <span className="font-semibold text-ink">The deployed testnet instance uses a permissive mock verifier.</span> Real
-                generated verifiers for all three proofs exist, compile, are deployed in tests and have been driven end to end —
+                generated verifiers for all three proofs exist, compile, are deployed in tests and have been driven end to end,
                 including a real borrow and a real liquidation gated by real proofs. The public testnet deployment stays on the mock
                 because there is no client-side proof generation in the interface yet, so a real verifier would make every button
                 revert.
@@ -308,7 +308,7 @@ export default function Docs() {
               </li>
               <li>
                 <span className="font-semibold text-ink">Circuit soundness has not been audited.</span> The empirical checks described
-                above are real but narrow. A circuit audit is a different discipline from a Solidity review, and neither has been done
+                above are real but narrow. A circuit audit is a different discipline from a Solidity review and neither has been done
                 independently.
               </li>
             </ul>

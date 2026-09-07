@@ -79,12 +79,12 @@ export default function MintPage() {
     <div className="px-4 py-6 sm:px-12 sm:py-10">
       <div className="mb-8">
         <span className="font-display text-[28px]">Mint</span>
-        <p className="mt-1.5 text-[13.5px] text-ink-muted">Mint Latens Dollar (LATD) against confidential collateral — a private CDP.</p>
+        <p className="mt-1.5 text-[13.5px] text-ink-muted">Mint Latens Dollar (LATD) against confidential collateral, a private CDP.</p>
       </div>
 
       {address && !positionLoading && !hasActivePosition && (
         <p className="mb-6 rounded-xl border border-line bg-surface px-4 py-3 text-[13px] text-ink-muted">
-          Supply collateral below before minting — LATD is minted against collateral you&apos;ve already supplied, so Mint stays disabled until you have an active position.
+          Supply collateral below before minting. LATD is minted against collateral you&apos;ve already supplied, so Mint stays disabled until you have an active position.
         </p>
       )}
 
@@ -168,7 +168,7 @@ export default function MintPage() {
       </div>
 
       <p className="mt-4 text-[11.5px] text-ink-faint">
-        A one-time origination fee is taken in LATD at mint time — the entire revenue mechanism, since (like LatensPool) individual position sizes are never disclosed. LatensDollar is pegged to $1 by construction, not by
+        A one-time origination fee is taken in LATD at mint time, the entire revenue mechanism, since (like LatensPool) individual position sizes are never disclosed. LatensDollar is pegged to $1 by construction, not by
         an external oracle.
       </p>
 

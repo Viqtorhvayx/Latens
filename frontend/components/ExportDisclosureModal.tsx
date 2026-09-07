@@ -81,7 +81,7 @@ export function ExportDisclosureModal({
             <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-4 text-center">
               <p className="mb-4 text-sm text-success">Signed and downloaded.</p>
               <p className="mb-5 text-xs leading-relaxed text-ink-faint">
-                Hand this file to your auditor along with the link to Latens&apos;s verify page. Anyone holding it can see the amounts below in the clear — treat it like a bank statement, not a password.
+                Hand this file to your auditor along with the link to Latens&apos;s verify page. Anyone holding it can see the amounts below in the clear. Treat it like a bank statement, not a password.
               </p>
               <button onClick={onClose} className="w-full rounded-[10px] border border-line-strong py-3.5 text-[15px] font-semibold">
                 Close
@@ -95,7 +95,7 @@ export function ExportDisclosureModal({
                 {entries.map((e) => (
                   <div key={`${e.assetId}-${e.kind}`} className="flex items-center justify-between text-sm">
                     <span className="text-ink-muted capitalize">
-                      {e.kind} — {e.symbol}
+                      {e.kind} · {e.symbol}
                     </span>
                     <span className="font-mono">{formatUnits(BigInt(e.amount), decimalsFor(e.assetId))}</span>
                   </div>
@@ -103,7 +103,7 @@ export function ExportDisclosureModal({
               </div>
 
               <p className="mb-5 text-[11.5px] text-ink-faint">
-                This is a one-time snapshot signed by your wallet — it isn&apos;t a standing key, and re-exporting after your position changes is on you. Nothing is sent anywhere; the file only leaves your device when
+                This is a one-time snapshot signed by your wallet. It isn&apos;t a standing key and re-exporting after your position changes is on you. Nothing is sent anywhere; the file only leaves your device when
                 you share it.
               </p>
 
