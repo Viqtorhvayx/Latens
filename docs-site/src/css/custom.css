@@ -1,0 +1,75 @@
+/**
+ * Brand tokens mirror frontend/app/globals.css (the Next.js app's own design system) so
+ * the docs read as the same product rather than a generic Docusaurus site bolted on.
+ * Infima (the theme Docusaurus ships) expects a primary color plus seven computed shades;
+ * these are hand-picked steps along the gold ramp rather than a formula, matching the
+ * frontend's own hand-picked --color-gold / --color-gold-strong pair.
+ */
+:root {
+  --ifm-color-primary: #a8813a;
+  --ifm-color-primary-dark: #97742f;
+  --ifm-color-primary-darker: #8f6d2c;
+  --ifm-color-primary-darkest: #765a24;
+  --ifm-color-primary-light: #b98e45;
+  --ifm-color-primary-lighter: #c19754;
+  --ifm-color-primary-lightest: #d4b877;
+  --ifm-code-font-size: 92%;
+  --ifm-font-family-base: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+  --ifm-heading-font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  --ifm-font-family-monospace: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --ifm-heading-font-weight: 500;
+  --docusaurus-highlighted-code-line-bg: rgba(201, 167, 92, 0.12);
+}
+
+/* Dark is the only palette this brand actually designs for (see frontend/globals.css's own
+   token set) — light mode is Infima's default fallback for anyone who switches, not a
+   second design pass, so it gets Infima's stock primary rather than a hand-tuned one. */
+[data-theme="dark"] {
+  --ifm-color-primary: #e0be78;
+  --ifm-color-primary-dark: #d9b263;
+  --ifm-color-primary-darker: #d5ab57;
+  --ifm-color-primary-darkest: #c79736;
+  --ifm-color-primary-light: #e7ca8d;
+  --ifm-color-primary-lighter: #eacf99;
+  --ifm-color-primary-lightest: #f3e2bf;
+
+  --ifm-background-color: #14120f;
+  --ifm-background-surface-color: #1a1713;
+  --ifm-navbar-background-color: #1a1713;
+  --ifm-footer-background-color: #14120f;
+  --ifm-color-content: #f5f1e8;
+  --ifm-color-content-secondary: #a79e8e;
+  --ifm-toc-border-color: rgba(255, 255, 255, 0.08);
+  --ifm-table-border-color: rgba(255, 255, 255, 0.1);
+  --ifm-hr-border-color: rgba(255, 255, 255, 0.08);
+  --docusaurus-highlighted-code-line-bg: rgba(201, 167, 92, 0.16);
+}
+
+.navbar__title {
+  font-family: var(--ifm-heading-font-family);
+  font-size: 1.15rem;
+}
+
+/* Matches the filled Launch App button on the marketing site and app shell, so the one
+   navbar link that leaves the docs for the product reads as a call to action rather than
+   another text link. */
+.navbar-launch-app {
+  border-radius: 8px;
+  padding: 0.4rem 0.9rem !important;
+  font-weight: 600;
+}
+[data-theme="dark"] .navbar-launch-app {
+  background: var(--ifm-color-primary);
+  color: #14120f !important;
+}
+[data-theme="dark"] .navbar-launch-app:hover {
+  background: var(--ifm-color-primary-lighter);
+}
+
+.admonition {
+  border-radius: 10px;
+}
+
+code {
+  border-radius: 5px;
+}

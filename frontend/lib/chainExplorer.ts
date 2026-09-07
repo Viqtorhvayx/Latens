@@ -1,6 +1,6 @@
 // No known explorer for local Hardhat (31337) — there's nothing real to link to, so we
-// degrade to just showing a copyable hash there. Base entries are here because the
-// homepage already states "Built for Horizen · Base L3"; wire in the real destination
+// degrade to just showing a copyable hash there. Base entries are here because Base is
+// EON's eventual settlement layer (see contracts/README.md); wire in the real destination
 // chain's explorer once this deploys somewhere other than local dev.
 const EXPLORERS: Record<number, string> = {
   8453: "https://basescan.org",
@@ -11,11 +11,4 @@ const EXPLORERS: Record<number, string> = {
 export function explorerTxUrl(chainId: number, hash: string): string | undefined {
   const base = EXPLORERS[chainId];
   return base ? `${base}/tx/${hash}` : undefined;
-}
-
-/// Same fallback rule as `explorerTxUrl`: no known explorer means no link, rather than a
-/// link that 404s. The docs page renders the bare address in that case.
-export function explorerAddressUrl(chainId: number, address: string): string | undefined {
-  const base = EXPLORERS[chainId];
-  return base ? `${base}/address/${address}` : undefined;
 }

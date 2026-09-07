@@ -7,6 +7,7 @@ import { MaskedValue } from "@/components/MaskedValue";
 import { HealthGauge } from "@/components/HealthGauge";
 import { Reveal } from "@/components/Reveal";
 import { Logo } from "@/components/Logo";
+import { DOCS_URL } from "@/lib/docsUrl";
 
 // Scattered across the whole hero, not the disc's own box, since the disc paints after
 // this layer and eclipses any star that falls behind it.
@@ -145,17 +146,12 @@ const footerColumns = [
       { label: "Portfolio", href: "/app/portfolio", external: false },
       { label: "Mint", href: "/app/mint", external: false },
       { label: "Liquidations", href: "/app/liquidate", external: false },
-      { label: "Verify", href: "/app/verify", external: false },
-      { label: "Viewing key", href: "/app/viewing-key", external: false },
     ],
   },
   {
     heading: "Developers",
     links: [
-      { label: "Documentation", href: "/docs", external: false },
-      { label: "Proof system", href: "/docs#proofs", external: false },
-      { label: "Contracts", href: "/docs#deployment", external: false },
-      { label: "Status", href: "/docs#status", external: false },
+      { label: "Documentation", href: DOCS_URL, external: true },
       { label: "GitHub", href: "https://github.com/Viqtorhvayx/Latens", external: true },
     ],
   },
@@ -278,12 +274,17 @@ export default function Home() {
               <Link href="/app/markets" className="rounded-[10px] bg-gold px-6 py-3.5 text-[14.5px] font-semibold text-canvas transition-colors hover:bg-gold-strong">
                 Launch App
               </Link>
-              <Link href="/docs" className="flex items-center gap-2 rounded-[10px] border border-line-strong px-6 py-3.5 text-[14.5px] font-semibold transition-colors hover:bg-surface-hover">
+              <a
+                href={DOCS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 rounded-[10px] border border-line-strong px-6 py-3.5 text-[14.5px] font-semibold transition-colors hover:bg-surface-hover"
+              >
                 Read the docs
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                  <path d="M2.5 7 H11 M7.5 3.5 L11 7 L7.5 10.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M3 11 L11 3 M11 3 H5 M11 3 V9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-              </Link>
+              </a>
             </div>
             <p className="mt-2 text-xs text-ink-faint">Built for Horizen · Lend, borrow and mint without exposing your position</p>
           </motion.div>
