@@ -1,7 +1,13 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+
+// Satori has no access to the public/ URL space while this renders at build time, so the
+// mark is inlined from disk rather than fetched.
+const markDataUri = `data:image/png;base64,${readFileSync(join(process.cwd(), "public", "logo-mark.png")).toString("base64")}`;
 
 export default function OpengraphImage() {
   return new ImageResponse(
@@ -19,12 +25,7 @@ export default function OpengraphImage() {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 48 }}>
-        <svg width="56" height="56" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="1.5" y="1.5" width="45" height="45" rx="11" fill="#1C1A17" stroke="rgba(255,255,255,0.09)" />
-          <path d="M46 2 L46 20 L28 2 Z" fill="#2B2620" />
-          <path d="M2 46 L2 33 L15 46 Z" fill="#100E0C" />
-          <line x1="46" y1="20" x2="28" y2="2" stroke="#C9A75C" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
+        <img src={markDataUri} alt="" style={{ width: 72, height: 72 }} />
         <span style={{ fontSize: 34, fontWeight: 600 }}>Latens</span>
       </div>
       <div style={{ display: "flex", fontSize: 60, fontWeight: 600, lineHeight: 1.15, maxWidth: 980 }}>Lending, kept between you and the chain.</div>
