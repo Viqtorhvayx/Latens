@@ -26,12 +26,12 @@ const heroStars = [
 
 // Soft light lobes that orbit behind the disc. Only the part of each that reaches past the
 // disc's edge is ever visible, so what you see is light spilling around a limb rather than
-// a ring drawn on top of one. Sizes/offsets are px within the 520px disc box, and each
-// offset clears the 260px radius so the lobe actually breaks past the edge.
+// a ring drawn on top of one. Sizes/offsets are px within the 1100px disc box, and each
+// offset clears the 550px radius so the lobe actually breaks past the edge.
 const coronaLobes = [
-  { size: 390, offset: 210, orbit: 15, breathe: 9, blur: 42, color: "rgba(224,190,120,0.55)", reverse: false, delay: 0 },
-  { size: 325, offset: 245, orbit: 24, breathe: 13, blur: 52, color: "rgba(201,167,92,0.45)", reverse: true, delay: -6 },
-  { size: 490, offset: 195, orbit: 37, breathe: 17, blur: 65, color: "rgba(224,190,120,0.30)", reverse: false, delay: -14 },
+  { size: 780, offset: 400, orbit: 15, breathe: 9, blur: 80, color: "rgba(224,190,120,0.55)", reverse: false, delay: 0 },
+  { size: 660, offset: 470, orbit: 24, breathe: 13, blur: 100, color: "rgba(201,167,92,0.45)", reverse: true, delay: -6 },
+  { size: 950, offset: 365, orbit: 37, breathe: 17, blur: 125, color: "rgba(224,190,120,0.30)", reverse: false, delay: -14 },
 ];
 
 const problems = [
@@ -160,12 +160,20 @@ export default function Home() {
               }}
             />
           ))}
-          <div className="absolute inset-x-0 bottom-[120px] flex justify-center">
-            {/* Scaled down rather than resized on small screens: a 520px circle is wider
-                than a phone, and the hero's overflow would crop it back into the
-                semicircle this is meant not to be. Scaling shrinks the blur radii with it,
-                which resizing the box alone would not. */}
-            <div className="relative h-[520px] w-[520px] scale-[0.62] md:scale-100">
+          {/* top-[450px] is the placement this was in when it read as an arc across the
+              lower hero; the hero below is simply padded tall enough to contain the whole
+              1100px circle now, so the first screen is unchanged and the rest of the disc
+              comes into view on scroll rather than being sliced off by the hero's edge. */}
+          <div className="absolute inset-x-0 top-[450px] flex justify-center">
+            {/* Scaled down rather than resized below xl: 1100px is wider than the viewport
+                on a phone or a small laptop, and the hero's overflow would crop the sides
+                back into the semicircle this is meant not to be. Scaling shrinks the blur
+                radii with it, which resizing the box alone would not. */}
+            {/* shrink-0 matters: as a flex item this box is 1100px wide, and below that
+                viewport width flexbox would squeeze the width while the height stayed
+                fixed — turning the disc into an ellipse. The scale below is what fits it
+                on smaller screens, not the flex shrink. */}
+            <div className="relative h-[1100px] w-[1100px] shrink-0 scale-[0.34] md:scale-[0.62] xl:scale-100">
               {coronaLobes.map((lobe, i) => (
                 <div
                   key={i}
@@ -217,14 +225,14 @@ export default function Home() {
                   across it. */}
               <div
                 className="absolute inset-0 rounded-full bg-canvas"
-                style={{ boxShadow: "0 0 65px 10px rgba(201,167,92,0.12)" }}
+                style={{ boxShadow: "0 0 80px 10px rgba(201,167,92,0.12)" }}
               />
             </div>
           </div>
         </div>
         {/* The tall bottom padding is what gives the eclipse below the copy room to sit
             as a complete circle without the hero's own overflow clipping it. */}
-        <div className="relative mx-auto flex max-w-[1440px] flex-col gap-16 px-8 pt-24 pb-[300px] md:flex-row md:items-center md:gap-20 md:px-16 md:pt-32 md:pb-[385px]">
+        <div className="relative mx-auto flex max-w-[1440px] flex-col gap-16 px-8 pt-24 pb-[420px] md:flex-row md:items-center md:gap-20 md:px-16 md:pt-32 md:pb-[900px] xl:pb-[1100px]">
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} className="flex max-w-[600px] flex-1 flex-col gap-7">
             <div className="flex items-center gap-2.5">
               <span className="relative flex h-1.5 w-1.5">
