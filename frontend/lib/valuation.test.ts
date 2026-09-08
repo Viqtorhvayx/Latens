@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { usdValueE8, formatUsd, formatApr, supplyRateRayFrom, formatRateRay } from "./valuation";
+import { usdValueE8, formatUsd, formatApr, supplyRateRayFrom, formatRateRay, formatUsdPrecise } from "./valuation";
 
 describe("usdValueE8", () => {
   it("values a whole token at its price", () => {
@@ -77,5 +77,24 @@ describe("formatRateRay", () => {
   });
   it("shows an idle market as a flat zero", () => {
     expect(formatRateRay(0n)).toBe("0.00%");
+  });
+});
+
+describe("formatUsdPrecise", () => {
+  it("keeps cents, unlike the whole-dollar portfolio formatter", () => {
+    expect(formatUsdPrecise(200_000_000n)).toBe("$2.00"); // ZEN at $2
+    expect(formatUsdPrecise(100_000_000n)).toBe("$1.00"); // a stablecoin, not "$1"
+  });
+
+  it("formats a large unit price with separators", () => {
+    expect(formatUsdPrecise(6_000_000_000_000n)).toBe("$60,000.00"); // WBTC
+  });
+
+  it("goes past cents when the price is smaller than a cent", () => {
+    expect(formatUsdPrecise(500_000n)).toBe("$0.005");
+  });
+
+  it("shows an unpriced asset as zero rather than NaN", () => {
+    expect(formatUsdPrecise(0n)).toBe("$0.00");
   });
 });

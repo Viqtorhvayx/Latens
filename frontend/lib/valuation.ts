@@ -41,3 +41,14 @@ export function formatRateRay(rateRay: bigint): string {
   if (pct < 0.01) return `${pct.toFixed(4)}%`;
   return `${pct.toFixed(2)}%`;
 }
+
+// A unit price, which unlike a portfolio total is often worth less than a dollar (and in
+// this market set spans $1 to $60,000). formatUsd rounds to whole dollars, which would show
+// every stablecoin as "$1" and anything cheaper as "$0"; this keeps cents, and more than
+// cents when the price is small enough to need them.
+export function formatUsdPrecise(valueE8: bigint): string {
+  const value = Number(valueE8) / 1e8;
+  if (value === 0) return "$0.00";
+  const maximumFractionDigits = value < 0.01 ? 6 : 2;
+  return value.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits });
+}

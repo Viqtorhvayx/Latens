@@ -15,14 +15,17 @@ export function UtilizationMeter({ value }: { value: number }) {
   const tone = pct >= 90 ? "bg-danger" : pct >= 75 ? "bg-warning" : "bg-gold";
   const label = pct === 0 ? "0%" : pct < 1 ? `${pct.toFixed(2)}%` : `${pct.toFixed(0)}%`;
 
+  // Fixed widths on both halves. The label's text width changes with the value ("0%" vs
+  // "0.40%" vs "100%"), and with the row centering that pushed every meter a different
+  // distance sideways, so the tick rows never lined up with each other down the column.
   return (
     <div className="flex items-center gap-3">
-      <div className="flex gap-[3px]">
+      <div className="flex shrink-0 gap-[3px]">
         {Array.from({ length: SEGMENTS }).map((_, i) => (
           <div key={i} className={`h-3 w-[3px] rounded-[1px] ${i < filled ? tone : "bg-line-strong"}`} />
         ))}
       </div>
-      <span className="font-mono text-[13px] tabular-nums text-ink-muted">{label}</span>
+      <span className="w-[46px] shrink-0 text-left font-mono text-[13px] tabular-nums text-ink-muted">{label}</span>
     </div>
   );
 }

@@ -6,9 +6,7 @@ import { formatUnits } from "viem";
 import { assetRegistry, latensPool, priceOracle, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore, sharesToReal, RAY } from "@/lib/positionStore";
 import { usdValueE8, formatUsd, formatApr, supplyRateRayFrom, formatRateRay } from "@/lib/valuation";
-import { lockedCollateral } from "@/lib/borrow";
 import { MaskedValue } from "@/components/MaskedValue";
-import { CollateralSplit } from "@/components/CollateralSplit";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
 import { UtilizationMeter } from "@/components/UtilizationMeter";
 import { MarketRowActions } from "@/components/MarketRowActions";
@@ -36,7 +34,6 @@ export default function MarketsPage() {
   const { address } = useAccount();
   const { get } = usePositionStore();
   const [modal, setModal] = useState<{ symbol: TokenSymbol; mode: ActionMode } | null>(null);
-  const [collateralRevealed, setCollateralRevealed] = useState(false);
 
   const { data: assets, isLoading: assetsLoading } = useReadContracts({
     contracts: tokenList.map((t) => ({
@@ -99,46 +96,8 @@ export default function MarketsPage() {
 
   const debtToken = debtAssetId !== undefined ? tokenList.find((t) => t.assetId === debtAssetId) : undefined;
   const debtAmount = debtToken ? get(address, debtToken.assetId).borrowed : 0n;
-  const debtLastUpdated = positionTuple?.[5] ?? 0n;
   const hasActivePosition = Boolean(positionTuple?.[6]);
   const hasDebt = Boolean(positionTuple?.[7]);
-
-  // Interest already owed on the debt so far, not just principal — a position that borrowed
-  // 4 ZEN a while ago owes more than 4 ZEN worth of collateral by now, and showing "locked"
-  // without this would understate it.
-  const { data: repayInterestFeeRaw } = useReadContract({
-    address: assetRegistry.address,
-    abi: assetRegistry.abi,
-    functionName: "quoteRepayInterestFee",
-    args: debtToken ? [BigInt(debtToken.assetId), debtAmount, debtLastUpdated] : undefined,
-    query: { enabled: Boolean(debtToken) && debtAmount > 0n },
-  });
-  const repayInterestFee = (repayInterestFeeRaw as bigint | undefined) ?? 0n;
-
-  const collateralIndex = collateralToken ? tokenList.findIndex((t) => t.assetId === collateralToken.assetId) : -1;
-  const collateralAssetForLtv = collateralIndex >= 0 ? (assets?.[collateralIndex]?.result as AssetStruct | undefined) : undefined;
-  const collateralPriceForLock = collateralIndex >= 0 ? (prices?.[collateralIndex]?.result as PriceTuple | undefined)?.[0] : undefined;
-  const debtIndex = debtToken ? tokenList.findIndex((t) => t.assetId === debtToken.assetId) : -1;
-  const debtPriceForLock = debtIndex >= 0 ? (prices?.[debtIndex]?.result as PriceTuple | undefined)?.[0] : undefined;
-
-  // Only the slice of the supply that's actually needed to back the debt (principal plus
-  // accrued interest, at the required overcollateralization) is locked — the rest sits free,
-  // safe from liquidation and withdrawable so long as the position stays solvent.
-  const lockedAmount =
-    collateralToken && debtToken && debtAmount > 0n && collateralAssetForLtv && collateralPriceForLock !== undefined && debtPriceForLock !== undefined
-      ? (() => {
-          const required = lockedCollateral({
-            debtAmount: debtAmount + repayInterestFee,
-            debtDecimals: debtToken.decimals,
-            debtPriceE8: debtPriceForLock,
-            ltvBps: collateralAssetForLtv.ltvBps,
-            collateralDecimals: collateralToken.decimals,
-            collateralPriceE8: collateralPriceForLock,
-          });
-          return required < collateralAmount ? required : collateralAmount;
-        })()
-      : 0n;
-  const freeAmount = collateralAmount > lockedAmount ? collateralAmount - lockedAmount : 0n;
 
   const tvlE8 = tokenList.reduce((sum, t, i) => {
     const asset = assets?.[i]?.result as AssetStruct | undefined;
@@ -165,7 +124,6 @@ export default function MarketsPage() {
         <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
           <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total value locked</span>
           {assetsLoading ? <Skeleton width={120} height={22} /> : <span className="font-mono text-[22px] tabular-nums">{formatUsd(tvlE8)}</span>}
-          <span className="text-[11px] text-ink-faint">Live sum of every market&apos;s supplied balance. Most of it is testnet liquidity seeded at deploy so the markets are usable.</span>
         </div>
         {address && (
           <>
@@ -174,17 +132,7 @@ export default function MarketsPage() {
               {positionLoading ? (
                 <Skeleton width={120} height={22} />
               ) : (
-                <>
-                  <MaskedValue
-                    value={collateralToken ? `${formatUnits(collateralAmount, collateralToken.decimals)} ${collateralToken.symbol}` : "0.00"}
-                    fontSize={22}
-                    revealed={collateralRevealed}
-                    onToggle={() => setCollateralRevealed((r) => !r)}
-                  />
-                  {collateralToken && debtAmount > 0n && (
-                    <CollateralSplit locked={lockedAmount} free={freeAmount} decimals={collateralToken.decimals} symbol={collateralToken.symbol} revealed={collateralRevealed} />
-                  )}
-                </>
+                <MaskedValue value={collateralToken ? `${formatUnits(collateralAmount, collateralToken.decimals)} ${collateralToken.symbol}` : "0.00"} fontSize={22} />
               )}
             </div>
             <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">

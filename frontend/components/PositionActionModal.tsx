@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccount, useChainId, usePublicClient, useReadContract, useWriteContract } from "wagmi";
@@ -18,6 +18,7 @@ import { sanitizeAmountInput } from "@/lib/amountInput";
 import { usdValueE8, formatUsd, formatRateRay } from "@/lib/valuation";
 import { borrowCapacity } from "@/lib/borrow";
 import { projectSupplyIndexRay } from "@/lib/supplyIndex";
+import { projectedRepayFee, maxRepayableAmount } from "@/lib/repayFee";
 import { useSupplyRateRay } from "@/lib/useSupplyRateRay";
 import { useViewingKey } from "@/lib/viewingKeyContext";
 import { encryptNote } from "@/lib/viewingKey";
@@ -51,6 +52,15 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   const [step, setStep] = useState<"idle" | "approving" | "refreshingPrices" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
+  // Ticked in an effect: the interest fee is a function of elapsed time, and reading the
+  // wall clock during render is impure.
+  const [nowSeconds, setNowSeconds] = useState<bigint | null>(null);
+  useEffect(() => {
+    const tick = () => setNowSeconds(BigInt(Math.floor(Date.now() / 1000)));
+    tick();
+    const id = setInterval(tick, 15_000);
+    return () => clearInterval(id);
+  }, []);
   const { copied, copy } = useCopyToClipboard();
 
   const needsApprove = mode === "supply" || mode === "repay";
@@ -147,29 +157,27 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
 
   const walletBalance = (balance as bigint | undefined) ?? 0n;
 
-  // A repay pulls the amount PLUS an interest fee proportional to it, so "repay everything
-  // you owe" costs strictly more than the principal — and a borrower who still holds
-  // exactly what they borrowed cannot cover it. Left as min(debt, balance), the Max button
-  // filled in the full debt and the form then refused it for exceeding the balance once the
-  // fee was added, which is a dead end you cannot type your way out of.
-  //
-  // The fee is linear in the amount, so quoting it once for the whole debt gives the ratio
-  // needed to invert it: the largest A with A + fee(A) <= balance is balance * D / (D + feeD).
-  const { data: fullDebtFeeRaw } = useReadContract({
+  // A repay pulls the amount PLUS a time-weighted interest fee, and that fee keeps growing
+  // while a wallet is being signed. Both halves of this used to get it wrong: the approval
+  // was for a fee quoted at read time (so the pool's recomputed fee overran the allowance by
+  // a sliver and the whole repayment reverted with ERC20InsufficientAllowance), and Max
+  // filled in the entire debt (which a borrower holding exactly what they borrowed can never
+  // cover once the fee is added). Everything below quotes the fee a projection window ahead
+  // instead — see lib/repayFee.ts.
+  const { data: borrowRateBpsRaw } = useReadContract({
     address: assetRegistry.address,
     abi: assetRegistry.abi,
-    functionName: "quoteRepayInterestFee",
-    args: [BigInt(token.assetId), local.borrowed, debtLastUpdated],
-    query: { enabled: mode === "repay" && Boolean(positionTuple) && local.borrowed > 0n },
+    functionName: "borrowRateBps",
+    args: [BigInt(token.assetId)],
+    query: { enabled: mode === "repay" },
   });
-  const fullDebtFee = (fullDebtFeeRaw as bigint | undefined) ?? 0n;
-  const maxRepayable = (() => {
-    if (mode !== "repay" || local.borrowed === 0n) return 0n;
-    if (local.borrowed + fullDebtFee <= walletBalance) return local.borrowed;
-    const affordable = (walletBalance * local.borrowed) / (local.borrowed + fullDebtFee);
-    return affordable < local.borrowed ? affordable : local.borrowed;
-  })();
-  const shortfallToClear = mode === "repay" && local.borrowed > 0n && local.borrowed + fullDebtFee > walletBalance ? local.borrowed + fullDebtFee - walletBalance : 0n;
+  const borrowRateBps = (borrowRateBpsRaw as bigint | undefined) ?? 0n;
+  const debtElapsed = debtLastUpdated > 0n && nowSeconds !== null && nowSeconds > debtLastUpdated ? nowSeconds - debtLastUpdated : 0n;
+  const projectedFee = mode === "repay" && amount > 0n ? projectedRepayFee(amount, borrowRateBps, debtElapsed) : 0n;
+  const maxRepayable = mode === "repay" ? maxRepayableAmount(local.borrowed, walletBalance, borrowRateBps, debtElapsed) : 0n;
+  const fullDebtProjectedFee = projectedRepayFee(local.borrowed, borrowRateBps, debtElapsed);
+  const shortfallToClear =
+    mode === "repay" && local.borrowed > 0n && local.borrowed + fullDebtProjectedFee > walletBalance ? local.borrowed + fullDebtProjectedFee - walletBalance : 0n;
 
   const collateralLocal = collateralAssetId !== undefined ? get(address, collateralAssetId) : undefined;
   const collateralTokenForCap = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
@@ -202,7 +210,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           : mode === "borrow"
             ? borrowMax
             : undefined;
-  const exceedsAvailable = (available !== undefined && amount > available) || (mode === "repay" && amount + interestFee > walletBalance);
+  const exceedsAvailable = (available !== undefined && amount > available) || (mode === "repay" && amount + projectedFee > walletBalance);
 
   // Borrow has two ways in. If this position already has collateral with headroom — which
   // is what supplying gets you, since a supply IS the collateral — borrowing proceeds
@@ -240,7 +248,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           address: token.address,
           abi: erc20Abi,
           functionName: "approve",
-          args: [latensPool.address, mode === "repay" ? amount + interestFee : amount],
+          args: [latensPool.address, mode === "repay" ? amount + projectedFee : amount],
           gas: APPROVE_GAS,
         });
         await waitForConfirmation(publicClient, approveHash);

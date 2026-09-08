@@ -13,7 +13,7 @@ import { PositionActionModal, type ActionMode } from "@/components/PositionActio
 import { ActivityLog } from "@/components/ActivityLog";
 import { TokenIcon } from "@/components/TokenIcon";
 import { Skeleton } from "@/components/Skeleton";
-import { usdValueE8, formatUsd } from "@/lib/valuation";
+import { usdValueE8, formatUsd, formatUsdPrecise } from "@/lib/valuation";
 import { erc20Abi } from "@/lib/contracts";
 import { makeEntry, type DisclosureEntry } from "@/lib/disclosure";
 import type { TokenSymbol } from "@/lib/contracts";
@@ -215,29 +215,24 @@ export default function PortfolioPage() {
           </div>
 
           <div className="mb-12">
-            <div className="mb-3.5 text-xs font-semibold tracking-wide text-ink-faint uppercase">Tokens you hold</div>
-            <div className="overflow-x-auto">
-              <div className="grid min-w-[420px] grid-cols-[1.2fr_1fr_1fr] gap-4">
-                <span className="border-b border-line-strong pb-3 text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Token</span>
-                <span className="border-b border-line-strong pb-3 text-right text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Balance</span>
-                <span className="border-b border-line-strong pb-3 text-right text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Value</span>
-                {holdings.map((h) => (
-                  <div key={h.token.symbol} className="contents">
-                    <div className="flex items-center gap-3 border-b border-line py-3.5">
-                      <TokenIcon symbol={h.token.symbol} size={26} />
-                      <span className="text-sm font-medium">{h.token.symbol}</span>
-                    </div>
-                    <div className="flex items-center justify-end border-b border-line py-3.5 font-mono text-sm tabular-nums">{formatUnits(h.balance, h.token.decimals)}</div>
-                    <div className="flex items-center justify-end border-b border-line py-3.5 font-mono text-sm tabular-nums text-ink-muted">
-                      {h.valueE8 !== undefined ? formatUsd(h.valueE8) : "—"}
+            <div className="mb-3.5 text-xs font-semibold tracking-wide text-ink-faint uppercase">Tokens</div>
+            <div className="flex flex-col">
+              {holdings.map((h) => (
+                <div key={h.token.symbol} className="flex items-center justify-between gap-4 border-b border-line py-4">
+                  <div className="flex min-w-0 items-center gap-3.5">
+                    <TokenIcon symbol={h.token.symbol} size={40} />
+                    <div className="flex min-w-0 flex-col">
+                      <span className="text-[15px] font-medium">{h.token.symbol}</span>
+                      <span className="text-[11.5px] text-ink-faint">{h.priceE8 !== undefined ? formatUsdPrecise(h.priceE8) : "—"}</span>
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="flex shrink-0 flex-col items-end">
+                    <span className="font-mono text-[15px] tabular-nums">{formatUnits(h.balance, h.token.decimals)}</span>
+                    <span className="font-mono text-[11.5px] tabular-nums text-ink-faint">{h.valueE8 !== undefined ? formatUsd(h.valueE8) : "—"}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-            <p className="mt-3 text-[11px] text-ink-faint">
-              Wallet balances are public on-chain, so they are shown in the clear. What you have supplied and what you owe are not, which is why those are masked above.
-            </p>
           </div>
 
           <div className="flex flex-col gap-8 md:flex-row md:gap-12">
