@@ -491,3 +491,62 @@ describe("supply index drift", function () {
     ).to.be.revertedWithCustomError(pool, "InvalidProof");
   });
 });
+
+describe("supply rate precision", function () {
+  // A supply rate is a borrow rate scaled down twice, by utilization and by the reserve
+  // factor, so early-market rates land under a basis point. Held in bps that floors to
+  // zero, which froze the supply index and paid suppliers nothing at all.
+  it("earns a real, non-zero rate at the low utilization a young market actually has", async function () {
+    const { deployer, alice, zen, usdc, pool, registry, ZEN_ID, USDC_ID } = await deployFixture();
+    const store = makeStore();
+    const poolAddr = await pool.getAddress();
+
+    const supply = ethers.parseUnits("1000", 6);
+    const idx = await registry.currentSupplyIndexRay(USDC_ID);
+    const s = store.prepareSupply(Number(USDC_ID), supply, idx);
+    await usdc.connect(alice).approve(poolAddr, supply);
+    await pool.connect(alice).supplyCollateral(USDC_ID, supply, s.newCommitment, "0x", [s.oldCommitment, s.newCommitment, s.shareDelta, 1n, USDC_ID]);
+    store.commit(Number(USDC_ID), s.patch);
+
+    // Borrow a small slice of it, the shape of a market that has just opened.
+    const dStore = makeStore();
+    const zenAmount = ethers.parseUnits("100", 18);
+    const ds = dStore.prepareSupply(Number(ZEN_ID), zenAmount, await registry.currentSupplyIndexRay(ZEN_ID));
+    await zen.connect(deployer).approve(poolAddr, zenAmount);
+    await pool.connect(deployer).supplyCollateral(ZEN_ID, zenAmount, ds.newCommitment, "0x", [ds.oldCommitment, ds.newCommitment, ds.shareDelta, 1n, ZEN_ID]);
+    dStore.commit(Number(ZEN_ID), ds.patch);
+
+    await usdc.mint(poolAddr, ethers.parseUnits("5000", 6));
+    const borrow = ethers.parseUnits("4", 6); // 0.4% utilization
+    const dPos = await pool.positions(deployer.address);
+    const db = dStore.prepareBorrow(Number(USDC_ID), borrow);
+    await pool.connect(deployer).borrow(
+      USDC_ID, borrow, db.newCommitment, "0x",
+      [db.oldCommitment, db.newCommitment, borrow, 1n, USDC_ID], "0x",
+      [dPos.collateralCommitment, db.newCommitment, 200_000_000n, 100_000_000n, await registry.currentSupplyIndexRay(ZEN_ID), RAY, 8_000n]
+    );
+
+    const util = await registry.utilizationBps(USDC_ID);
+    expect(util).to.be.greaterThan(0n);
+    expect(util).to.be.lessThan(100n); // under 1%, where bps rounding used to erase the rate
+
+    // The headline bps figure still rounds to zero at this scale. The rate the index
+    // actually uses must not.
+    expect(await registry.supplyRateBps(USDC_ID)).to.equal(0n);
+    expect(await registry.supplyRateRay(USDC_ID)).to.be.greaterThan(0n);
+
+    const before = await registry.currentSupplyIndexRay(USDC_ID);
+    await time.increase(30 * 24 * 60 * 60);
+    await ethers.provider.send("evm_mine", []);
+    const after = await registry.currentSupplyIndexRay(USDC_ID);
+    expect(after).to.be.greaterThan(before); // suppliers actually accrue
+  });
+
+  it("keeps supplyRateBps as a faithful rounding of the ray rate at normal utilization", async function () {
+    const { registry } = await deployFixture();
+    // Both derive from the same formula, so the bps view is the ray value scaled down.
+    const ray = await registry.supplyRateRay(0n);
+    const bps = await registry.supplyRateBps(0n);
+    expect(bps).to.equal((ray * 10_000n) / RAY);
+  });
+});

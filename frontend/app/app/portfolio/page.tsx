@@ -13,7 +13,8 @@ import { PositionActionModal, type ActionMode } from "@/components/PositionActio
 import { ActivityLog } from "@/components/ActivityLog";
 import { TokenIcon } from "@/components/TokenIcon";
 import { Skeleton } from "@/components/Skeleton";
-import { usdValueE8 } from "@/lib/valuation";
+import { usdValueE8, formatUsd } from "@/lib/valuation";
+import { erc20Abi } from "@/lib/contracts";
 import { makeEntry, type DisclosureEntry } from "@/lib/disclosure";
 import type { TokenSymbol } from "@/lib/contracts";
 
@@ -123,6 +124,32 @@ export default function PortfolioPage() {
   const collateralPrice = reads?.[1]?.result as PriceTuple | undefined;
   const debtPrice = reads?.[2]?.result as PriceTuple | undefined;
 
+  // Everything the wallet holds outside the protocol, priced. A portfolio that only counts
+  // what is deposited answers the wrong question: a borrower who just drew 20 ZEN is holding
+  // that 20 ZEN, and leaving it out makes the borrow look like it destroyed value.
+  const { data: walletBalances } = useReadContracts({
+    contracts: tokenList.map((t) => ({ address: t.address, abi: erc20Abi, functionName: "balanceOf", args: address ? [address] : undefined })),
+    query: { enabled: Boolean(address) },
+  });
+  const { data: allPrices } = useReadContracts({
+    contracts: tokenList.map((t) => ({ address: priceOracle.address, abi: priceOracle.abi, functionName: "getPrice", args: [t.address] })),
+  });
+
+  const holdings = tokenList.map((t, i) => {
+    const balance = (walletBalances?.[i]?.result as bigint | undefined) ?? 0n;
+    const priceE8 = (allPrices?.[i]?.result as PriceTuple | undefined)?.[0];
+    return { token: t, balance, priceE8, valueE8: priceE8 !== undefined ? usdValueE8(balance, t.decimals, priceE8) : undefined };
+  });
+
+  const walletValueE8 = holdings.reduce((sum, h) => sum + (h.valueE8 ?? 0n), 0n);
+  const collateralValueE8 =
+    collateralToken && collateralPrice ? usdValueE8(collateralAmount, collateralToken.decimals, collateralPrice[0]) : 0n;
+  const debtValueE8 = debtToken && debtPrice ? usdValueE8(debtAmount, debtToken.decimals, debtPrice[0]) : 0n;
+  // Supplied collateral is still yours; drawn debt is not. Net worth is what is left if the
+  // position were unwound at today's prices.
+  const netWorthE8 = walletValueE8 + collateralValueE8 - debtValueE8;
+  const [valuesRevealed, setValuesRevealed] = useState(false);
+
   const zone = (() => {
     if (!collateralToken || !debtToken || debtAmount === 0n || !collateralAsset || !collateralPrice || !debtPrice) return "safe" as const;
     const { ltvBps, liquidationThresholdBps } = collateralAsset;
@@ -165,10 +192,52 @@ export default function PortfolioPage() {
               {positionLoading ? (
                 <Skeleton width={120} height={22} />
               ) : (
-                <MaskedValue value={`${collateralToken ? formatUnits(collateralAmount, collateralToken.decimals) : "0"} ${collateralToken?.symbol ?? ""}`.trim()} fontSize={22} />
+                <>
+                  <MaskedValue value={formatUsd(netWorthE8)} fontSize={22} revealed={valuesRevealed} onToggle={() => setValuesRevealed((r) => !r)} />
+                  <div className="flex flex-col gap-1 text-[11px] text-ink-faint">
+                    <span className="flex items-center justify-between gap-3">
+                      <span>In your wallet</span>
+                      <MaskedValue value={formatUsd(walletValueE8)} fontSize={11} revealed={valuesRevealed} />
+                    </span>
+                    <span className="flex items-center justify-between gap-3">
+                      <span>Supplied as collateral</span>
+                      <MaskedValue value={formatUsd(collateralValueE8)} fontSize={11} revealed={valuesRevealed} />
+                    </span>
+                    <span className="flex items-center justify-between gap-3">
+                      <span>Owed</span>
+                      <MaskedValue value={debtValueE8 > 0n ? `-${formatUsd(debtValueE8)}` : formatUsd(0n)} fontSize={11} revealed={valuesRevealed} />
+                    </span>
+                  </div>
+                </>
               )}
             </div>
             <div className="flex flex-1 rounded-2xl border border-line bg-surface p-5">{positionLoading ? <Skeleton width={200} height={22} /> : <HealthGauge zone={zone} width={240} />}</div>
+          </div>
+
+          <div className="mb-12">
+            <div className="mb-3.5 text-xs font-semibold tracking-wide text-ink-faint uppercase">Tokens you hold</div>
+            <div className="overflow-x-auto">
+              <div className="grid min-w-[420px] grid-cols-[1.2fr_1fr_1fr] gap-4">
+                <span className="border-b border-line-strong pb-3 text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Token</span>
+                <span className="border-b border-line-strong pb-3 text-right text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Balance</span>
+                <span className="border-b border-line-strong pb-3 text-right text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Value</span>
+                {holdings.map((h) => (
+                  <div key={h.token.symbol} className="contents">
+                    <div className="flex items-center gap-3 border-b border-line py-3.5">
+                      <TokenIcon symbol={h.token.symbol} size={26} />
+                      <span className="text-sm font-medium">{h.token.symbol}</span>
+                    </div>
+                    <div className="flex items-center justify-end border-b border-line py-3.5 font-mono text-sm tabular-nums">{formatUnits(h.balance, h.token.decimals)}</div>
+                    <div className="flex items-center justify-end border-b border-line py-3.5 font-mono text-sm tabular-nums text-ink-muted">
+                      {h.valueE8 !== undefined ? formatUsd(h.valueE8) : "—"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="mt-3 text-[11px] text-ink-faint">
+              Wallet balances are public on-chain, so they are shown in the clear. What you have supplied and what you owe are not, which is why those are masked above.
+            </p>
           </div>
 
           <div className="flex flex-col gap-8 md:flex-row md:gap-12">

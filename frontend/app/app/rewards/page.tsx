@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccount, usePublicClient, useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { formatUnits } from "viem";
@@ -21,6 +21,15 @@ export default function RewardsPage() {
   const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState("");
+  // Ticked in an effect rather than read during render: the wall clock is impure, and this
+  // way the countdown actually counts down instead of freezing at first paint.
+  const [nowSeconds, setNowSeconds] = useState<bigint | null>(null);
+  useEffect(() => {
+    const tick = () => setNowSeconds(BigInt(Math.floor(Date.now() / 1000)));
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const { data: position, isLoading: positionLoading } = useReadContract({
     address: latensPool.address,
@@ -38,6 +47,8 @@ export default function RewardsPage() {
       { address: supplyRewards.address, abi: supplyRewards.abi, functionName: "rewardPerEpoch" },
       { address: supplyRewards.address, abi: supplyRewards.abi, functionName: "rewardToken" },
       { address: supplyRewards.address, abi: supplyRewards.abi, functionName: "checkpoints", args: address ? [address] : undefined },
+      { address: supplyRewards.address, abi: supplyRewards.abi, functionName: "epochDuration" },
+      { address: supplyRewards.address, abi: supplyRewards.abi, functionName: "startTime" },
     ],
   });
 
@@ -50,10 +61,34 @@ export default function RewardsPage() {
   const decimals = rewardToken?.decimals ?? 18;
   const symbol = rewardToken?.symbol ?? "reward tokens";
 
+  const epochDuration = reads?.[4]?.result as bigint | undefined;
+  const startTime = reads?.[5]?.result as bigint | undefined;
+
   const lastEpoch = checkpoint?.[0];
   const hasCheckpoint = checkpoint?.[1] ?? false;
   const pendingReward = checkpoint?.[2] ?? 0n;
   const streakActive = hasCheckpoint && currentEpoch !== undefined && lastEpoch === currentEpoch;
+
+  // A reward is credited only when a check-in lands in the epoch immediately after the last
+  // one, so the very first check-in always credits nothing and there is nothing on screen
+  // saying so — which reads as the button being broken. These make the rule visible: how
+  // long an epoch is, when this one ends, and what the next check-in will actually do.
+  function formatDuration(seconds: bigint): string {
+    const s = Number(seconds);
+    if (s % 86_400 === 0) return `${s / 86_400} day${s / 86_400 === 1 ? "" : "s"}`;
+    if (s % 3_600 === 0) return `${s / 3_600} hour${s / 3_600 === 1 ? "" : "s"}`;
+    return `${Math.round(s / 60)} minutes`;
+  }
+
+  const epochEndsIn = (() => {
+    if (epochDuration === undefined || startTime === undefined || currentEpoch === undefined || nowSeconds === null) return undefined;
+    const endsAt = startTime + (currentEpoch + 1n) * epochDuration;
+    const remaining = endsAt - nowSeconds;
+    return remaining > 0n ? remaining : 0n;
+  })();
+
+  const streakBroken = hasCheckpoint && currentEpoch !== undefined && lastEpoch !== undefined && currentEpoch > lastEpoch + 1n;
+  const nextCheckInEarns = hasCheckpoint && currentEpoch !== undefined && lastEpoch !== undefined && currentEpoch === lastEpoch + 1n;
 
   async function handleCheckpoint() {
     if (!address || !publicClient) return;
@@ -86,7 +121,8 @@ export default function RewardsPage() {
       <div className="mb-8">
         <span className="font-display text-[28px]">Rewards</span>
         <p className="mt-1.5 text-[13.5px] text-ink-muted">
-          A flat, per-epoch {symbol} reward for keeping an active supply position. Check in once every epoch to keep your streak alive.
+          A flat, per-epoch {symbol} reward for keeping an active supply position. A reward is credited for each pair of consecutive check-ins, so the first one only starts the streak
+          {epochDuration !== undefined ? ` and an epoch runs ${formatDuration(epochDuration)}` : ""}. Miss an epoch and the streak restarts.
         </p>
       </div>
 
@@ -103,7 +139,14 @@ export default function RewardsPage() {
           <div className="mb-10 flex flex-col gap-5 sm:flex-row">
             <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
               <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Current epoch</span>
-              {currentEpoch === undefined ? <Skeleton width={80} height={22} /> : <span className="font-mono text-[22px] tabular-nums">{currentEpoch.toString()}</span>}
+              {currentEpoch === undefined ? (
+                <Skeleton width={80} height={22} />
+              ) : (
+                <>
+                  <span className="font-mono text-[22px] tabular-nums">{currentEpoch.toString()}</span>
+                  {epochEndsIn !== undefined && <span className="text-[11px] text-ink-faint">Ends in {formatDuration(epochEndsIn)}</span>}
+                </>
+              )}
             </div>
             <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
               <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Reward per epoch</span>
@@ -125,7 +168,13 @@ export default function RewardsPage() {
 
           <div className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-[13px] text-ink-muted">
-              {streakActive ? "You've checked in for this epoch. Come back next epoch to keep the streak going." : "Check in this epoch to keep your streak alive and start earning next epoch."}
+              {streakActive
+                ? `Checked in for this epoch. Come back after it ends${epochEndsIn !== undefined ? ` (in ${formatDuration(epochEndsIn)})` : ""} and check in again to be credited.`
+                : nextCheckInEarns
+                  ? `Checking in now credits ${rewardPerEpoch !== undefined ? formatUnits(rewardPerEpoch, decimals) : ""} ${symbol}, because it continues last epoch's streak.`
+                  : streakBroken
+                    ? "The streak lapsed, so this check-in starts a new one and credits nothing. The one after it, next epoch, is what pays."
+                    : "The first check-in starts a streak and credits nothing on its own. Check in again next epoch and that one pays."}
             </span>
             <div className="flex gap-2">
               <button

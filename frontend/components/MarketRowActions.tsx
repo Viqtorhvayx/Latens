@@ -12,6 +12,7 @@ export function MarketRowActions({
   decimals,
   hasActivePosition,
   canSupply,
+  canBorrow,
   canWithdraw,
   canRepay,
   activeMode,
@@ -22,6 +23,7 @@ export function MarketRowActions({
   decimals: number;
   hasActivePosition: boolean;
   canSupply: boolean;
+  canBorrow: boolean;
   canWithdraw: boolean;
   canRepay: boolean;
   activeMode: ActionMode | null;
@@ -56,11 +58,12 @@ export function MarketRowActions({
       </button>
       <button
         onClick={() => onAction("borrow")}
-        title={hasActivePosition ? undefined : "Borrow. You'll deposit collateral first"}
+        disabled={!canBorrow}
+        title={!canBorrow ? "This position already owes a different asset, and it can only owe one at a time. Repay that first." : hasActivePosition ? undefined : "Borrow. You'll deposit collateral first"}
         className={
           activeMode === "borrow"
-            ? "rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong"
-            : "rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+            ? "rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
+            : "rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
         }
       >
         Borrow

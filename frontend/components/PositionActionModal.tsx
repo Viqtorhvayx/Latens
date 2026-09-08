@@ -15,9 +15,10 @@ import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { sanitizeAmountInput } from "@/lib/amountInput";
-import { usdValueE8, formatUsd, formatApr } from "@/lib/valuation";
+import { usdValueE8, formatUsd, formatRateRay } from "@/lib/valuation";
 import { borrowCapacity } from "@/lib/borrow";
 import { projectSupplyIndexRay } from "@/lib/supplyIndex";
+import { useSupplyRateRay } from "@/lib/useSupplyRateRay";
 import { useViewingKey } from "@/lib/viewingKeyContext";
 import { encryptNote } from "@/lib/viewingKey";
 import { useFreshPrices } from "@/lib/useFreshPrices";
@@ -119,20 +120,13 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   });
   const collateralIndexRayForBorrow = (collateralIndexRayRaw as bigint | undefined) ?? RAY;
 
-  const { data: supplyRateBpsRaw } = useReadContract({
-    address: assetRegistry.address,
-    abi: assetRegistry.abi,
-    functionName: "supplyRateBps",
-    args: [BigInt(token.assetId)],
-    query: { enabled: mode === "supply" },
-  });
-  const supplyApyBps = supplyRateBpsRaw !== undefined ? Number(supplyRateBpsRaw as bigint) : undefined;
+  const supplyRateRay = useSupplyRateRay(token.assetId, mode === "supply");
 
   // A deposit claims shares against an index projected forward (lib/supplyIndex.ts), so it
   // stays valid while the real index keeps moving. A withdrawal deliberately uses the index
   // as read: the pool wants a burn to cover at least what the amount costs, and an index
   // that only grows means a value read now always does.
-  const depositIndexRay = projectSupplyIndexRay(tokenIndexRay, (supplyRateBpsRaw as bigint | undefined) ?? 0n);
+  const depositIndexRay = projectSupplyIndexRay(tokenIndexRay, supplyRateRay);
 
   const amount = (() => {
     try {
@@ -152,6 +146,30 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   const interestFee = mode === "repay" ? ((repayInterestFee as bigint | undefined) ?? 0n) : 0n;
 
   const walletBalance = (balance as bigint | undefined) ?? 0n;
+
+  // A repay pulls the amount PLUS an interest fee proportional to it, so "repay everything
+  // you owe" costs strictly more than the principal — and a borrower who still holds
+  // exactly what they borrowed cannot cover it. Left as min(debt, balance), the Max button
+  // filled in the full debt and the form then refused it for exceeding the balance once the
+  // fee was added, which is a dead end you cannot type your way out of.
+  //
+  // The fee is linear in the amount, so quoting it once for the whole debt gives the ratio
+  // needed to invert it: the largest A with A + fee(A) <= balance is balance * D / (D + feeD).
+  const { data: fullDebtFeeRaw } = useReadContract({
+    address: assetRegistry.address,
+    abi: assetRegistry.abi,
+    functionName: "quoteRepayInterestFee",
+    args: [BigInt(token.assetId), local.borrowed, debtLastUpdated],
+    query: { enabled: mode === "repay" && Boolean(positionTuple) && local.borrowed > 0n },
+  });
+  const fullDebtFee = (fullDebtFeeRaw as bigint | undefined) ?? 0n;
+  const maxRepayable = (() => {
+    if (mode !== "repay" || local.borrowed === 0n) return 0n;
+    if (local.borrowed + fullDebtFee <= walletBalance) return local.borrowed;
+    const affordable = (walletBalance * local.borrowed) / (local.borrowed + fullDebtFee);
+    return affordable < local.borrowed ? affordable : local.borrowed;
+  })();
+  const shortfallToClear = mode === "repay" && local.borrowed > 0n && local.borrowed + fullDebtFee > walletBalance ? local.borrowed + fullDebtFee - walletBalance : 0n;
 
   const collateralLocal = collateralAssetId !== undefined ? get(address, collateralAssetId) : undefined;
   const collateralTokenForCap = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
@@ -178,9 +196,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     mode === "withdraw"
       ? sharesToReal(local.supplied, tokenIndexRay)
       : mode === "repay"
-        ? local.borrowed < walletBalance
-          ? local.borrowed
-          : walletBalance
+        ? maxRepayable
         : mode === "supply"
           ? walletBalance
           : mode === "borrow"
@@ -405,11 +421,11 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
               </div>
             </div>
 
-            {mode === "supply" && supplyApyBps !== undefined && (
+            {mode === "supply" && (
               <div className="mb-4 flex items-center justify-between rounded-xl border border-line bg-canvas-raised px-4 py-3">
                 <div>
                   <div className="text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Supply APY</div>
-                  <div className="font-mono text-sm text-success">{formatApr(supplyApyBps)}</div>
+                  <div className="font-mono text-sm text-success">{formatRateRay(supplyRateRay)}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-[11px] font-semibold tracking-wide text-ink-faint uppercase">Also becomes</div>
@@ -436,6 +452,12 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             {mode === "repay" && interestFee > 0n && (
               <p className="mb-4 text-xs text-ink-faint">
                 Plus a {formatUnits(interestFee, token.decimals)} {symbol} interest fee (live, time-weighted, see Markets).
+              </p>
+            )}
+            {mode === "repay" && shortfallToClear > 0n && (
+              <p className="mb-4 text-xs text-ink-faint">
+                Clearing the debt in full needs {formatUnits(shortfallToClear, token.decimals)} more {symbol} than you hold, because interest is owed on top of the principal. Max repays as much as your balance
+                covers; top up from the {symbol} faucet in the Markets row to close the rest.
               </p>
             )}
             {exceedsAvailable && (

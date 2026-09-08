@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { usdValueE8, formatUsd, formatApr } from "./valuation";
+import { usdValueE8, formatUsd, formatApr, supplyRateRayFrom, formatRateRay } from "./valuation";
 
 describe("usdValueE8", () => {
   it("values a whole token at its price", () => {
@@ -45,5 +45,37 @@ describe("formatApr", () => {
 
   it("formats zero bps as 0.00%", () => {
     expect(formatApr(0)).toBe("0.00%");
+  });
+});
+
+describe("supplyRateRayFrom", () => {
+  it("keeps a sub-basis-point rate that the contract's bps view floors to zero", () => {
+    // The live case: 2.05% borrow rate, 0.4% utilization, 10% reserve factor.
+    const rate = supplyRateRayFrom(205n, 40n, 1_000n);
+    expect(rate).toBeGreaterThan(0n);
+    expect(Number(rate) / 1e16).toBeCloseTo(0.00738, 5); // 0.00738% per year
+    expect((rate * 10_000n) / 10n ** 18n).toBe(0n); // and this is why bps read as nothing
+  });
+
+  it("agrees with the plain calculation at normal utilization", () => {
+    // 5% borrow rate at 50% utilization with a 10% reserve factor -> 2.25%.
+    const rate = supplyRateRayFrom(500n, 5_000n, 1_000n);
+    expect(Number(rate) / 1e16).toBeCloseTo(2.25, 6);
+  });
+
+  it("is zero for an idle market", () => {
+    expect(supplyRateRayFrom(205n, 0n, 1_000n)).toBe(0n);
+  });
+});
+
+describe("formatRateRay", () => {
+  it("shows a sub-basis-point rate with enough precision to be a number", () => {
+    expect(formatRateRay(supplyRateRayFrom(205n, 40n, 1_000n))).toBe("0.0074%");
+  });
+  it("shows an ordinary rate to two decimals", () => {
+    expect(formatRateRay(supplyRateRayFrom(500n, 5_000n, 1_000n))).toBe("2.25%");
+  });
+  it("shows an idle market as a flat zero", () => {
+    expect(formatRateRay(0n)).toBe("0.00%");
   });
 });

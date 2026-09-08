@@ -130,12 +130,28 @@ contract AssetRegistry is Ownable2Step {
         return asset.baseRateBps + asset.slope1Bps + (excessUtilization * asset.slope2Bps) / (BPS_DENOMINATOR - asset.kinkBps);
     }
 
-    /// @notice The rate suppliers actually earn, realized via `currentSupplyIndexRay`'s
-    /// growth — see `LatensPool.repay`'s interest split.
-    function supplyRateBps(uint256 assetId) public view returns (uint256) {
+    /// @notice The rate suppliers actually earn, RAY-scaled (1e18 = 100% per year).
+    /// @dev This is the authoritative supply rate; `supplyRateBps` below is a rounded view
+    /// of it. Basis points cannot carry this number: a supply rate is a borrow rate scaled
+    /// down TWICE, once by utilization and once by the reserve factor, so at any realistic
+    /// early-market utilization it lands well below one basis point and integer division
+    /// floors it to zero. A market at 0.4% utilization against a 2.05% borrow rate earns
+    /// suppliers 0.0074% per year, which in bps is 0 — and a zero rate here doesn't merely
+    /// display wrong, it freezes `currentSupplyIndexRay` outright, so suppliers genuinely
+    /// accrue nothing until utilization climbs far enough for the truncation to stop
+    /// biting. Same formula, kept at 1e18 so the small numbers survive.
+    function supplyRateRay(uint256 assetId) public view returns (uint256) {
         DataTypes.Asset storage asset = _requireListed(assetId);
-        uint256 grossRate = (borrowRateBps(assetId) * utilizationBps(assetId)) / BPS_DENOMINATOR;
-        return (grossRate * (BPS_DENOMINATOR - asset.reserveFactorBps)) / BPS_DENOMINATOR;
+        uint256 borrowRateRay = (borrowRateBps(assetId) * RAY) / BPS_DENOMINATOR;
+        uint256 grossRateRay = (borrowRateRay * utilizationBps(assetId)) / BPS_DENOMINATOR;
+        return (grossRateRay * (BPS_DENOMINATOR - asset.reserveFactorBps)) / BPS_DENOMINATOR;
+    }
+
+    /// @notice `supplyRateRay` rounded to basis points, for callers that want the headline
+    /// figure. Reads 0 whenever the true rate is under a basis point, which is exactly the
+    /// rounding `supplyRateRay` exists to avoid applying to the index itself.
+    function supplyRateBps(uint256 assetId) public view returns (uint256) {
+        return (supplyRateRay(assetId) * BPS_DENOMINATOR) / RAY;
     }
 
     function quoteRepayInterestFee(uint256 assetId, uint256 repayAmount, uint64 sinceTimestamp) external view returns (uint256) {
@@ -146,13 +162,13 @@ contract AssetRegistry is Ownable2Step {
 
     /// @notice The live conversion rate between a collateral share (what position
     /// commitments actually encode) and the underlying token, RAY-scaled (1e18 = 1:1).
-    /// Grows continuously at `supplyRateBps` — real, compounding yield for whoever holds
+    /// Grows continuously at `supplyRateRay` — real, compounding yield for whoever holds
     /// the shares, funded by the supplier-side cut of `LatensPool.repay`'s interest.
     function currentSupplyIndexRay(uint256 assetId) public view returns (uint256) {
         _requireListed(assetId);
         uint256 elapsed = block.timestamp - _indexLastAccrued[assetId];
         uint256 index = _supplyIndexRay[assetId];
-        return index + (index * supplyRateBps(assetId) * elapsed) / (BPS_DENOMINATOR * SECONDS_PER_YEAR);
+        return index + (index * supplyRateRay(assetId) * elapsed) / (RAY * SECONDS_PER_YEAR);
     }
 
     function recordSupply(uint256 assetId, uint256 amount, bool increase) external onlyPool {

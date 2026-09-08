@@ -5,9 +5,10 @@ import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 import { assetRegistry, latensPool, priceOracle, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore, sharesToReal, RAY } from "@/lib/positionStore";
-import { usdValueE8, formatUsd, formatApr } from "@/lib/valuation";
+import { usdValueE8, formatUsd, formatApr, supplyRateRayFrom, formatRateRay } from "@/lib/valuation";
 import { lockedCollateral } from "@/lib/borrow";
 import { MaskedValue } from "@/components/MaskedValue";
+import { CollateralSplit } from "@/components/CollateralSplit";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
 import { UtilizationMeter } from "@/components/UtilizationMeter";
 import { MarketRowActions } from "@/components/MarketRowActions";
@@ -64,11 +65,11 @@ export default function MarketsPage() {
     })),
   });
 
-  const { data: supplyRates } = useReadContracts({
+  const { data: utilizations } = useReadContracts({
     contracts: tokenList.map((t) => ({
       address: assetRegistry.address,
       abi: assetRegistry.abi,
-      functionName: "supplyRateBps",
+      functionName: "utilizationBps",
       args: [BigInt(t.assetId)],
     })),
   });
@@ -100,6 +101,7 @@ export default function MarketsPage() {
   const debtAmount = debtToken ? get(address, debtToken.assetId).borrowed : 0n;
   const debtLastUpdated = positionTuple?.[5] ?? 0n;
   const hasActivePosition = Boolean(positionTuple?.[6]);
+  const hasDebt = Boolean(positionTuple?.[7]);
 
   // Interest already owed on the debt so far, not just principal — a position that borrowed
   // 4 ZEN a while ago owes more than 4 ZEN worth of collateral by now, and showing "locked"
@@ -163,6 +165,7 @@ export default function MarketsPage() {
         <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
           <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Total value locked</span>
           {assetsLoading ? <Skeleton width={120} height={22} /> : <span className="font-mono text-[22px] tabular-nums">{formatUsd(tvlE8)}</span>}
+          <span className="text-[11px] text-ink-faint">Live sum of every market&apos;s supplied balance. Most of it is testnet liquidity seeded at deploy so the markets are usable.</span>
         </div>
         {address && (
           <>
@@ -179,11 +182,7 @@ export default function MarketsPage() {
                     onToggle={() => setCollateralRevealed((r) => !r)}
                   />
                   {collateralToken && debtAmount > 0n && (
-                    <div className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-ink-faint">
-                      <MaskedValue value={`${formatUnits(lockedAmount, collateralToken.decimals)} locked against debt`} fontSize={11} revealed={collateralRevealed} />
-                      <span>·</span>
-                      <MaskedValue value={`${formatUnits(freeAmount, collateralToken.decimals)} free to withdraw`} fontSize={11} revealed={collateralRevealed} />
-                    </div>
+                    <CollateralSplit locked={lockedAmount} free={freeAmount} decimals={collateralToken.decimals} symbol={collateralToken.symbol} revealed={collateralRevealed} />
                   )}
                 </>
               )}
@@ -212,8 +211,11 @@ export default function MarketsPage() {
             const totalSupplied = asset ? asset.totalSupplied : 0n;
             const totalBorrowed = asset ? asset.totalBorrowed : 0n;
             const utilization = totalSupplied > 0n ? Number((totalBorrowed * 10000n) / totalSupplied) / 100 : 0;
-            const supplyApy = Number((supplyRates?.[i]?.result as bigint | undefined) ?? 0n);
             const borrowApr = Number((borrowRates?.[i]?.result as bigint | undefined) ?? 0n);
+            // Recomputed rather than read straight from supplyRateBps: that view floors a
+            // sub-basis-point rate to zero, which is most of a young market's life.
+            const utilizationBps = (utilizations?.[i]?.result as bigint | undefined) ?? 0n;
+            const supplyRateRay = asset ? supplyRateRayFrom(BigInt(borrowApr), utilizationBps, BigInt(asset.reserveFactorBps)) : 0n;
 
             return (
               <div key={t.symbol} className="contents">
@@ -229,7 +231,7 @@ export default function MarketsPage() {
                 </div>
                 <div className="flex items-center justify-center border-b border-line py-4.5">{assetsLoading ? <Skeleton width={110} /> : <UtilizationMeter value={utilization} />}</div>
                 <div className="flex items-center justify-center border-b border-line py-4.5">
-                  {assetsLoading ? <Skeleton width={50} /> : <span className="font-mono text-sm tabular-nums text-success">{formatApr(supplyApy)}</span>}
+                  {assetsLoading ? <Skeleton width={50} /> : <span className="font-mono text-sm tabular-nums text-success">{formatRateRay(supplyRateRay)}</span>}
                 </div>
                 <div className="flex items-center justify-center border-b border-line py-4.5">
                   {assetsLoading ? <Skeleton width={50} /> : <span className="font-mono text-sm tabular-nums text-gold">{formatApr(borrowApr)}</span>}
@@ -244,6 +246,7 @@ export default function MarketsPage() {
                     decimals={t.decimals}
                     hasActivePosition={hasActivePosition}
                     canSupply={!hasActivePosition || t.assetId === collateralAssetId}
+                    canBorrow={!hasDebt || t.assetId === debtAssetId}
                     canWithdraw={t.assetId === collateralAssetId && collateralAmount > 0n}
                     canRepay={t.assetId === debtAssetId && debtAmount > 0n}
                     activeMode={modal?.symbol === t.symbol ? modal.mode : null}

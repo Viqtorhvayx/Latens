@@ -19,3 +19,25 @@ export function formatUsd(valueE8: bigint): string {
 export function formatApr(bps: number): string {
   return `${(bps / 100).toFixed(2)}%`;
 }
+
+// A supply rate is a borrow rate scaled down twice, by utilization and again by the reserve
+// factor, so a young market's is routinely a fraction of a basis point. AssetRegistry's own
+// `supplyRateBps` floors that to 0 and the UI then reads a flat "0.00%" next to a market
+// that is visibly being borrowed from. This recomputes the same formula at 1e18 so the
+// small numbers survive; it matches `AssetRegistry.supplyRateRay` exactly.
+export function supplyRateRayFrom(borrowRateBps: bigint, utilizationBps: bigint, reserveFactorBps: bigint): bigint {
+  const RAY = 10n ** 18n;
+  const BPS = 10_000n;
+  const borrowRateRay = (borrowRateBps * RAY) / BPS;
+  const grossRateRay = (borrowRateRay * utilizationBps) / BPS;
+  return (grossRateRay * (BPS - reserveFactorBps)) / BPS;
+}
+
+// Percent from a RAY-scaled annual rate (1e18 = 100%). Rates under a basis point are shown
+// with enough decimals to be a number rather than a rounded-off zero.
+export function formatRateRay(rateRay: bigint): string {
+  const pct = Number(rateRay) / 1e16;
+  if (pct === 0) return "0.00%";
+  if (pct < 0.01) return `${pct.toFixed(4)}%`;
+  return `${pct.toFixed(2)}%`;
+}
