@@ -18,7 +18,7 @@ import { sanitizeAmountInput } from "@/lib/amountInput";
 import { usdValueE8, formatUsd, formatRateRay } from "@/lib/valuation";
 import { borrowCapacity } from "@/lib/borrow";
 import { projectSupplyIndexRay } from "@/lib/supplyIndex";
-import { projectedRepayFee, maxRepayableAmount } from "@/lib/repayFee";
+import { projectedRepayFee } from "@/lib/repayFee";
 import { useSupplyRateRay } from "@/lib/useSupplyRateRay";
 import { useViewingKey } from "@/lib/viewingKeyContext";
 import { encryptNote } from "@/lib/viewingKey";
@@ -64,7 +64,9 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   const { copied, copy } = useCopyToClipboard();
 
   const needsApprove = mode === "supply" || mode === "repay";
-  const needsSolvencyContext = mode === "borrow" || mode === "withdraw";
+  // repay now converts the fee across assets, so it needs the same collateral, price and
+  // freshness context that the solvency-checked actions do.
+  const needsSolvencyContext = mode === "borrow" || mode === "withdraw" || mode === "repay";
   const local = get(address, token.assetId);
 
   const { data: balance } = useReadContract({
@@ -80,7 +82,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     abi: latensPool.abi,
     functionName: "positions",
     args: address ? [address] : undefined,
-    query: { enabled: Boolean(address) && (needsSolvencyContext || mode === "repay") },
+    query: { enabled: Boolean(address) && needsSolvencyContext },
   });
 
   const positionTuple = position as PositionTuple | undefined;
@@ -126,9 +128,10 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     abi: assetRegistry.abi,
     functionName: "currentSupplyIndexRay",
     args: collateralAssetId !== undefined ? [BigInt(collateralAssetId)] : undefined,
-    query: { enabled: mode === "borrow" && collateralAssetId !== undefined },
+    query: { enabled: (mode === "borrow" || mode === "repay") && collateralAssetId !== undefined },
   });
   const collateralIndexRayForBorrow = (collateralIndexRayRaw as bigint | undefined) ?? RAY;
+  const collateralIndexRayForRepay = collateralIndexRayForBorrow;
 
   const supplyRateRay = useSupplyRateRay(token.assetId, mode === "supply");
 
@@ -157,13 +160,10 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
 
   const walletBalance = (balance as bigint | undefined) ?? 0n;
 
-  // A repay pulls the amount PLUS a time-weighted interest fee, and that fee keeps growing
-  // while a wallet is being signed. Both halves of this used to get it wrong: the approval
-  // was for a fee quoted at read time (so the pool's recomputed fee overran the allowance by
-  // a sliver and the whole repayment reverted with ERC20InsufficientAllowance), and Max
-  // filled in the entire debt (which a borrower holding exactly what they borrowed can never
-  // cover once the fee is added). Everything below quotes the fee a projection window ahead
-  // instead — see lib/repayFee.ts.
+  // The fee comes out of collateral now, so the wallet only ever has to cover the principal
+  // and a borrower holding exactly what they drew can close the loan in one call. The fee is
+  // still quoted a projection window ahead (lib/repayFee.ts), because the pool recomputes it
+  // at mining time and takes the collateral burn as a floor.
   const { data: borrowRateBpsRaw } = useReadContract({
     address: assetRegistry.address,
     abi: assetRegistry.abi,
@@ -174,10 +174,8 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   const borrowRateBps = (borrowRateBpsRaw as bigint | undefined) ?? 0n;
   const debtElapsed = debtLastUpdated > 0n && nowSeconds !== null && nowSeconds > debtLastUpdated ? nowSeconds - debtLastUpdated : 0n;
   const projectedFee = mode === "repay" && amount > 0n ? projectedRepayFee(amount, borrowRateBps, debtElapsed) : 0n;
-  const maxRepayable = mode === "repay" ? maxRepayableAmount(local.borrowed, walletBalance, borrowRateBps, debtElapsed) : 0n;
-  const fullDebtProjectedFee = projectedRepayFee(local.borrowed, borrowRateBps, debtElapsed);
-  const shortfallToClear =
-    mode === "repay" && local.borrowed > 0n && local.borrowed + fullDebtProjectedFee > walletBalance ? local.borrowed + fullDebtProjectedFee - walletBalance : 0n;
+  const maxRepayable = mode === "repay" ? (local.borrowed < walletBalance ? local.borrowed : walletBalance) : 0n;
+  const shortfallToClear = mode === "repay" && local.borrowed > walletBalance ? local.borrowed - walletBalance : 0n;
 
   const collateralLocal = collateralAssetId !== undefined ? get(address, collateralAssetId) : undefined;
   const collateralTokenForCap = collateralAssetId !== undefined ? tokenList.find((t) => t.assetId === collateralAssetId) : undefined;
@@ -248,7 +246,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           address: token.address,
           abi: erc20Abi,
           functionName: "approve",
-          args: [latensPool.address, mode === "repay" ? amount + projectedFee : amount],
+          args: [latensPool.address, amount],
           gas: APPROVE_GAS,
         });
         await waitForConfirmation(publicClient, approveHash);
@@ -280,16 +278,39 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         publishViewingNoteInBackground(token.assetId, false, patch.supplied!, patch.suppliedSalt!);
         setTxHash(hash);
       } else if (mode === "repay") {
+        if (collateralAssetId === undefined || !collateralAsset || !collateralPrice || !debtPrice || !collateralTokenForCap) {
+          throw new Error("Still loading this position's collateral. Try again in a moment.");
+        }
         const { oldCommitment, newCommitment, patch } = await prepareRepay(address, token.assetId, amount);
+
+        // The pool takes the interest out of collateral now, not out of the borrowed asset,
+        // so a repayment carries a second commitment update burning that much collateral.
+        // Quoted a window ahead and converted at current prices: the pool takes the burn as
+        // a floor, so erring high costs the borrower dust while erring low reverts.
+        const feeInDebt = projectedRepayFee(amount, borrowRateBps, debtElapsed);
+        const feeValueE8 = usdValueE8(feeInDebt, token.decimals, (debtPrice as readonly [bigint, bigint])[0]);
+        const feeInCollateral =
+          (feeValueE8 * 10n ** BigInt(collateralTokenForCap.decimals)) / (collateralPrice as readonly [bigint, bigint])[0];
+        const collateralUpdate = await prepareWithdraw(address, collateralAssetId, feeInCollateral, collateralIndexRayForRepay);
+
         const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
           functionName: "repay",
-          args: [amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)]],
+          args: [
+            amount,
+            BigInt(newCommitment),
+            "0x",
+            [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)],
+            BigInt(collateralUpdate.newCommitment),
+            "0x",
+            [BigInt(collateralUpdate.oldCommitment), BigInt(collateralUpdate.newCommitment), collateralUpdate.shareDelta, 0n, BigInt(collateralAssetId)],
+          ],
           gas: POOL_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
+        commit(address, collateralAssetId, collateralUpdate.patch);
         appendActivity(address, { kind: "debt", isIncrease: false, assetId: token.assetId, amount, transactionHash: hash });
         publishViewingNoteInBackground(token.assetId, true, patch.borrowed!, patch.borrowedSalt!);
         setTxHash(hash);
@@ -459,13 +480,13 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
 
             {mode === "repay" && interestFee > 0n && (
               <p className="mb-4 text-xs text-ink-faint">
-                Plus a {formatUnits(interestFee, token.decimals)} {symbol} interest fee (live, time-weighted, see Markets).
+                Only the {symbol} above leaves your wallet. The {formatUnits(interestFee, token.decimals)} {symbol} of interest owed on it comes out of your
+                {collateralTokenForCap ? ` ${collateralTokenForCap.symbol}` : ""} collateral instead, so repaying what you borrowed clears the loan.
               </p>
             )}
             {mode === "repay" && shortfallToClear > 0n && (
               <p className="mb-4 text-xs text-ink-faint">
-                Clearing the debt in full needs {formatUnits(shortfallToClear, token.decimals)} more {symbol} than you hold, because interest is owed on top of the principal. Max repays as much as your balance
-                covers; top up from the {symbol} faucet in the Markets row to close the rest.
+                You hold {formatUnits(shortfallToClear, token.decimals)} {symbol} less than you owe. Max repays what your balance covers; top up from the {symbol} faucet in the Markets row to clear the rest.
               </p>
             )}
             {exceedsAvailable && (

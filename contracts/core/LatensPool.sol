@@ -5,6 +5,7 @@ import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {AssetRegistry} from "./AssetRegistry.sol";
@@ -34,9 +35,10 @@ import {Errors} from "../libraries/Errors.sol";
 ///  - At liquidation, `seizedCollateralAmount` and `repayAmount` become public — see
 ///    `ILiquidationVerifier`'s dev note. Keeping even that private is open design space for
 ///    a later milestone, not something this scaffold claims to have solved.
-///  - Interest is real and utilization-driven (see `AssetRegistry.borrowRateBps`), charged
-///    at `repay` time. It does not yet compound onto a position's own hidden principal, and
-///    suppliers are not yet paid a matching yield — see `AssetRegistry.supplyRateBps`.
+///  - Interest is real and utilization-driven (see `AssetRegistry.borrowRateBps`), settled
+///    at `repay` time against the position's COLLATERAL rather than the borrowed asset, so a
+///    borrower repays exactly the principal they drew. Suppliers earn the matching side of it
+///    through `AssetRegistry.currentSupplyIndexRay`.
 ///  - Every zk proof is checked through a pluggable verifier interface; `MockVerifier` is
 ///    a development stand-in and must never be wired in production.
 contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
@@ -277,46 +279,122 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         emit DebtUpdated(msg.sender, debtAssetId, newCommitment, true);
     }
 
-    function repay(uint256 amount, uint256 newCommitment, bytes calldata updateProof, uint256[] calldata updatePublicInputs)
-        external
-        whenNotPaused
-        nonReentrant
-    {
+    /// @notice Repays `amount` of the borrowed asset, exactly. The interest owed on it is
+    /// settled against the position's COLLATERAL rather than taken as a second helping of
+    /// the borrowed token.
+    ///
+    /// @dev Charging interest in the borrowed asset made a loan impossible to close: a
+    /// borrower who draws 20 ZEN holds exactly 20 ZEN, and clearing the debt then costs
+    /// 20 ZEN plus a fee they have no way to fund short of acquiring more of the asset they
+    /// just borrowed. Debt sizes are confidential, so there is also no way to quietly grow
+    /// the debt commitment by the fee instead. Collateral is the one balance a borrower is
+    /// guaranteed to have already posted, so that is what the fee comes out of, and a
+    /// repayment of the full principal now closes the position in one call.
+    ///
+    /// The fee is converted from the debt asset into the collateral asset at oracle prices
+    /// and then into collateral shares, so all three of those inputs move between reading
+    /// and mining. `_verifyShareBurn` takes it as a floor rather than an equality for that
+    /// reason: the caller may burn MORE collateral than the fee strictly requires, never
+    /// less, so drift costs the borrower dust and can never shortchange the pool.
+    ///
+    /// No solvency proof is required here even though collateral shrinks: `amount` of debt
+    /// is retired against an interest charge that is a small fraction of it, so the
+    /// position's collateral-to-debt ratio can only improve.
+    /// @param amount the debt token amount to repay.
+    /// @param newDebtCommitment the debt commitment after `amount` is retired.
+    /// @param debtProof proof that `newDebtCommitment` encodes oldDebt - amount.
+    /// @param debtPublicInputs see `ICommitmentVerifier`.
+    /// @param newCollateralCommitment the collateral commitment after the fee is deducted.
+    /// @param collateralProof proof that `newCollateralCommitment` encodes the reduced collateral.
+    /// @param collateralPublicInputs see `ICommitmentVerifier`.
+    function repay(
+        uint256 amount,
+        uint256 newDebtCommitment,
+        bytes calldata debtProof,
+        uint256[] calldata debtPublicInputs,
+        uint256 newCollateralCommitment,
+        bytes calldata collateralProof,
+        uint256[] calldata collateralPublicInputs
+    ) external whenNotPaused nonReentrant {
         if (amount == 0) revert Errors.ZeroAmount();
         DataTypes.Position storage position = positions[msg.sender];
         if (!position.active || !position.hasDebt) revert Errors.AssetNotListed();
 
         DataTypes.Asset memory debtAsset = registry.getAsset(position.debtAssetId);
-        uint256 interestFee = registry.quoteRepayInterestFee(position.debtAssetId, amount, position.debtLastUpdated);
-        uint256 reserveCut = (interestFee * debtAsset.reserveFactorBps) / BPS_DENOMINATOR;
+        DataTypes.Asset memory collateralAsset = registry.getAsset(position.collateralAssetId);
+
+        (uint256 interestInCollateral, uint256 interestShares) =
+            _interestAsCollateral(position.debtAssetId, position.collateralAssetId, debtAsset.token, collateralAsset.token, amount, position.debtLastUpdated);
 
         _verifyCommitmentUpdate({
-            proof: updateProof,
-            publicInputs: updatePublicInputs,
+            proof: debtProof,
+            publicInputs: debtPublicInputs,
             oldCommitment: position.debtCommitment,
-            newCommitment: newCommitment,
+            newCommitment: newDebtCommitment,
             delta: amount,
             isIncrease: false,
             assetId: position.debtAssetId
         });
 
-        position.debtCommitment = newCommitment;
+        _verifyShareBurn({
+            proof: collateralProof,
+            publicInputs: collateralPublicInputs,
+            oldCommitment: position.collateralCommitment,
+            newCommitment: newCollateralCommitment,
+            minDelta: interestShares,
+            assetId: position.collateralAssetId
+        });
+
+        position.debtCommitment = newDebtCommitment;
+        position.collateralCommitment = newCollateralCommitment;
         position.lastUpdated = uint64(block.timestamp);
         position.debtLastUpdated = uint64(block.timestamp);
         registry.recordBorrow(position.debtAssetId, amount, false);
-        if (interestFee > reserveCut) {
-            registry.recordSupply(position.debtAssetId, interestFee - reserveCut, true);
-        }
 
+        // Exactly the principal, and nothing more, leaves the borrower's wallet.
         IERC20(debtAsset.token).safeTransferFrom(msg.sender, address(this), amount);
-        if (interestFee > 0) {
-            IERC20(debtAsset.token).safeTransferFrom(msg.sender, address(this), interestFee);
+
+        // The fee never moves as a transfer from the borrower: the collateral backing it is
+        // already held here, and burning the shares is what hands it over. Only the reserve
+        // share actually leaves, so only that decrements the market's supplied aggregate;
+        // the remainder stays put, which is what pays the market's other suppliers.
+        if (interestInCollateral > 0) {
+            uint256 reserveCut = (interestInCollateral * collateralAsset.reserveFactorBps) / BPS_DENOMINATOR;
             if (reserveCut > 0) {
-                IERC20(debtAsset.token).safeTransfer(address(treasury), reserveCut);
+                registry.recordSupply(position.collateralAssetId, reserveCut, false);
+                IERC20(collateralAsset.token).safeTransfer(address(treasury), reserveCut);
             }
         }
 
-        emit DebtUpdated(msg.sender, position.debtAssetId, newCommitment, false);
+        emit DebtUpdated(msg.sender, position.debtAssetId, newDebtCommitment, false);
+    }
+
+    /// @dev The interest owed on `amount`, expressed in the collateral asset and in the
+    /// collateral shares a position commitment actually encodes. Split out to keep `repay`
+    /// under the stack limit.
+    function _interestAsCollateral(
+        uint256 debtAssetId,
+        uint256 collateralAssetId,
+        address debtToken,
+        address collateralToken,
+        uint256 amount,
+        uint64 debtLastUpdated
+    ) private view returns (uint256 interestInCollateral, uint256 interestShares) {
+        uint256 interestFee = registry.quoteRepayInterestFee(debtAssetId, amount, debtLastUpdated);
+        if (interestFee == 0) return (0, 0);
+
+        (uint256 debtPriceE8, uint256 debtUpdatedAt) = priceOracle.getPrice(debtToken);
+        (uint256 collateralPriceE8, uint256 collateralUpdatedAt) = priceOracle.getPrice(collateralToken);
+        _requireFreshPrice(debtUpdatedAt);
+        _requireFreshPrice(collateralUpdatedAt);
+        if (collateralPriceE8 == 0) revert Errors.StaleOraclePrice();
+
+        // Normalized through USD rather than compared raw: the two assets rarely share
+        // decimals, and multiplying base units by a price without dividing by the token's
+        // own scale silently favours whichever side carries more of them.
+        uint256 interestValueE8 = (interestFee * debtPriceE8) / (10 ** IERC20Metadata(debtToken).decimals());
+        interestInCollateral = (interestValueE8 * (10 ** IERC20Metadata(collateralToken).decimals())) / collateralPriceE8;
+        interestShares = (interestInCollateral * RAY) / registry.currentSupplyIndexRay(collateralAssetId);
     }
 
     // ── Liquidation ──────────────────────────────────────────────────────────

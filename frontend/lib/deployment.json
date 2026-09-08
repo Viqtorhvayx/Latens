@@ -2,7 +2,7 @@
   "chainId": 2651420,
   "contracts": {
     "LatensPool": {
-      "address": "0x2E03aA8B98A5Cb9107C89d4a192586380eE2AfE5",
+      "address": "0x9B620Abbd1D9564f2dae95b36a8f6AffAE3214cb",
       "abi": [
         {
           "inputs": [
@@ -659,17 +659,32 @@
             },
             {
               "internalType": "uint256",
-              "name": "newCommitment",
+              "name": "newDebtCommitment",
               "type": "uint256"
             },
             {
               "internalType": "bytes",
-              "name": "updateProof",
+              "name": "debtProof",
               "type": "bytes"
             },
             {
               "internalType": "uint256[]",
-              "name": "updatePublicInputs",
+              "name": "debtPublicInputs",
+              "type": "uint256[]"
+            },
+            {
+              "internalType": "uint256",
+              "name": "newCollateralCommitment",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "collateralProof",
+              "type": "bytes"
+            },
+            {
+              "internalType": "uint256[]",
+              "name": "collateralPublicInputs",
               "type": "uint256[]"
             }
           ],
@@ -834,7 +849,7 @@
       ]
     },
     "AssetRegistry": {
-      "address": "0xFe149a1cfbFe4D2fe44A8e463E44ef22B970BE51",
+      "address": "0xDC65fa7c46e9D5733b04573fd1D4fEEB4EB89b7f",
       "abi": [
         {
           "inputs": [
@@ -1558,6 +1573,25 @@
         {
           "inputs": [
             {
+              "internalType": "uint256",
+              "name": "assetId",
+              "type": "uint256"
+            }
+          ],
+          "name": "supplyRateRay",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
               "internalType": "address",
               "name": "newOwner",
               "type": "address"
@@ -1623,7 +1657,7 @@
       ]
     },
     "MockPriceOracle": {
-      "address": "0x704Fe7C1f372A192d5AEB23b69d17104013db5BA",
+      "address": "0x77fE2a011218a9A8d3BDB0911Ae99f13E092a801",
       "abi": [
         {
           "inputs": [],
@@ -2075,7 +2109,7 @@
       ]
     },
     "LatensCDP": {
-      "address": "0x5b86F639f91AC6A2F63Bd5AcfA3dBfb747BD2A38",
+      "address": "0x43DEfE83d8292243f9186Bae1328F4E018612516",
       "abi": [
         {
           "inputs": [
@@ -2940,7 +2974,7 @@
       ]
     },
     "LatensDollar": {
-      "address": "0xaaF7Cf4cAA63b06C61A55Ce75a32D4063E454194",
+      "address": "0x17Cd46632985Fc6FC18214aEa5BA04A27753C2C8",
       "abi": [
         {
           "inputs": [
@@ -3454,7 +3488,7 @@
       ]
     },
     "SupplyRewards": {
-      "address": "0x4552C7a197317A65cf494AF25D42f58bE045315C",
+      "address": "0x08Ea5Cb02f4Bbcaa2D1cb983C4E73Bb20b200a79",
       "abi": [
         {
           "inputs": [
@@ -3874,25 +3908,25 @@
   },
   "tokens": {
     "ZEN": {
-      "address": "0xd7425B509bf386d53A6855A83aC80E6C4eF2C06B",
+      "address": "0x2AB94ba09af0d7fD5AD8BEACAB23773493a27866",
       "symbol": "ZEN",
       "decimals": 18,
       "assetId": 0
     },
     "ZUSD": {
-      "address": "0x3e8135DCB29F2F71F9EFB9ef770A14aF23FcBA98",
+      "address": "0x2d2Ae89C3b8DC99C91d3cDB133f625420Ebe7A3E",
       "symbol": "ZUSD",
       "decimals": 18,
       "assetId": 1
     },
     "WBTC": {
-      "address": "0x1c06dFfc8E55d5C934E56E77f8bc0D9e80f6bbbd",
+      "address": "0x535d17041c7E906d0A55F27CBbA8D9036eeEb109",
       "symbol": "WBTC",
       "decimals": 8,
       "assetId": 2
     },
     "USDC": {
-      "address": "0xB0f65406bd67f876231b4C94fBc9e7CE593d792A",
+      "address": "0x59Ff24C11FBe49D57A219acc8bE4b8Cf05511479",
       "symbol": "USDC",
       "decimals": 6,
       "assetId": 3

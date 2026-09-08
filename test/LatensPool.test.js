@@ -194,8 +194,8 @@ describe("LatensPool", function () {
     expect(position.hasDebt).to.equal(true);
   });
 
-  it("repay charges a real, utilization-driven interest fee that flows to the treasury and on to ZEN staking", async function () {
-    const { alice, deployer, collateralToken, debtToken, registry, pool, treasury, stakingPool, collateralAssetId, debtAssetId } = await deployFixture();
+  it("repay pulls exactly the principal and settles the interest against collateral, whose reserve share flows to the treasury and on to ZEN staking", async function () {
+    const { alice, deployer, collateralToken, debtToken, oracle, registry, pool, treasury, stakingPool, collateralAssetId, debtAssetId } = await deployFixture();
 
     await registry.setInterestRateModel(debtAssetId, 500, 1_000, 10_000, 8_000);
 
@@ -217,28 +217,47 @@ describe("LatensPool", function () {
     const repayAmount = ethers.parseUnits("500", 6);
     await debtToken.connect(alice).approve(await pool.getAddress(), ethers.MaxUint256);
     await time.increase(30 * 24 * 60 * 60);
+    // Settling the fee in collateral means repay now converts across two assets, so it
+    // reads both prices and rejects a stale feed like every other price-dependent call.
+    await oracle.refreshTimestamp(await collateralToken.getAddress());
+    await oracle.refreshTimestamp(await debtToken.getAddress());
 
+    const debtBalanceBefore = await debtToken.balanceOf(alice.address);
     const repayReceipt = await (
       await pool.connect(alice).repay(
         repayAmount, 3n, "0x",
-        commitmentUpdateInputs({ oldCommitment: 2n, newCommitment: 3n, delta: repayAmount, isIncrease: false, assetId: debtAssetId })
+        commitmentUpdateInputs({ oldCommitment: 2n, newCommitment: 3n, delta: repayAmount, isIncrease: false, assetId: debtAssetId }),
+        // The collateral side: the fee is burned out of the position's collateral shares.
+        // A generous burn is allowed (the pool takes it as a floor), so this covers the
+        // exact requirement without having to predict the block's own timestamp.
+        4n, "0x",
+        commitmentUpdateInputs({ oldCommitment: 1n, newCommitment: 4n, delta: ethers.parseUnits("5", 18), isIncrease: false, assetId: collateralAssetId })
       )
     ).wait();
     const repayBlock = await ethers.provider.getBlock(repayReceipt.blockNumber);
 
     const elapsed = BigInt(repayBlock.timestamp - borrowBlock.timestamp);
-    const expectedFee = (repayAmount * 500n * elapsed) / (BPS * 365n * 24n * 60n * 60n);
-    expect(expectedFee).to.be.greaterThan(0n);
-    const expectedReserveCut = (expectedFee * 1_000n) / BPS; // debtAssetId's reserveFactorBps
+    const expectedFeeInDebt = (repayAmount * 500n * elapsed) / (BPS * 365n * 24n * 60n * 60n);
+    expect(expectedFeeInDebt).to.be.greaterThan(0n);
 
-    expect(await debtToken.balanceOf(await treasury.getAddress())).to.equal(expectedReserveCut);
-    expect(await debtToken.balanceOf(await pool.getAddress())).to.equal(
-      ethers.parseUnits("500000", 6) - borrowAmount + repayAmount + expectedFee - expectedReserveCut
-    );
+    // Exactly the principal leaves the borrower's wallet — the whole point of settling the
+    // fee against collateral is that a borrower can close a loan with what they borrowed.
+    expect(debtBalanceBefore - (await debtToken.balanceOf(alice.address))).to.equal(repayAmount);
+    expect(await debtToken.balanceOf(await treasury.getAddress())).to.equal(0n);
+    expect(await debtToken.balanceOf(await pool.getAddress())).to.equal(ethers.parseUnits("500000", 6) - borrowAmount + repayAmount);
 
-    await treasury.connect(deployer).sweep(await debtToken.getAddress());
+    // USDC at $1 into ZEN at $2, so the fee is worth half as many ZEN as it was USDC, once
+    // the two decimal scales (6 and 18) are normalized through USD.
+    const feeValueE8 = (expectedFeeInDebt * ethers.parseUnits("1", 8)) / 10n ** 6n;
+    const expectedFeeInCollateral = (feeValueE8 * 10n ** 18n) / ethers.parseUnits("2", 8);
+    const expectedReserveCut = (expectedFeeInCollateral * 1_000n) / BPS; // collateral asset's reserveFactorBps
+    expect(expectedReserveCut).to.be.greaterThan(0n);
+
+    expect(await collateralToken.balanceOf(await treasury.getAddress())).to.equal(expectedReserveCut);
+
+    await treasury.connect(deployer).sweep(await collateralToken.getAddress());
     const expectedToStaking = (expectedReserveCut * 1_750n) / BPS;
-    expect(await stakingPool.totalContributed(await debtToken.getAddress())).to.equal(expectedToStaking);
+    expect(await stakingPool.totalContributed(await collateralToken.getAddress())).to.equal(expectedToStaking);
   });
 
   it("quotes zero repay interest when no rate model has been configured for the asset", async function () {

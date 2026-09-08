@@ -36,18 +36,3 @@ export function projectedRepayFee(
 ): bigint {
   return repayInterestFee(amount, borrowRateBps, (elapsedSeconds > 0n ? elapsedSeconds : 0n) + projectionSeconds);
 }
-
-// The largest repayment whose amount AND its projected fee the wallet balance still covers.
-// The fee is linear in the amount, so this inverts amount + fee(amount) <= balance directly
-// rather than guessing and retrying.
-export function maxRepayableAmount(debt: bigint, balance: bigint, borrowRateBps: bigint, elapsedSeconds: bigint, projectionSeconds = REPAY_FEE_PROJECTION_SECONDS): bigint {
-  if (debt === 0n || balance === 0n) return 0n;
-  if (debt + projectedRepayFee(debt, borrowRateBps, elapsedSeconds, projectionSeconds) <= balance) return debt;
-
-  // fee(A) = A * k where k = rate * elapsed / (BPS * YEAR), so A * (1 + k) <= balance.
-  // Working in the same integer terms: A <= balance * (BPS * YEAR) / (BPS * YEAR + rate * elapsed).
-  const totalElapsed = (elapsedSeconds > 0n ? elapsedSeconds : 0n) + projectionSeconds;
-  const denominatorTerm = BPS_DENOMINATOR * SECONDS_PER_YEAR + borrowRateBps * totalElapsed;
-  const affordable = (balance * BPS_DENOMINATOR * SECONDS_PER_YEAR) / denominatorTerm;
-  return affordable < debt ? affordable : debt;
-}

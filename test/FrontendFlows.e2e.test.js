@@ -212,19 +212,41 @@ describe("frontend flow replay", function () {
     const collateralNow = sharesToReal(store.get(Number(USDC_ID)).supplied, await registry.currentSupplyIndexRay(USDC_ID));
     expect(collateralNow - locked).to.be.greaterThan(ethers.parseUnits("989", 6)); // the rest stays free
 
-    // ── 4. Repay the whole debt, interest included (Markets ZEN row -> Repay) ───────────
+    // ── 4. Repay the whole debt with exactly the principal (Markets ZEN row -> Repay) ───
+    // The cost of closing the loan must be exactly the principal and not a wei more, which
+    // is the case that used to be unclosable: the fee had to come from somewhere and a
+    // borrower holding only what they drew had nowhere to get it.
+    const zenBeforeRepay = await zen.balanceOf(alice.address);
+
+    await oracle.refreshTimestamp(await zen.getAddress());
+    await oracle.refreshTimestamp(await usdc.getAddress());
+
     const r = store.prepareRepay(Number(ZEN_ID), debtAmount);
-    const feeAtRepay = await registry.quoteRepayInterestFee(ZEN_ID, debtAmount, position.debtLastUpdated);
-    // The UI approves amount + fee, which is exactly what repay() pulls.
-    await zen.connect(alice).approve(poolAddr, debtAmount + feeAtRepay + ethers.parseUnits("1", 18));
-    await pool.connect(alice).repay(debtAmount, r.newCommitment, "0x", [r.oldCommitment, r.newCommitment, debtAmount, 0n, ZEN_ID]);
+    // The collateral side: the fee is burned out of collateral shares instead of pulled in
+    // ZEN. Quoted high on purpose, since the pool takes the burn as a floor.
+    const collateralBurn = store.prepareWithdraw(Number(USDC_ID), ethers.parseUnits("1", 6), await registry.currentSupplyIndexRay(USDC_ID));
+
+    // Only the principal is ever approved.
+    await zen.connect(alice).approve(poolAddr, debtAmount);
+    await pool.connect(alice).repay(
+      debtAmount,
+      r.newCommitment,
+      "0x",
+      [r.oldCommitment, r.newCommitment, debtAmount, 0n, ZEN_ID],
+      collateralBurn.newCommitment,
+      "0x",
+      [collateralBurn.oldCommitment, collateralBurn.newCommitment, collateralBurn.shareDelta, 0n, USDC_ID]
+    );
     store.commit(Number(ZEN_ID), r.patch);
+    store.commit(Number(USDC_ID), collateralBurn.patch);
 
     expect(store.get(Number(ZEN_ID)).borrowed).to.equal(0n);
+    expect(zenBeforeRepay - (await zen.balanceOf(alice.address))).to.equal(debtAmount); // exactly the principal, no fee on top
 
     // ── 5. With the debt cleared, the whole supply is withdrawable again ────────────────
     const withdrawIndexRay = await registry.currentSupplyIndexRay(USDC_ID);
     const withdrawable = sharesToReal(store.get(Number(USDC_ID)).supplied, withdrawIndexRay);
+    expect(withdrawable).to.be.lessThan(supplyAmount); // the interest came out of here
     const w = store.prepareWithdraw(Number(USDC_ID), withdrawable, withdrawIndexRay);
     position = await pool.positions(alice.address);
     // What the UI now does before any solvency-gated call (lib/useFreshPrices.ts).
@@ -238,7 +260,7 @@ describe("frontend flow replay", function () {
       "0x",
       [w.newCommitment, position.debtCommitment, 100_000_000n, 200_000_000n, withdrawIndexRay, RAY, 8_000n]
     );
-    expect(await usdc.balanceOf(alice.address)).to.be.greaterThanOrEqual(ethers.parseUnits("10000", 6) - supplyAmount + withdrawable);
+    expect(await usdc.balanceOf(alice.address)).to.be.greaterThanOrEqual(ethers.parseUnits("10000", 6) - supplyAmount + withdrawable - 1n);
   });
 
   it("mint and burn LATD: the exact sequence the Mint page submits", async function () {
