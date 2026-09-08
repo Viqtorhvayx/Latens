@@ -1,9 +1,23 @@
 import { createConfig, http } from "wagmi";
 import { injected, walletConnect } from "wagmi/connectors";
-import { baseSepolia, sepolia } from "viem/chains";
+import { baseSepolia, sepolia, horizenTestnet as horizenTestnetBase } from "viem/chains";
 import deployment from "./deployment.json";
 
-const SUPPORTED_CHAINS = [sepolia, baseSepolia] as const;
+// viem ships this chain with the right id/RPC (confirmed against a live eth_chainId call)
+// but a generic "Sepolia Ether" currency name and a bare Caldera explorer domain — both
+// clearly copy-paste leftovers in viem's own definition, not this project's. Overridden to
+// match the currency name/symbol and the horizen.io explorer alias used everywhere else in
+// this repo (hardhat.config.js, the docs site) — same backend, confirmed by fetching the
+// same verified-contract data from both domains, just the friendlier of the two names.
+const horizenTestnet = {
+  ...horizenTestnetBase,
+  nativeCurrency: { name: "Horizen Testnet ETH", symbol: "ETH", decimals: 18 },
+  blockExplorers: {
+    default: { name: "Horizen Testnet Explorer", url: "https://explorer-testnet.horizen.io" },
+  },
+} as const;
+
+const SUPPORTED_CHAINS = [horizenTestnet, sepolia, baseSepolia] as const;
 
 export const activeChain = SUPPORTED_CHAINS.find((c) => c.id === deployment.chainId) ?? sepolia;
 
@@ -28,7 +42,7 @@ const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 const appUrl = "https://latens.example";
 
 export const wagmiConfig = createConfig({
-  chains: [sepolia, baseSepolia],
+  chains: [horizenTestnet, sepolia, baseSepolia],
   connectors: [
     injected(),
     ...(walletConnectProjectId
@@ -46,6 +60,7 @@ export const wagmiConfig = createConfig({
       : []),
   ],
   transports: {
+    [horizenTestnet.id]: http(process.env.NEXT_PUBLIC_HORIZEN_TESTNET_RPC_URL || "https://horizen-testnet.rpc.caldera.xyz/http"),
     [sepolia.id]: http(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com"),
     [baseSepolia.id]: http(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org"),
   },
