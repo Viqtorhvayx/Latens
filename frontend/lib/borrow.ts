@@ -38,3 +38,37 @@ export function borrowCapacity({
   const headroomValueE8 = maxDebtValueE8 - currentDebtValueE8;
   return (headroomValueE8 * 10n ** BigInt(debtDecimals)) / debtPriceE8;
 }
+
+// The inverse of borrowCapacity: how much of a position's collateral is actually locked
+// against its debt, in the collateral's own base units — not the whole supplied balance.
+// A position that supplied 1000 USDC and borrowed 4 ZEN doesn't have all 1000 USDC on the
+// line, only whatever the debt (principal plus the interest accrued on it since it was last
+// touched — pass debtAmount already inclusive of that, see quoteRepayInterestFee) is worth
+// at the market's required overcollateralization (1 / LTV). The rest stays free: safe from
+// liquidation and, so long as it keeps the position solvent, withdrawable.
+//
+// Clamp to the actual supplied amount rather than the raw ratio: a position sitting right at
+// its LTV limit would otherwise report "locked" fractionally above what it holds, and the
+// caller (locked = min(supplied, this)) would need to know that to avoid showing more locked
+// than exists.
+export function lockedCollateral({
+  debtAmount,
+  debtDecimals,
+  debtPriceE8,
+  ltvBps,
+  collateralDecimals,
+  collateralPriceE8,
+}: {
+  debtAmount: bigint;
+  debtDecimals: number;
+  debtPriceE8: bigint;
+  ltvBps: number;
+  collateralDecimals: number;
+  collateralPriceE8: bigint;
+}): bigint {
+  if (collateralPriceE8 === 0n || ltvBps === 0 || debtAmount === 0n) return 0n;
+
+  const debtValueE8 = usdValueE8(debtAmount, debtDecimals, debtPriceE8);
+  const requiredValueE8 = (debtValueE8 * 10_000n) / BigInt(ltvBps);
+  return (requiredValueE8 * 10n ** BigInt(collateralDecimals)) / collateralPriceE8;
+}

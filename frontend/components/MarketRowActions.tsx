@@ -65,6 +65,19 @@ export function MarketRowActions({
       >
         Borrow
       </button>
+      {canRepay && (
+        <button
+          onClick={() => onAction("repay")}
+          title="Pay back what you owe, in this asset, from your wallet"
+          className={
+            activeMode === "repay"
+              ? "rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong"
+              : "rounded-lg border border-success/50 px-4 py-1.5 text-xs font-semibold text-success transition-colors hover:bg-surface-hover"
+          }
+        >
+          Repay
+        </button>
+      )}
       {account && (
         <div ref={ref} className="relative">
           <button
@@ -96,17 +109,6 @@ export function MarketRowActions({
                     className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
                   >
                     Withdraw
-                  </button>
-                )}
-                {canRepay && (
-                  <button
-                    onClick={() => {
-                      onAction("repay");
-                      setOpen(false);
-                    }}
-                    className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
-                  >
-                    Repay
                   </button>
                 )}
                 <FaucetButton address={tokenAddress} symbol={symbol} decimals={decimals} variant="menuItem" />

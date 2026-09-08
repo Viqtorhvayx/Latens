@@ -3,8 +3,26 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
-export function MaskedValue({ value, fontSize = 20, className = "" }: { value: string; fontSize?: number; className?: string }) {
-  const [revealed, setRevealed] = useState(false);
+// `revealed`/`onToggle` let a caller with several related figures (e.g. a collateral total
+// plus its locked/free breakdown) drive them off one shared reveal state with a single
+// button, instead of each figure showing its own "Reveal" control. Omit both for the
+// original standalone behavior: its own state, its own button.
+export function MaskedValue({
+  value,
+  fontSize = 20,
+  className = "",
+  revealed: revealedProp,
+  onToggle,
+}: {
+  value: string;
+  fontSize?: number;
+  className?: string;
+  revealed?: boolean;
+  onToggle?: () => void;
+}) {
+  const [internalRevealed, setInternalRevealed] = useState(false);
+  const isControlled = revealedProp !== undefined;
+  const revealed = isControlled ? revealedProp : internalRevealed;
   const masked = value.replace(/[0-9]/g, "•");
 
   return (
@@ -23,12 +41,14 @@ export function MaskedValue({ value, fontSize = 20, className = "" }: { value: s
           </motion.span>
         </AnimatePresence>
       </span>
-      <button
-        onClick={() => setRevealed((r) => !r)}
-        className="rounded-full border border-line-strong px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
-      >
-        {revealed ? "Hide" : "Reveal"}
-      </button>
+      {(!isControlled || onToggle) && (
+        <button
+          onClick={onToggle ?? (() => setInternalRevealed((r) => !r))}
+          className="rounded-full border border-line-strong px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
+        >
+          {revealed ? "Hide" : "Reveal"}
+        </button>
+      )}
     </div>
   );
 }
