@@ -6,10 +6,14 @@ import React from "react";
 // isn't worth taking on a cross-project dependency for.
 import deployment from "../../../frontend/lib/deployment.json";
 
+// 2651420 is Horizen's own testnet, confirmed live via eth_chainId against
+// horizen-testnet.rpc.caldera.xyz (matching docs.horizen.io). Its explorer is Blockscout,
+// not an Etherscan fork, but the URL pattern (/address/<addr>) is the same.
 const EXPLORERS: Record<number, string> = {
   8453: "https://basescan.org",
   84532: "https://sepolia.basescan.org",
   11155111: "https://sepolia.etherscan.io",
+  2651420: "https://explorer-testnet.horizen.io",
 };
 
 function explorerAddressUrl(chainId: number, address: string): string | undefined {

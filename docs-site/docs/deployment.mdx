@@ -12,12 +12,11 @@ taken on trust. This table is generated from the same `deployment.json` the app 
 reads its contract addresses from, so it can never drift out of sync with what is actually
 live.
 
-Latens is built for Horizen, the EVM-native L3 that settles to Base. Hardhat is already
-configured with a `horizenTestnet` network for exactly that target, and the table below is
-currently on Ethereum Sepolia rather than Horizen itself, purely because Horizen's own
-public testnet RPC endpoint isn't published yet; the contracts themselves are unmodified
-and ready to redeploy the moment it is, since Base (and by extension Horizen) already
-supports the same Cancun EVM target this project compiles against.
+Latens is built for Horizen, the EVM-native L3 that settles to Base, and the table below is
+the live deployment on Horizen's own testnet (chain ID 2651420), not a stand-in on a
+generic EVM chain. Every address links to Horizen's own block explorer, which verifies
+contracts through Blockscout's own API rather than Etherscan's, which is what Horizen's own
+deployment documentation specifies.
 
 <DeploymentTable />
 

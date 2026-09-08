@@ -1,11 +1,14 @@
 // No known explorer for local Hardhat (31337) — there's nothing real to link to, so we
 // degrade to just showing a copyable hash there. Base entries are here because Base is
-// EON's eventual settlement layer (see contracts/README.md); wire in the real destination
-// chain's explorer once this deploys somewhere other than local dev.
+// Horizen's settlement layer (see contracts/README.md). 2651420 is Horizen's own testnet
+// (confirmed live via eth_chainId against horizen-testnet.rpc.caldera.xyz, matching
+// docs.horizen.io) — its explorer is Blockscout, not an Etherscan fork, but the URL
+// pattern (/tx/<hash>) is the same.
 const EXPLORERS: Record<number, string> = {
   8453: "https://basescan.org",
   84532: "https://sepolia.basescan.org",
   11155111: "https://sepolia.etherscan.io",
+  2651420: "https://explorer-testnet.horizen.io",
 };
 
 export function explorerTxUrl(chainId: number, hash: string): string | undefined {

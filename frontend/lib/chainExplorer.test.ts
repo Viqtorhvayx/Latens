@@ -11,6 +11,9 @@ describe("explorerTxUrl", () => {
   it("builds an Etherscan Sepolia URL for Ethereum Sepolia", () => {
     expect(explorerTxUrl(11155111, "0xabc")).toBe("https://sepolia.etherscan.io/tx/0xabc");
   });
+  it("builds a Horizen testnet explorer URL", () => {
+    expect(explorerTxUrl(2651420, "0xabc")).toBe("https://explorer-testnet.horizen.io/tx/0xabc");
+  });
   it("returns undefined for local Hardhat, which has no real explorer", () => {
     expect(explorerTxUrl(31337, "0xabc")).toBeUndefined();
   });

@@ -1,8 +1,8 @@
 {
-  "chainId": 11155111,
+  "chainId": 2651420,
   "contracts": {
     "LatensPool": {
-      "address": "0x77fE2a011218a9A8d3BDB0911Ae99f13E092a801",
+      "address": "0xB3424845bDe29b4DfFc63900Ab89021bcEB28398",
       "abi": [
         {
           "inputs": [
@@ -834,7 +834,7 @@
       ]
     },
     "AssetRegistry": {
-      "address": "0x535d17041c7E906d0A55F27CBbA8D9036eeEb109",
+      "address": "0x3F95c303073DbEC5E325aBCe61f57BC841B2aC46",
       "abi": [
         {
           "inputs": [
@@ -1623,7 +1623,7 @@
       ]
     },
     "MockPriceOracle": {
-      "address": "0x6aA5bb6d65E880A60691B43BbC41F72F4E6A1Eea",
+      "address": "0x690CE1c9E0f79258A3DDBE4BC2B6bB268Ac936D2",
       "abi": [
         {
           "inputs": [],
@@ -2075,7 +2075,7 @@
       ]
     },
     "LatensCDP": {
-      "address": "0x78997Ec230A633BD928ce8Dc5814bBf7AFBe1f66",
+      "address": "0xbA22a78C203Fa62608e6D20d9aD1a765A89f3197",
       "abi": [
         {
           "inputs": [
@@ -2940,7 +2940,7 @@
       ]
     },
     "LatensDollar": {
-      "address": "0x5cd5Fc702D7C986D379D87383d8563b83d469c0D",
+      "address": "0x39Df12F65d7Ab36B1D5159c4f7b01e5D2F2EfF8c",
       "abi": [
         {
           "inputs": [
@@ -3454,7 +3454,7 @@
       ]
     },
     "SupplyRewards": {
-      "address": "0x92B5857e5a3aF1140a2Dcea24b23bD8Ae311e63B",
+      "address": "0x298434E742A541D8855B715605C727Ed4AD13412",
       "abi": [
         {
           "inputs": [
@@ -3874,25 +3874,25 @@
   },
   "tokens": {
     "ZEN": {
-      "address": "0x80b9b16c8e664594f91778D6620B4E2C5eAF94Eb",
+      "address": "0xb5F9906b1201CC2C0da9D7F70B31a17B45C56676",
       "symbol": "ZEN",
       "decimals": 18,
       "assetId": 0
     },
     "ZUSD": {
-      "address": "0xF27B3946181F6ADB63AF12934499CD02A9C13679",
+      "address": "0xFC9B4E000FB3eEc54209cb8a6250ca78EC84bF76",
       "symbol": "ZUSD",
       "decimals": 18,
       "assetId": 1
     },
     "WBTC": {
-      "address": "0x1f567490BdF261cdfDE799fF090dF9e14F5d4449",
+      "address": "0xfeF61f7DfeC4b4239245385FCC9272E4Cae4064A",
       "symbol": "WBTC",
       "decimals": 8,
       "assetId": 2
     },
     "USDC": {
-      "address": "0x03A190ecA93d26F47a7beEE5636603Da4B0cFCD7",
+      "address": "0xd70D8B48CbE55AEb17f9ceb8745b7CE5D3D07617",
       "symbol": "USDC",
       "decimals": 6,
       "assetId": 3
