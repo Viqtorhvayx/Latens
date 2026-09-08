@@ -43,12 +43,6 @@ stating plainly rather than leaving a reader to infer it.
   single-collateral, single-debt-asset, and isolated per user. Supplying a second asset into
   a position that already holds one is rejected on-chain, and the interface disables the
   action rather than letting it fail in a wallet.
-- **The deployed contracts are one commit behind the repository.** A deposit's share delta
-  is derived from a supply index that advances every second, and the deployed pool binds
-  that delta by equality, so depositing into an asset that is actively being borrowed
-  against reverts. The fix is in `LatensPool` in this repository and covered by tests, but
-  it needs a redeploy to take effect. Until then, collateral in a market with no borrows
-  against it is unaffected, because an idle asset's index does not move.
 - **The testnet price feed is a mock that needs a heartbeat.** Both contracts reject any
   solvency-gated call whose price is more than an hour old. A production oracle updates
   itself; `MockPriceOracle` only advances when something calls it, so a deployment left

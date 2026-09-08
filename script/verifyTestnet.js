@@ -1,0 +1,107 @@
+// Source-verifies every contract of a testnet deployment on the network's block explorer.
+//
+// Horizen's explorer is Blockscout, which ignores the API key entirely (hardhat.config.js
+// passes a placeholder) but otherwise speaks the same interface hardhat-verify already
+// targets. Run after script/deployTestnet.js:
+//
+//   npx hardhat run script/verifyTestnet.js --network horizenTestnet
+//
+// Constructor arguments are reconstructed here rather than recorded at deploy time, and the
+// two addresses deployment.json doesn't carry (the shared MockVerifier and the treasury,
+// which the frontend never needs) are read back off the deployed contracts themselves, so
+// this stays correct without deployTestnet.js having to hand anything over.
+//
+// "Already verified" is a success, not a failure: Blockscout matches by bytecode, so
+// contracts that share it (the four MockERC20s) get picked up the moment the first one
+// lands.
+const hre = require("hardhat");
+const { ethers } = require("hardhat");
+const deployment = require("../frontend/lib/deployment.json");
+
+const TOKEN_ARGS = {
+  ZEN: ["Wrapped ZEN", "ZEN", 18],
+  ZUSD: ["Horizen USD", "ZUSD", 18],
+  WBTC: ["Wrapped Bitcoin", "WBTC", 8],
+  USDC: ["USD Coin", "USDC", 6],
+};
+
+async function verify(label, address, constructorArguments) {
+  process.stdout.write(`${label.padEnd(20)} ${address} ... `);
+  try {
+    await hre.run("verify:verify", { address, constructorArguments });
+    console.log("verified");
+    return true;
+  } catch (err) {
+    const message = String(err.message || err);
+    if (/already verified|already been verified|Smart-contract already verified/i.test(message)) {
+      console.log("already verified");
+      return true;
+    }
+    console.log(`FAILED: ${message.split("\n")[0]}`);
+    return false;
+  }
+}
+
+async function main() {
+  const [deployer] = await ethers.getSigners();
+  const c = deployment.contracts;
+
+  const pool = await ethers.getContractAt("LatensPool", c.LatensPool.address);
+  const verifierAddress = await pool.commitmentVerifier();
+  const treasuryAddress = await pool.treasury();
+  const treasury = await ethers.getContractAt("ProtocolTreasury", treasuryAddress);
+  const stakingPoolAddress = await treasury.zenStakingPool();
+  const oracleAddress = c.MockPriceOracle.address;
+
+  const results = [];
+  for (const [symbol, token] of Object.entries(deployment.tokens)) {
+    results.push(await verify(`MockERC20 ${symbol}`, token.address, TOKEN_ARGS[symbol]));
+  }
+  results.push(await verify("MockPriceOracle", oracleAddress, []));
+  results.push(await verify("MockVerifier", verifierAddress, [false]));
+  results.push(await verify("MockZenStakingPool", stakingPoolAddress, []));
+  results.push(await verify("AssetRegistry", c.AssetRegistry.address, [deployer.address]));
+  results.push(await verify("ProtocolTreasury", treasuryAddress, [deployer.address, stakingPoolAddress]));
+  results.push(
+    await verify("LatensPool", c.LatensPool.address, [
+      deployer.address,
+      c.AssetRegistry.address,
+      treasuryAddress,
+      oracleAddress,
+      verifierAddress,
+      verifierAddress,
+      verifierAddress,
+    ])
+  );
+  results.push(await verify("LatensDollar", c.LatensDollar.address, [deployer.address]));
+  results.push(
+    await verify("LatensCDP", c.LatensCDP.address, [
+      deployer.address,
+      c.AssetRegistry.address,
+      treasuryAddress,
+      c.LatensDollar.address,
+      oracleAddress,
+      verifierAddress,
+      verifierAddress,
+      verifierAddress,
+    ])
+  );
+  results.push(
+    await verify("SupplyRewards", c.SupplyRewards.address, [
+      deployer.address,
+      c.LatensPool.address,
+      deployment.tokens.ZUSD.address,
+      24n * 60n * 60n,
+      ethers.parseUnits("10", 18),
+    ])
+  );
+
+  const ok = results.filter(Boolean).length;
+  console.log(`\n${ok}/${results.length} verified.`);
+  if (ok !== results.length) process.exitCode = 1;
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});
