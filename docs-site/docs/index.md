@@ -7,11 +7,12 @@ sidebar_label: Introduction
 
 # Introduction
 
-Latens is a confidential borrow-lend protocol for Horizen. Collateral and debt amounts are
-never written or read in the clear: they exist on-chain only as cryptographic commitments,
-and every action that would normally require reading a balance (depositing, borrowing,
-repaying, minting, liquidating) is instead gated by a zero-knowledge proof that answers a
-narrow yes-or-no question without revealing the numbers behind it.
+Latens is a confidential borrow-lend protocol for Horizen, the EVM-native L3 settling on
+Base that Latens is built and deployed on. Collateral and debt amounts are never written or
+read in the clear: they exist on-chain only as cryptographic commitments, and every action
+that would normally require reading a balance (depositing, borrowing, repaying, minting,
+liquidating) is instead gated by a zero-knowledge proof that answers a narrow yes-or-no
+question without revealing the numbers behind it.
 
 This section explains what that means in practice, what is and isn't hidden, and how the
 pieces fit together. It is written for anyone evaluating the protocol: users, auditors,
