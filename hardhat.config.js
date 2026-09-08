@@ -46,13 +46,31 @@ module.exports = {
     enabled: false,
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY || "",
+    apiKey: {
+      sepolia: process.env.ETHERSCAN_API_KEY || "",
+      // Horizen's explorer is Blockscout, not Etherscan — hardhat-verify still uses this
+      // same `apiKey` map to pick a key per network name, but Blockscout's verification
+      // API doesn't check the key's value, only that one is present. See customChains
+      // below for where the actual verifier URLs are configured.
+      horizenTestnet: "not-required-by-blockscout",
+    },
+    customChains: [
+      {
+        network: "horizenTestnet",
+        chainId: 2651420,
+        urls: {
+          apiURL: "https://explorer-testnet.horizen.io/api",
+          browserURL: "https://explorer-testnet.horizen.io",
+        },
+      },
+    ],
   },
   networks: {
-    // Horizen is an EVM-native L3 settling on Base. RPC endpoints are placeholders
-    // until Horizen publishes its public testnet/mainnet RPC for this deployment.
+    // Confirmed live: docs.horizen.io/horizen-chain/network/testnet, and this project's
+    // own eth_chainId probe against the RPC below returned 2651420 directly.
     horizenTestnet: {
-      url: process.env.HORIZEN_TESTNET_RPC_URL || "",
+      url: process.env.HORIZEN_TESTNET_RPC_URL || "https://horizen-testnet.rpc.caldera.xyz/http",
+      chainId: 2651420,
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
     },
     baseSepolia: {
