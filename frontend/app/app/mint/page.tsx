@@ -126,6 +126,7 @@ export default function MintPage() {
             const asset = assets?.[i]?.result as AssetStruct | undefined;
             const locked = (totalLocked?.[i]?.result as bigint | undefined) ?? 0n;
             const activeMode = modal?.symbol === t.symbol ? modal.mode : null;
+            const isCollateralAsset = !hasActivePosition || t.assetId === collateralAssetId;
             const goldClass = "rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong";
             const borderedClass = "rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover";
 
@@ -142,21 +143,36 @@ export default function MintPage() {
                   {assetsLoading ? <Skeleton width={50} /> : <span className="font-mono text-sm tabular-nums">{asset ? `${asset.ltvBps / 100}%` : "—"}</span>}
                 </div>
                 <div className="flex items-center gap-2 border-b border-line py-4.5">
-                  <button onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "supply" })} className={activeMode === "supply" ? goldClass : borderedClass}>
+                  <button
+                    onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "supply" })}
+                    disabled={!isCollateralAsset}
+                    title={isCollateralAsset ? undefined : "This position's collateral is a different asset and can't be split across two"}
+                    className={`${activeMode === "supply" ? goldClass : borderedClass} disabled:cursor-not-allowed disabled:opacity-40`}
+                  >
                     Supply
                   </button>
                   <button
                     onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "mint" })}
-                    disabled={!hasActivePosition}
-                    title={hasActivePosition ? undefined : "Supply collateral first"}
+                    disabled={!hasActivePosition || !isCollateralAsset}
+                    title={!hasActivePosition ? "Supply collateral first" : !isCollateralAsset ? "This position's collateral is a different asset" : undefined}
                     className={`${activeMode === "mint" ? goldClass : borderedClass} disabled:cursor-not-allowed disabled:opacity-40`}
                   >
                     Mint
                   </button>
-                  <button onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "burn" })} className={activeMode === "burn" ? goldClass : borderedClass}>
+                  <button
+                    onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "burn" })}
+                    disabled={!hasActivePosition || !isCollateralAsset}
+                    title={!hasActivePosition ? "No debt to burn yet" : !isCollateralAsset ? "This position's collateral is a different asset" : undefined}
+                    className={`${activeMode === "burn" ? goldClass : borderedClass} disabled:cursor-not-allowed disabled:opacity-40`}
+                  >
                     Burn
                   </button>
-                  <button onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "withdraw" })} className={activeMode === "withdraw" ? goldClass : borderedClass}>
+                  <button
+                    onClick={() => setModal({ symbol: t.symbol as TokenSymbol, mode: "withdraw" })}
+                    disabled={!hasActivePosition || !isCollateralAsset}
+                    title={!hasActivePosition ? "Nothing supplied yet" : !isCollateralAsset ? "This position's collateral is a different asset" : undefined}
+                    className={`${activeMode === "withdraw" ? goldClass : borderedClass} disabled:cursor-not-allowed disabled:opacity-40`}
+                  >
                     Withdraw
                   </button>
                   <FaucetButton address={t.address} symbol={t.symbol} decimals={t.decimals} />

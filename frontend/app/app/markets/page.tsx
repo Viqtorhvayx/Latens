@@ -189,6 +189,7 @@ export default function MarketsPage() {
                     symbol={t.symbol}
                     decimals={t.decimals}
                     hasActivePosition={hasActivePosition}
+                    canSupply={!hasActivePosition || t.assetId === collateralAssetId}
                     canWithdraw={t.assetId === collateralAssetId && collateralAmount > 0n}
                     canRepay={t.assetId === debtAssetId && debtAmount > 0n}
                     activeMode={modal?.symbol === t.symbol ? modal.mode : null}

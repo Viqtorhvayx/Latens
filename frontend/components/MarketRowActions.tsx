@@ -11,6 +11,7 @@ export function MarketRowActions({
   symbol,
   decimals,
   hasActivePosition,
+  canSupply,
   canWithdraw,
   canRepay,
   activeMode,
@@ -20,6 +21,7 @@ export function MarketRowActions({
   symbol: string;
   decimals: number;
   hasActivePosition: boolean;
+  canSupply: boolean;
   canWithdraw: boolean;
   canRepay: boolean;
   activeMode: ActionMode | null;
@@ -42,10 +44,12 @@ export function MarketRowActions({
     <div className="flex items-center gap-2">
       <button
         onClick={() => onAction("supply")}
+        disabled={!canSupply}
+        title={canSupply ? undefined : "This position's collateral is a different asset and can't be split across two"}
         className={
           activeMode === "supply"
-            ? "rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong"
-            : "rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover"
+            ? "rounded-[10px] bg-gold px-4 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
+            : "rounded-lg border border-line-strong px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
         }
       >
         Supply
