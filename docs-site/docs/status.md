@@ -40,7 +40,17 @@ stating plainly rather than leaving a reader to infer it.
   identified failure modes, not every possible one. A circuit audit is a different
   discipline from a Solidity review, and neither has been performed independently.
 - **Cross-margin, multi-asset positions are out of scope for this milestone.** Positions are
-  single-collateral, single-debt-asset, and isolated per user.
+  single-collateral, single-debt-asset, and isolated per user. Supplying a second asset into
+  a position that already holds one is rejected on-chain, and the interface disables the
+  action rather than letting it fail in a wallet.
+- **The testnet price feed is a mock that needs a heartbeat.** Both contracts reject any
+  solvency-gated call whose price is more than an hour old. A production oracle updates
+  itself; `MockPriceOracle` only advances when something calls it, so a deployment left
+  alone for an hour starts rejecting borrow, withdraw-against-debt, mint and liquidate with
+  `StaleOraclePrice`, while supply, repay and burn keep working. The interface re-stamps the
+  feed itself before each affected action, and `script/refreshPrices.js` does the same from
+  the command line. The re-stamp is permissionless and cannot change what a price says, only
+  how recently it was checked.
 - **Liquidation amounts become public.** The seized collateral and repaid debt amounts for a
   liquidated position are visible on-chain at the moment of liquidation. See
   [Privacy model](./privacy-model) for the full boundary of what stays private and what

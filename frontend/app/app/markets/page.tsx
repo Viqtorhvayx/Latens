@@ -259,8 +259,8 @@ export default function MarketsPage() {
       <p className="mt-4 text-[11.5px] text-ink-faint">
         TVL, Supply APY and Borrow APR are real, live figures computed from each market&apos;s utilization, not placeholders. Individual position sizes are never disclosed. Borrowers pay Borrow APR as an interest fee
         charged at repay time; most of it stays in the pool and compounds into supplied collateral automatically at Supply APY, so withdrawing later returns more than was deposited, with no separate claim step. Once
-        you&apos;ve borrowed, only enough of your supply to cover the debt plus its accrued interest sits locked and exposed to liquidation on an adverse price move; the rest stays free to withdraw, and repaying
-        releases the locked portion.
+        you&apos;ve borrowed, only enough of your supply to cover the debt plus its accrued interest sits locked and exposed to liquidation on an adverse price move. The rest stays free to withdraw. Repaying releases
+        the locked portion.
       </p>
 
       {modal && <PositionActionModal symbol={modal.symbol} mode={modal.mode} onClose={() => setModal(null)} />}

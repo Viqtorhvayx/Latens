@@ -7,10 +7,13 @@ import { BaseError, ContractFunctionRevertedError, UserRejectedRequestError } fr
 
 const REVERT_MESSAGES: Record<string, string> = {
   ZeroAmount: "Enter an amount greater than zero.",
-  InvalidProof: "This didn't match the current on-chain state — try refreshing the page and retrying.",
+  InvalidProof: "This didn't match the current on-chain state. Refresh the page and try again.",
   AssetNotListed: "This asset isn't listed on the protocol.",
   AssetNotSupported: "This build only supports one collateral asset and one debt asset per position.",
-  StaleOraclePrice: "Price data is stale right now — try again in a moment.",
+  // The app refreshes the feed itself before every solvency-gated call (lib/useFreshPrices.ts),
+  // so reaching this means that refresh didn't land, not that waiting will help: this oracle
+  // only advances when someone calls it.
+  StaleOraclePrice: "The price feed needs a refresh before this can go through. Try the action again.",
   ExceedsGrantIndicativeRange: "That amount is outside this deployment's configured range.",
   ExceedsMaxFee: "That fee is outside this deployment's configured range.",
   NoActivePosition: "Supply collateral in a market first — rewards need an active position.",

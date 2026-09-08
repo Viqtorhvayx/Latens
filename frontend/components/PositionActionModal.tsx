@@ -19,6 +19,7 @@ import { usdValueE8, formatUsd, formatApr } from "@/lib/valuation";
 import { borrowCapacity } from "@/lib/borrow";
 import { useViewingKey } from "@/lib/viewingKeyContext";
 import { encryptNote } from "@/lib/viewingKey";
+import { useFreshPrices } from "@/lib/useFreshPrices";
 
 export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
 
@@ -44,7 +45,8 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const { enabled: viewingKeyEnabled, ensure: ensureViewingKey } = useViewingKey();
-  const [step, setStep] = useState<"idle" | "approving" | "submitting" | "done" | "error">("idle");
+  const ensureFreshPrices = useFreshPrices();
+  const [step, setStep] = useState<"idle" | "approving" | "refreshingPrices" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   const { copied, copy } = useCopyToClipboard();
@@ -219,6 +221,15 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           gas: APPROVE_GAS,
         });
         await waitForConfirmation(publicClient, approveHash);
+      }
+
+      // borrow and withdraw are the two calls the pool checks solvency on, and solvency
+      // reads the oracle — so both revert outright if the feed has aged past the staleness
+      // window, whatever the position itself looks like. Re-stamp it first.
+      if (needsSolvencyContext) {
+        setStep("refreshingPrices");
+        const collateralTokenAddress = collateralAsset ? (collateralAsset as { token: `0x${string}` }).token : undefined;
+        await ensureFreshPrices([collateralTokenAddress, debtTokenForSolvency?.address]);
       }
 
       setStep("submitting");
@@ -468,7 +479,13 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
                     disabled={!address || amount === 0n || isPending || !canBorrow || exceedsAvailable}
                     className="w-full rounded-[10px] bg-gold py-3.5 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {step === "approving" ? "Approving…" : step === "submitting" ? "Confirming…" : `Confirm ${ACTION_LABEL[mode]}, sign a private proof`}
+                    {step === "approving"
+                      ? "Approving…"
+                      : step === "refreshingPrices"
+                        ? "Refreshing price feed…"
+                        : step === "submitting"
+                          ? "Confirming…"
+                          : `Confirm ${ACTION_LABEL[mode]}, sign a private proof`}
                   </button>
                   {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}
                   <p className="mt-3 text-center text-[11.5px] text-ink-faint">Your position details are never broadcast in the clear.</p>

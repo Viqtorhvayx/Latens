@@ -15,6 +15,7 @@ import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { sanitizeAmountInput } from "@/lib/amountInput";
 import { usdValueE8 } from "@/lib/valuation";
 import { waitForConfirmation } from "@/lib/waitForTx";
+import { useFreshPrices } from "@/lib/useFreshPrices";
 
 export type CDPActionMode = "supply" | "withdraw" | "mint" | "burn";
 
@@ -41,7 +42,8 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
   const { writeContractAsync, isPending } = useWriteContract();
   const publicClient = usePublicClient();
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<"idle" | "approving" | "submitting" | "done" | "error">("idle");
+  const ensureFreshPrices = useFreshPrices();
+  const [step, setStep] = useState<"idle" | "approving" | "refreshingPrices" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   const { copied, copy } = useCopyToClipboard();
@@ -133,6 +135,13 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           gas: APPROVE_GAS,
         });
         await waitForConfirmation(publicClient, approveHash);
+      }
+
+      // mint and withdraw are solvency-gated, so they read the oracle and revert on a feed
+      // that's aged out — see lib/priceFreshness.ts. burn and supply don't touch it.
+      if (needsSolvencyContext) {
+        setStep("refreshingPrices");
+        await ensureFreshPrices([collateralAsset ? (collateralAsset as { token: `0x${string}` }).token : undefined]);
       }
 
       setStep("submitting");
@@ -326,7 +335,13 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
                     disabled={!address || amount === 0n || isPending || !canMint || exceedsAvailable}
                     className="w-full rounded-[10px] bg-gold py-3.5 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {step === "approving" ? "Approving…" : step === "submitting" ? "Confirming…" : `Confirm ${ACTION_LABEL[mode]}, sign a private proof`}
+                    {step === "approving"
+                      ? "Approving…"
+                      : step === "refreshingPrices"
+                        ? "Refreshing price feed…"
+                        : step === "submitting"
+                          ? "Confirming…"
+                          : `Confirm ${ACTION_LABEL[mode]}, sign a private proof`}
                   </button>
                   {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}
                   <p className="mt-3 text-center text-[11.5px] text-ink-faint">Your position details are never broadcast in the clear.</p>

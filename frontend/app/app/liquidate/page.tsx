@@ -12,6 +12,7 @@ import { humanizeError } from "@/lib/errors";
 import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { waitForConfirmation } from "@/lib/waitForTx";
+import { useFreshPrices } from "@/lib/useFreshPrices";
 
 const APPROVE_GAS = 100_000n;
 const LIQUIDATE_GAS = 700_000n;
@@ -44,6 +45,7 @@ export default function LiquidatePage() {
   const chainId = useChainId();
   const { writeContractAsync, isPending } = useWriteContract();
   const publicClient = usePublicClient();
+  const ensureFreshPrices = useFreshPrices();
   const queryClient = useQueryClient();
   const { copied, copy } = useCopyToClipboard();
 
@@ -181,6 +183,9 @@ export default function LiquidatePage() {
         gas: APPROVE_GAS,
       });
       await waitForConfirmation(publicClient, approveHash);
+
+      // liquidate() reads both prices and rejects a stale feed, same as borrow/withdraw.
+      await ensureFreshPrices([collateralToken.address, debtToken.address]);
 
       const hash = await writeContractAsync({
         address: latensPool.address,
