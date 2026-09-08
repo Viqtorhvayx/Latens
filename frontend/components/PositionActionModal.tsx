@@ -17,6 +17,7 @@ import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { sanitizeAmountInput } from "@/lib/amountInput";
 import { usdValueE8, formatUsd, formatApr } from "@/lib/valuation";
 import { borrowCapacity } from "@/lib/borrow";
+import { projectSupplyIndexRay } from "@/lib/supplyIndex";
 import { useViewingKey } from "@/lib/viewingKeyContext";
 import { encryptNote } from "@/lib/viewingKey";
 import { useFreshPrices } from "@/lib/useFreshPrices";
@@ -127,6 +128,12 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   });
   const supplyApyBps = supplyRateBpsRaw !== undefined ? Number(supplyRateBpsRaw as bigint) : undefined;
 
+  // A deposit claims shares against an index projected forward (lib/supplyIndex.ts), so it
+  // stays valid while the real index keeps moving. A withdrawal deliberately uses the index
+  // as read: the pool wants a burn to cover at least what the amount costs, and an index
+  // that only grows means a value read now always does.
+  const depositIndexRay = projectSupplyIndexRay(tokenIndexRay, (supplyRateBpsRaw as bigint | undefined) ?? 0n);
+
   const amount = (() => {
     try {
       return amountInput ? parseUnits(amountInput, token.decimals) : 0n;
@@ -235,7 +242,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
       setStep("submitting");
 
       if (mode === "supply") {
-        const { oldCommitment, newCommitment, shareDelta, patch } = await prepareSupply(address, token.assetId, amount, tokenIndexRay);
+        const { oldCommitment, newCommitment, shareDelta, patch } = await prepareSupply(address, token.assetId, amount, depositIndexRay);
         const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,

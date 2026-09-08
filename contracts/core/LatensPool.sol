@@ -146,12 +146,12 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
 
         uint256 shareDelta = (amount * RAY) / registry.currentSupplyIndexRay(assetId);
 
-        _verifyCommitmentUpdate({
+        _verifyShareUpdate({
             proof: proof,
             publicInputs: publicInputs,
             oldCommitment: position.collateralCommitment,
             newCommitment: newCommitment,
-            delta: shareDelta,
+            maxDelta: shareDelta,
             isIncrease: true,
             assetId: assetId
         });
@@ -187,13 +187,12 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         uint256 collateralIndexRay = registry.currentSupplyIndexRay(position.collateralAssetId);
         uint256 shareDelta = (amount * RAY) / collateralIndexRay;
 
-        _verifyCommitmentUpdate({
+        _verifyShareBurn({
             proof: updateProof,
             publicInputs: updatePublicInputs,
             oldCommitment: position.collateralCommitment,
             newCommitment: newCommitment,
-            delta: shareDelta,
-            isIncrease: false,
+            minDelta: shareDelta,
             assetId: position.collateralAssetId
         });
 
@@ -422,6 +421,58 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         if (!commitmentVerifier.verifyCommitmentUpdate(proof, publicInputs)) revert Errors.InvalidProof();
     }
 
+    /// @dev Share deltas can't be bound with equality, unlike every other public input.
+    /// `currentSupplyIndexRay` advances every second an asset has live utilization, and a
+    /// share delta is derived from it — so binding by equality asks the caller to predict
+    /// the index of whichever future block their transaction happens to land in. That is
+    /// not winnable: a wallet takes seconds to sign, the index has moved by then, and the
+    /// call reverts with InvalidProof no matter how honest it was. It looked like it worked
+    /// only because an asset nobody has borrowed against has a static index.
+    ///
+    /// These two bind directionally instead, always leaving any drift in the pool's favour:
+    /// a deposit may claim no MORE shares than its amount buys at the live index, and a
+    /// withdrawal must burn no FEWER than its amount costs. A caller who reads the index a
+    /// little early is then simply credited (or debited) a dust amount against themselves
+    /// rather than rejected, and gets a usable window instead of a single winning second.
+    /// Nothing else loosens: both commitments, the direction flag and the asset id all
+    /// still bind exactly, so a proof still can't be replayed onto a different update.
+    function _verifyShareUpdate(
+        bytes calldata proof,
+        uint256[] calldata publicInputs,
+        uint256 oldCommitment,
+        uint256 newCommitment,
+        uint256 maxDelta,
+        bool isIncrease,
+        uint256 assetId
+    ) private view {
+        if (publicInputs.length < 5) revert Errors.InvalidProof();
+        _requireEq(publicInputs[0], oldCommitment);
+        _requireEq(publicInputs[1], newCommitment);
+        if (publicInputs[2] > maxDelta) revert Errors.InvalidProof();
+        _requireEq(publicInputs[3], isIncrease ? 1 : 0);
+        _requireEq(publicInputs[4], assetId);
+
+        if (!commitmentVerifier.verifyCommitmentUpdate(proof, publicInputs)) revert Errors.InvalidProof();
+    }
+
+    function _verifyShareBurn(
+        bytes calldata proof,
+        uint256[] calldata publicInputs,
+        uint256 oldCommitment,
+        uint256 newCommitment,
+        uint256 minDelta,
+        uint256 assetId
+    ) private view {
+        if (publicInputs.length < 5) revert Errors.InvalidProof();
+        _requireEq(publicInputs[0], oldCommitment);
+        _requireEq(publicInputs[1], newCommitment);
+        if (publicInputs[2] < minDelta) revert Errors.InvalidProof();
+        _requireEq(publicInputs[3], 0);
+        _requireEq(publicInputs[4], assetId);
+
+        if (!commitmentVerifier.verifyCommitmentUpdate(proof, publicInputs)) revert Errors.InvalidProof();
+    }
+
     function _verifySolvency(
         bytes calldata proof,
         uint256[] calldata publicInputs,
@@ -443,7 +494,10 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         _requireEq(publicInputs[1], debtCommitment);
         _requireEq(publicInputs[2], collateralPriceE8);
         _requireEq(publicInputs[3], debtPriceE8);
-        _requireEq(publicInputs[4], collateralIndexRay);
+        // Same moving target as _verifyShareUpdate, and bounded the same way: a caller may
+        // only UNDERSTATE the supply index, which understates what their collateral shares
+        // are worth and so can only make this check stricter on them, never looser.
+        if (publicInputs[4] > collateralIndexRay) revert Errors.InvalidProof();
         _requireEq(publicInputs[5], debtIndexRay);
         _requireEq(publicInputs[6], thresholdBps);
 

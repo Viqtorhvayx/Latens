@@ -13,6 +13,7 @@ import { waitForConfirmation } from "@/lib/waitForTx";
 import { useViewingKey } from "@/lib/viewingKeyContext";
 import { encryptNote } from "@/lib/viewingKey";
 import { borrowCapacity } from "@/lib/borrow";
+import { projectSupplyIndexRay } from "@/lib/supplyIndex";
 import { formatUsd } from "@/lib/valuation";
 import { TokenIcon } from "./TokenIcon";
 
@@ -78,7 +79,15 @@ export function BorrowCollateralStep({
     functionName: "currentSupplyIndexRay",
     args: [BigInt(token.assetId)],
   });
-  const indexRay = (indexRayRaw as bigint | undefined) ?? RAY;
+  const { data: supplyRateBpsRaw } = useReadContract({
+    address: assetRegistry.address,
+    abi: assetRegistry.abi,
+    functionName: "supplyRateBps",
+    args: [BigInt(token.assetId)],
+  });
+  // Projected forward, not used as read: see lib/supplyIndex.ts. A deposit into an asset
+  // with live utilization is otherwise racing an index that moves every second.
+  const indexRay = projectSupplyIndexRay((indexRayRaw as bigint | undefined) ?? RAY, (supplyRateBpsRaw as bigint | undefined) ?? 0n);
 
   // Live LTV/price context, so the amount you type shows exactly what it would let you
   // borrow before you ever sign anything — real registry and oracle reads, not an estimate.

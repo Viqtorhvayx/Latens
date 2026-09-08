@@ -370,3 +370,124 @@ describe("oracle heartbeat", function () {
     expect(await zen.balanceOf(alice.address)).to.equal(zenBefore + borrowAmount);
   });
 });
+
+describe("supply index drift", function () {
+  // Reproduces the live failure: a deposit into an asset that is being borrowed against
+  // reverted with InvalidProof, because the share delta is derived from a supply index that
+  // advances every second and the pool demanded the caller predict its value at mining time.
+  // An idle asset's index doesn't move, which is why deposits there kept working.
+  async function withMovingIndex() {
+    const ctx = await deployFixture();
+    const { deployer, alice, zen, usdc, pool, registry, USDC_ID, ZEN_ID } = ctx;
+    const poolAddr = await pool.getAddress();
+    const store = makeStore();
+
+    // Alice supplies USDC, so the market has something to lend out.
+    const seed = ethers.parseUnits("1000", 6);
+    const idx0 = await registry.currentSupplyIndexRay(USDC_ID);
+    const s0 = store.prepareSupply(Number(USDC_ID), seed, idx0);
+    await usdc.connect(alice).approve(poolAddr, seed);
+    await pool.connect(alice).supplyCollateral(USDC_ID, seed, s0.newCommitment, "0x", [s0.oldCommitment, s0.newCommitment, s0.shareDelta, 1n, USDC_ID]);
+    store.commit(Number(USDC_ID), s0.patch);
+
+    // The deployer borrows USDC against ZEN, putting the USDC market under utilization —
+    // which is what starts its supply index moving.
+    const deployerStore = makeStore();
+    const zenAmount = ethers.parseUnits("100", 18);
+    const zenIdx = await registry.currentSupplyIndexRay(ZEN_ID);
+    const ds = deployerStore.prepareSupply(Number(ZEN_ID), zenAmount, zenIdx);
+    await zen.connect(deployer).approve(poolAddr, zenAmount);
+    await pool.connect(deployer).supplyCollateral(ZEN_ID, zenAmount, ds.newCommitment, "0x", [ds.oldCommitment, ds.newCommitment, ds.shareDelta, 1n, ZEN_ID]);
+    deployerStore.commit(Number(ZEN_ID), ds.patch);
+
+    await usdc.mint(poolAddr, ethers.parseUnits("5000", 6));
+    const borrowUsdc = ethers.parseUnits("100", 6);
+    const dPos = await pool.positions(deployer.address);
+    const db = deployerStore.prepareBorrow(Number(USDC_ID), borrowUsdc);
+    await pool.connect(deployer).borrow(
+      USDC_ID,
+      borrowUsdc,
+      db.newCommitment,
+      "0x",
+      [db.oldCommitment, db.newCommitment, borrowUsdc, 1n, USDC_ID],
+      "0x",
+      [dPos.collateralCommitment, db.newCommitment, 200_000_000n, 100_000_000n, await registry.currentSupplyIndexRay(ZEN_ID), RAY, 8_000n]
+    );
+
+    expect(await registry.supplyRateBps(USDC_ID)).to.be.greaterThan(0n);
+    return { ...ctx, store, poolAddr };
+  }
+
+  it("the index really does move once an asset is borrowed against", async function () {
+    const { registry, USDC_ID } = await withMovingIndex();
+    const before = await registry.currentSupplyIndexRay(USDC_ID);
+    await time.increase(30);
+    await ethers.provider.send("evm_mine", []);
+    expect(await registry.currentSupplyIndexRay(USDC_ID)).to.be.greaterThan(before);
+  });
+
+  it("rejects a deposit claiming MORE shares than the live index gives, however the caller got there", async function () {
+    const { alice, usdc, pool, registry, USDC_ID, store, poolAddr } = await withMovingIndex();
+
+    const staleIndex = await registry.currentSupplyIndexRay(USDC_ID);
+    await time.increase(60); // the index moves on past what the caller read
+
+    const amount = ethers.parseUnits("50", 6);
+    const s = store.prepareSupply(Number(USDC_ID), amount, staleIndex); // over-claims
+    await usdc.connect(alice).approve(poolAddr, amount);
+    await expect(
+      pool.connect(alice).supplyCollateral(USDC_ID, amount, s.newCommitment, "0x", [s.oldCommitment, s.newCommitment, s.shareDelta, 1n, USDC_ID])
+    ).to.be.revertedWithCustomError(pool, "InvalidProof");
+  });
+
+  it("accepts a deposit whose claim was projected forward, which is what the UI now sends", async function () {
+    const { alice, usdc, pool, registry, USDC_ID, store, poolAddr } = await withMovingIndex();
+
+    // lib/supplyIndex.ts: project the index over the submission window, so the claim stays
+    // an under-claim for as long as that window lasts instead of for one second.
+    const BPS = 10_000n;
+    const SECONDS_PER_YEAR = 31_536_000n;
+    const PROJECTION_SECONDS = 1_800n;
+    const indexRay = await registry.currentSupplyIndexRay(USDC_ID);
+    const rateBps = await registry.supplyRateBps(USDC_ID);
+    const projected = indexRay + (indexRay * rateBps * PROJECTION_SECONDS) / (BPS * SECONDS_PER_YEAR);
+    expect(projected).to.be.greaterThan(indexRay);
+
+    const amount = ethers.parseUnits("50", 6);
+    const s = store.prepareSupply(Number(USDC_ID), amount, projected);
+
+    // Sit on it far longer than a wallet signature takes, then submit.
+    await time.increase(120);
+
+    const balanceBefore = await usdc.balanceOf(alice.address);
+    await usdc.connect(alice).approve(poolAddr, amount);
+    await pool.connect(alice).supplyCollateral(USDC_ID, amount, s.newCommitment, "0x", [s.oldCommitment, s.newCommitment, s.shareDelta, 1n, USDC_ID]);
+    store.commit(Number(USDC_ID), s.patch);
+
+    expect(await usdc.balanceOf(alice.address)).to.equal(balanceBefore - amount);
+    expect((await pool.positions(alice.address)).collateralCommitment).to.equal(s.newCommitment);
+  });
+
+  it("still rejects a withdrawal that burns FEWER shares than the amount costs", async function () {
+    const { alice, pool, registry, USDC_ID, store } = await withMovingIndex();
+
+    const amount = ethers.parseUnits("10", 6);
+    const indexRay = await registry.currentSupplyIndexRay(USDC_ID);
+    // A caller reaching for a future index here would under-burn, which is the direction
+    // that costs the pool rather than the caller.
+    const inflated = indexRay * 2n;
+    const w = store.prepareWithdraw(Number(USDC_ID), amount, inflated);
+    const position = await pool.positions(alice.address);
+
+    await expect(
+      pool.connect(alice).withdrawCollateral(
+        amount,
+        w.newCommitment,
+        "0x",
+        [w.oldCommitment, w.newCommitment, w.shareDelta, 0n, USDC_ID],
+        "0x",
+        [w.newCommitment, position.debtCommitment, 100_000_000n, 200_000_000n, indexRay, RAY, 8_000n]
+      )
+    ).to.be.revertedWithCustomError(pool, "InvalidProof");
+  });
+});

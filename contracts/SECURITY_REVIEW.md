@@ -108,6 +108,32 @@ unchanged and separately disclosed above — this fix closes the pool's own even
 underlying transaction visibility the THREAT MODEL note already names as out of scope for
 this scaffold.
 
+## Addendum: share-delta binding is directional, not exact
+
+`LatensPool` binds every public input by equality except one, and the exception is
+deliberate. A collateral share delta is derived from `currentSupplyIndexRay`, which advances
+every second an asset carries utilization. Binding it by equality asks the caller to name
+the index of whichever future block their transaction lands in, which no caller can do: the
+index moves while a wallet is being signed, and the call then reverts with `InvalidProof`
+however honest it was. This was not theoretical. A real deposit on the testnet deployment
+failed exactly this way, submitting a delta derived from an index 92 million ray-units
+behind the one the pool computed 29 seconds later. It went unnoticed because an asset nobody
+has borrowed against has a completely static index, so deposits into idle markets worked.
+
+`_verifyShareUpdate` and `_verifyShareBurn` therefore bound that one input directionally: a
+deposit may claim no more shares than its amount buys at the live index, and a withdrawal
+must burn no fewer than its amount costs. Both commitments, the direction flag and the asset
+id still bind exactly, so a proof still cannot be replayed onto a different update, a
+different asset, or the opposite direction. `_verifySolvency` treats the collateral index the
+same way and for the same reason: a caller may only understate it, which understates what
+their own collateral is worth and can only make the solvency check stricter on them.
+
+What this gives up: drift between reading the index and mining is absorbed as a dust
+rounding rather than a revert, and that rounding always falls against the caller. What it
+does not give up is any bound that protects the pool. The direction of each inequality was
+chosen on that basis, and `test/FrontendFlows.e2e.test.js` asserts both the accepted and the
+rejected side of each.
+
 ## Recommendation
 
 Treat this document as a description of what one more pair of eyes looked for and found —
