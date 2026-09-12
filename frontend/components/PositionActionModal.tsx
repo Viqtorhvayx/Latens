@@ -291,7 +291,18 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         const feeValueE8 = usdValueE8(feeInDebt, token.decimals, (debtPrice as readonly [bigint, bigint])[0]);
         const feeInCollateral =
           (feeValueE8 * 10n ** BigInt(collateralTokenForCap.decimals)) / (collateralPrice as readonly [bigint, bigint])[0];
-        const collateralUpdate = await prepareWithdraw(address, collateralAssetId, feeInCollateral, collateralIndexRayForRepay);
+
+        // Clamped to what this position's collateral actually holds. prepareWithdraw throws
+        // rather than returns when asked to burn more shares than exist, and an uncaught
+        // throw here means the repay transaction is never even offered to the wallet — the
+        // failure looks like the button doing nothing at all. The pool locks collateral
+        // while a debt is open precisely so this clamp is never the binding constraint, but
+        // a position left over from before that rule can still be short.
+        const collateralShares = get(address, collateralAssetId).supplied;
+        const feeShares = (feeInCollateral * RAY) / collateralIndexRayForRepay;
+        const burnShares = feeShares < collateralShares ? feeShares : collateralShares;
+        const burnAmount = (burnShares * collateralIndexRayForRepay) / RAY;
+        const collateralUpdate = await prepareWithdraw(address, collateralAssetId, burnAmount, collateralIndexRayForRepay);
 
         const hash = await writeContractAsync({
           address: latensPool.address,
@@ -305,6 +316,9 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             BigInt(collateralUpdate.newCommitment),
             "0x",
             [BigInt(collateralUpdate.oldCommitment), BigInt(collateralUpdate.newCommitment), collateralUpdate.shareDelta, 0n, BigInt(collateralAssetId)],
+            // Clearing the flag is what unlocks the collateral again, so it has to be set
+            // exactly when this repayment leaves nothing owed.
+            amount >= local.borrowed,
           ],
           gas: POOL_CALL_GAS,
         });

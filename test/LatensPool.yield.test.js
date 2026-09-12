@@ -122,7 +122,8 @@ describe("LatensPool real yield", function () {
       commitmentUpdateInputs({ oldCommitment: 3n, newCommitment: 4n, delta: borrowedZen, isIncrease: false, assetId: zenAssetId }),
       5n,
       "0x",
-      commitmentUpdateInputs({ oldCommitment: 2n, newCommitment: 5n, delta: ethers.parseUnits("500", 6), isIncrease: false, assetId: usdcAssetId })
+      commitmentUpdateInputs({ oldCommitment: 2n, newCommitment: 5n, delta: ethers.parseUnits("500", 6), isIncrease: false, assetId: usdcAssetId }),
+      true
     );
 
     const grownIndex = await registry.currentSupplyIndexRay(zenAssetId);
@@ -220,7 +221,8 @@ describe("LatensPool real yield", function () {
         commitmentUpdateInputs({ oldCommitment: 3n, newCommitment: 4n, delta: borrowedZen, isIncrease: false, assetId: zenAssetId }),
         5n,
         "0x",
-        commitmentUpdateInputs({ oldCommitment: 2n, newCommitment: 5n, delta: ethers.parseUnits("500", 6), isIncrease: false, assetId: usdcAssetId })
+        commitmentUpdateInputs({ oldCommitment: 2n, newCommitment: 5n, delta: ethers.parseUnits("500", 6), isIncrease: false, assetId: usdcAssetId }),
+        true
       )
     ).wait();
     const repayBlock = await ethers.provider.getBlock(repayReceipt.blockNumber);

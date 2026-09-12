@@ -15,4 +15,5 @@ library Errors {
     error ExceedsGrantIndicativeRange();
     error ExceedsMaxFee();
     error NoActivePosition();
+    error OutstandingDebt();
 }

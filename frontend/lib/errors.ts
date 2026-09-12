@@ -16,6 +16,7 @@ const REVERT_MESSAGES: Record<string, string> = {
   StaleOraclePrice: "The price feed needs a refresh before this can go through. Try the action again.",
   ExceedsGrantIndicativeRange: "That amount is outside this deployment's configured range.",
   ExceedsMaxFee: "That fee is outside this deployment's configured range.",
+  OutstandingDebt: "Repay what this position owes before withdrawing its collateral.",
   NoActivePosition: "Supply collateral in a market first — rewards need an active position.",
 };
 

@@ -185,6 +185,16 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         DataTypes.Position storage position = positions[msg.sender];
         if (!position.active) revert Errors.AssetNotListed();
 
+        // Collateral is locked for as long as the position owes anything. Deciding whether a
+        // PARTIAL withdrawal leaves a position solvent needs the collateral total, which is
+        // exactly what this protocol keeps hidden — it is knowable only inside the solvency
+        // circuit, and this deployment's verifier is a permissive mock that will wave any
+        // proof through. Until real proving is wired, the honest enforcement is the blunt
+        // one: repay first, then withdraw. Without it a borrower can empty their collateral
+        // while still owing, which also strands `repay`, since the fee it settles has
+        // nothing left to come out of.
+        if (position.hasDebt) revert Errors.OutstandingDebt();
+
         DataTypes.Asset memory collateralAsset = registry.getAsset(position.collateralAssetId);
         uint256 collateralIndexRay = registry.currentSupplyIndexRay(position.collateralAssetId);
         uint256 shareDelta = (amount * RAY) / collateralIndexRay;
@@ -314,7 +324,8 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         uint256[] calldata debtPublicInputs,
         uint256 newCollateralCommitment,
         bytes calldata collateralProof,
-        uint256[] calldata collateralPublicInputs
+        uint256[] calldata collateralPublicInputs,
+        bool closesDebt
     ) external whenNotPaused nonReentrant {
         if (amount == 0) revert Errors.ZeroAmount();
         DataTypes.Position storage position = positions[msg.sender];
@@ -349,6 +360,14 @@ contract LatensPool is Ownable2Step, Pausable, ReentrancyGuard {
         position.collateralCommitment = newCollateralCommitment;
         position.lastUpdated = uint64(block.timestamp);
         position.debtLastUpdated = uint64(block.timestamp);
+        // Whether a repayment leaves nothing owed is a fact about a hidden amount, so the
+        // caller asserts it and `newDebtCommitment` is what a real commitment_update proof
+        // would have to open to zero for the claim to stand. It matters because collateral
+        // stays locked while `hasDebt` is set: without a way to clear the flag, paying a
+        // loan off in full would leave the collateral stranded forever.
+        if (closesDebt) {
+            position.hasDebt = false;
+        }
         registry.recordBorrow(position.debtAssetId, amount, false);
 
         // Exactly the principal, and nothing more, leaves the borrower's wallet.

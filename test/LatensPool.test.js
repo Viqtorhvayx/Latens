@@ -231,7 +231,8 @@ describe("LatensPool", function () {
         // A generous burn is allowed (the pool takes it as a floor), so this covers the
         // exact requirement without having to predict the block's own timestamp.
         4n, "0x",
-        commitmentUpdateInputs({ oldCommitment: 1n, newCommitment: 4n, delta: ethers.parseUnits("5", 18), isIncrease: false, assetId: collateralAssetId })
+        commitmentUpdateInputs({ oldCommitment: 1n, newCommitment: 4n, delta: ethers.parseUnits("5", 18), isIncrease: false, assetId: collateralAssetId }),
+        false
       )
     ).wait();
     const repayBlock = await ethers.provider.getBlock(repayReceipt.blockNumber);

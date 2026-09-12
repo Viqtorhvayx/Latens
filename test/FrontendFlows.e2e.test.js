@@ -235,7 +235,8 @@ describe("frontend flow replay", function () {
       [r.oldCommitment, r.newCommitment, debtAmount, 0n, ZEN_ID],
       collateralBurn.newCommitment,
       "0x",
-      [collateralBurn.oldCommitment, collateralBurn.newCommitment, collateralBurn.shareDelta, 0n, USDC_ID]
+      [collateralBurn.oldCommitment, collateralBurn.newCommitment, collateralBurn.shareDelta, 0n, USDC_ID],
+      true
     );
     store.commit(Number(ZEN_ID), r.patch);
     store.commit(Number(USDC_ID), collateralBurn.patch);
@@ -570,5 +571,86 @@ describe("supply rate precision", function () {
     const ray = await registry.supplyRateRay(0n);
     const bps = await registry.supplyRateBps(0n);
     expect(bps).to.equal((ray * 10_000n) / RAY);
+  });
+});
+
+describe("collateral is locked while a debt is open", function () {
+  // The failure this prevents, as it actually happened: a borrower withdrew their collateral
+  // while still owing, and repay then had nothing to settle its fee against — so the UI threw
+  // before the wallet was ever asked and the button appeared to do nothing at all.
+  async function borrowedPosition() {
+    const ctx = await deployFixture();
+    const { alice, usdc, pool, registry, ZEN_ID, USDC_ID } = ctx;
+    const store = makeStore();
+    const poolAddr = await pool.getAddress();
+
+    const supply = ethers.parseUnits("1000", 6);
+    const s = store.prepareSupply(Number(USDC_ID), supply, await registry.currentSupplyIndexRay(USDC_ID));
+    await usdc.connect(alice).approve(poolAddr, supply);
+    await pool.connect(alice).supplyCollateral(USDC_ID, supply, s.newCommitment, "0x", [s.oldCommitment, s.newCommitment, s.shareDelta, 1n, USDC_ID]);
+    store.commit(Number(USDC_ID), s.patch);
+
+    const borrowAmount = ethers.parseUnits("4", 18);
+    const b = store.prepareBorrow(Number(ZEN_ID), borrowAmount);
+    const pos = await pool.positions(alice.address);
+    await pool.connect(alice).borrow(
+      ZEN_ID, borrowAmount, b.newCommitment, "0x",
+      [b.oldCommitment, b.newCommitment, borrowAmount, 1n, ZEN_ID], "0x",
+      [pos.collateralCommitment, b.newCommitment, 100_000_000n, 200_000_000n, await registry.currentSupplyIndexRay(USDC_ID), RAY, 8_000n]
+    );
+    store.commit(Number(ZEN_ID), b.patch);
+    return { ...ctx, store, poolAddr, borrowAmount, supply };
+  }
+
+  it("refuses to release collateral while the position still owes", async function () {
+    const { alice, pool, registry, USDC_ID, store } = await borrowedPosition();
+    const amount = ethers.parseUnits("10", 6);
+    const idx = await registry.currentSupplyIndexRay(USDC_ID);
+    const w = store.prepareWithdraw(Number(USDC_ID), amount, idx);
+    const pos = await pool.positions(alice.address);
+
+    await expect(
+      pool.connect(alice).withdrawCollateral(
+        amount, w.newCommitment, "0x",
+        [w.oldCommitment, w.newCommitment, w.shareDelta, 0n, USDC_ID],
+        "0x",
+        [w.newCommitment, pos.debtCommitment, 100_000_000n, 200_000_000n, idx, RAY, 8_000n]
+      )
+    ).to.be.revertedWithCustomError(pool, "OutstandingDebt");
+  });
+
+  it("releases it again once the debt is repaid in full", async function () {
+    const { alice, zen, usdc, pool, registry, oracle, ZEN_ID, USDC_ID, store, borrowAmount } = await borrowedPosition();
+    const poolAddr = await pool.getAddress();
+
+    await oracle.refreshTimestamp(await zen.getAddress());
+    await oracle.refreshTimestamp(await usdc.getAddress());
+
+    const r = store.prepareRepay(Number(ZEN_ID), borrowAmount);
+    const burn = store.prepareWithdraw(Number(USDC_ID), ethers.parseUnits("1", 6), await registry.currentSupplyIndexRay(USDC_ID));
+    await zen.connect(alice).approve(poolAddr, borrowAmount);
+    await pool.connect(alice).repay(
+      borrowAmount, r.newCommitment, "0x",
+      [r.oldCommitment, r.newCommitment, borrowAmount, 0n, ZEN_ID],
+      burn.newCommitment, "0x",
+      [burn.oldCommitment, burn.newCommitment, burn.shareDelta, 0n, USDC_ID],
+      true // this clears the debt
+    );
+    store.commit(Number(ZEN_ID), r.patch);
+    store.commit(Number(USDC_ID), burn.patch);
+
+    expect((await pool.positions(alice.address)).hasDebt).to.equal(false);
+
+    const amount = ethers.parseUnits("10", 6);
+    const idx = await registry.currentSupplyIndexRay(USDC_ID);
+    const w = store.prepareWithdraw(Number(USDC_ID), amount, idx);
+    const before = await usdc.balanceOf(alice.address);
+    await pool.connect(alice).withdrawCollateral(
+      amount, w.newCommitment, "0x",
+      [w.oldCommitment, w.newCommitment, w.shareDelta, 0n, USDC_ID],
+      "0x",
+      []
+    );
+    expect((await usdc.balanceOf(alice.address)) - before).to.equal(amount);
   });
 });
