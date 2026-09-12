@@ -27,11 +27,20 @@ stating plainly rather than leaving a reader to infer it.
 - **No independent security audit has been done.** A security self-review exists in the
   repository (`contracts/SECURITY_REVIEW.md`). It is a genuine review, written by the same
   author as the code, and is explicitly not a substitute for an independent one.
-- **The publicly deployed testnet instance uses a permissive mock verifier**, not the real
-  proof system. The real verifiers exist, compile, are deployed in the test suite, and have
-  been driven end to end. But the public deployment stays on the mock because there is no
-  client-side proof generation in the frontend yet, so wiring a real verifier there today
-  would make every action in the interface revert.
+- **Client-side proof generation now exists**: `frontend/lib/proving/` runs real UltraHonk
+  proving in a Web Worker (`@noir-lang/noir_js` for witness generation, `@aztec/bb.js`'s
+  `UltraHonkBackend` for proving), wired into every action that previously submitted a mock
+  `"0x"` proof. Its output has been cross-checked against the real, deployed Solidity
+  verifiers for all three circuits, confirming byte-for-byte compatibility, not just internal
+  self-consistency. See [The circuits](./circuits)'s "Client-side proving is real, end to
+  end" section.
+- **The publicly deployed testnet instance may still be on the permissive mock verifier**,
+  independent of whether client-side proving exists. Switching the live deployment to the
+  real verifiers is a separate, explicit step —
+  `script/deployRealVerifiersTestnet.js` deploys the real verifiers and calls
+  `setVerifiers()` on the already-live pool and CDP — and is not implied by this code
+  existing. Check [Deployment](./deployment) for whether that step has been run against the
+  current addresses there.
 - **The mock verifier must never reach mainnet.** There is no on-chain guard preventing a
   misconfigured deployment from using it; that gate belongs to the deploy process and to
   milestone-acceptance review, not to the contract itself.

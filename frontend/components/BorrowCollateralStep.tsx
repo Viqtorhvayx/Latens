@@ -15,6 +15,7 @@ import { encryptNote } from "@/lib/viewingKey";
 import { borrowCapacity } from "@/lib/borrow";
 import { projectSupplyIndexRay } from "@/lib/supplyIndex";
 import { recordPositionRole } from "@/lib/positionRole";
+import { proveCommitmentUpdate } from "@/lib/proving/client";
 import { useSupplyRateRay } from "@/lib/useSupplyRateRay";
 import { formatUsd } from "@/lib/valuation";
 import { TokenIcon } from "./TokenIcon";
@@ -50,13 +51,13 @@ export function BorrowCollateralStep({
   const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const { writeContractAsync, isPending } = useWriteContract();
-  const { prepareSupply, commit } = usePositionStore();
+  const { get, prepareSupply, commit } = usePositionStore();
   const { enabled: viewingKeyEnabled, ensure: ensureViewingKey } = useViewingKey();
 
   const collateralTokens = tokenList.filter((t) => t.symbol !== excludeSymbol);
   const [chosen, setChosen] = useState<TokenSymbol>(fixedSymbol ?? (collateralTokens[0]?.symbol as TokenSymbol));
   const [amountInput, setAmountInput] = useState("");
-  const [phase, setPhase] = useState<"idle" | "approving" | "submitting">("idle");
+  const [phase, setPhase] = useState<"idle" | "approving" | "proving" | "submitting">("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
   const token = tokens[chosen];
@@ -137,13 +138,25 @@ export function BorrowCollateralStep({
       });
       await waitForConfirmation(publicClient, approveHash);
 
-      setPhase("submitting");
+      const before = get(address, token.assetId);
       const { oldCommitment, newCommitment, shareDelta, patch } = await prepareSupply(address, token.assetId, amount, indexRay);
+      setPhase("proving");
+      const { proof, publicInputs } = await proveCommitmentUpdate({
+        oldAmount: before.supplied,
+        oldSalt: before.suppliedSalt,
+        newSalt: patch.suppliedSalt!,
+        oldCommitment: BigInt(oldCommitment),
+        newCommitment: BigInt(newCommitment),
+        delta: shareDelta,
+        isIncrease: true,
+        assetId: BigInt(token.assetId),
+      });
+      setPhase("submitting");
       const hash = await writeContractAsync({
         address: latensPool.address,
         abi: latensPool.abi,
         functionName: "supplyCollateral",
-        args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), shareDelta, 1n, BigInt(token.assetId)]],
+        args: [BigInt(token.assetId), amount, BigInt(newCommitment), proof, publicInputs],
         gas: POOL_CALL_GAS,
       });
       await waitForConfirmation(publicClient, hash);
@@ -268,7 +281,7 @@ export function BorrowCollateralStep({
         disabled={amount === 0n || busy || exceeds}
         className="w-full rounded-[10px] bg-gold py-3.5 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {phase === "approving" ? "Approving…" : phase === "submitting" ? "Depositing…" : "Deposit collateral, then borrow"}
+        {phase === "approving" ? "Approving…" : phase === "proving" ? "Generating proof…" : phase === "submitting" ? "Depositing…" : "Deposit collateral, then borrow"}
       </button>
       {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}
       <p className="mt-3 text-center text-[11.5px] text-ink-faint">

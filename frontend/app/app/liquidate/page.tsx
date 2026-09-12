@@ -13,6 +13,7 @@ import { explorerTxUrl } from "@/lib/chainExplorer";
 import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { waitForConfirmation } from "@/lib/waitForTx";
 import { useFreshPrices } from "@/lib/useFreshPrices";
+import { proveLiquidationEligibility } from "@/lib/proving/client";
 
 const APPROVE_GAS = 100_000n;
 const LIQUIDATE_GAS = 700_000n;
@@ -56,6 +57,7 @@ export default function LiquidatePage() {
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "proving" | "submitting">("idle");
 
   const target = disclosure && isAddress(disclosure.address) ? disclosure.address : undefined;
 
@@ -172,8 +174,10 @@ export default function LiquidatePage() {
       const seizedShares = (seizeAmount * RAY) / collateralIndexRay;
       const newCollateralShares = BigInt(collateralEntry.amount) - seizedShares;
       const newDebtAmount = BigInt(debtEntry.amount) - repayAmount;
-      const newCollateralCommitment = await commitment(newCollateralShares, randomSalt());
-      const newDebtCommitment = await commitment(newDebtAmount, randomSalt());
+      const newCollateralSalt = randomSalt();
+      const newDebtSalt = randomSalt();
+      const newCollateralCommitment = await commitment(newCollateralShares, newCollateralSalt);
+      const newDebtCommitment = await commitment(newDebtAmount, newDebtSalt);
 
       const approveHash = await writeContractAsync({
         address: debtToken.address,
@@ -187,32 +191,34 @@ export default function LiquidatePage() {
       // liquidate() reads both prices and rejects a stale feed, same as borrow/withdraw.
       await ensureFreshPrices([collateralToken.address, debtToken.address]);
 
+      setPhase("proving");
+      const { proof, publicInputs } = await proveLiquidationEligibility({
+        collateralAmount: BigInt(collateralEntry.amount),
+        collateralSalt: BigInt(collateralEntry.salt),
+        debtAmount: BigInt(debtEntry.amount),
+        debtSalt: BigInt(debtEntry.salt),
+        newCollateralSalt,
+        newDebtSalt,
+        collateralCommitment: BigInt(collateralEntry.commitment),
+        debtCommitment: BigInt(debtEntry.commitment),
+        newCollateralCommitment: BigInt(newCollateralCommitment),
+        newDebtCommitment: BigInt(newDebtCommitment),
+        collateralPriceE8: collateralPrice[0],
+        debtPriceE8: debtPrice[0],
+        collateralIndexRay,
+        debtIndexRay: RAY,
+        liquidationThresholdBps: BigInt(collateralAsset.liquidationThresholdBps),
+        liquidationBonusBps: BigInt(collateralAsset.liquidationBonusBps),
+        seizedCollateralAmount: seizeAmount,
+        repayAmount,
+      });
+      setPhase("submitting");
+
       const hash = await writeContractAsync({
         address: latensPool.address,
         abi: latensPool.abi,
         functionName: "liquidate",
-        args: [
-          target,
-          repayAmount,
-          seizeAmount,
-          BigInt(newCollateralCommitment),
-          BigInt(newDebtCommitment),
-          "0x",
-          [
-            BigInt(collateralEntry.commitment),
-            BigInt(debtEntry.commitment),
-            BigInt(newCollateralCommitment),
-            BigInt(newDebtCommitment),
-            collateralPrice[0],
-            debtPrice[0],
-            collateralIndexRay,
-            RAY,
-            BigInt(collateralAsset.liquidationThresholdBps),
-            BigInt(collateralAsset.liquidationBonusBps),
-            seizeAmount,
-            repayAmount,
-          ],
-        ],
+        args: [target, repayAmount, seizeAmount, BigInt(newCollateralCommitment), BigInt(newDebtCommitment), proof, publicInputs],
         gas: LIQUIDATE_GAS,
       });
       await waitForConfirmation(publicClient, hash);
@@ -222,6 +228,7 @@ export default function LiquidatePage() {
       setErrorMessage(humanizeError(err));
     } finally {
       setSubmitting(false);
+      setPhase("idle");
     }
   }
 
@@ -311,7 +318,13 @@ export default function LiquidatePage() {
                     disabled={!address || submitting || isPending}
                     className="w-full rounded-[10px] bg-gold py-3.5 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {!address ? "Connect your wallet to continue" : submitting || isPending ? "Confirming…" : "Liquidate"}
+                    {!address
+                      ? "Connect your wallet to continue"
+                      : phase === "proving"
+                        ? "Generating proof…"
+                        : submitting || isPending
+                          ? "Confirming…"
+                          : "Liquidate"}
                   </button>
                 )}
                 {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}

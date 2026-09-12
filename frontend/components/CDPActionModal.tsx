@@ -15,6 +15,7 @@ import { useCopyToClipboard } from "@/lib/useCopyToClipboard";
 import { sanitizeAmountInput } from "@/lib/amountInput";
 import { usdValueE8 } from "@/lib/valuation";
 import { waitForConfirmation } from "@/lib/waitForTx";
+import { proveCommitmentUpdate, proveSolvency } from "@/lib/proving/client";
 import { useFreshPrices } from "@/lib/useFreshPrices";
 
 export type CDPActionMode = "supply" | "withdraw" | "mint" | "burn";
@@ -43,7 +44,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
   const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const ensureFreshPrices = useFreshPrices();
-  const [step, setStep] = useState<"idle" | "approving" | "refreshingPrices" | "submitting" | "done" | "error">("idle");
+  const [step, setStep] = useState<"idle" | "approving" | "refreshingPrices" | "proving" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   const { copied, copy } = useCopyToClipboard();
@@ -147,24 +148,50 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
       setStep("submitting");
 
       if (mode === "supply") {
+        const supplyBefore = local;
         const { oldCommitment, newCommitment, patch } = await prepareSupply(address, token.assetId, amount);
+        setStep("proving");
+        const supplyProof = await proveCommitmentUpdate({
+          oldAmount: supplyBefore.collateral,
+          oldSalt: supplyBefore.collateralSalt,
+          newSalt: patch.collateralSalt!,
+          oldCommitment: BigInt(oldCommitment),
+          newCommitment: BigInt(newCommitment),
+          delta: amount,
+          isIncrease: true,
+          assetId: BigInt(token.assetId),
+        });
+        setStep("submitting");
         const hash = await writeContractAsync({
           address: latensCDP.address,
           abi: latensCDP.abi,
           functionName: "supplyCollateral",
-          args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)]],
+          args: [BigInt(token.assetId), amount, BigInt(newCommitment), supplyProof.proof, supplyProof.publicInputs],
           gas: CDP_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
         setTxHash(hash);
       } else if (mode === "burn") {
+        const burnBefore = local;
         const { oldCommitment, newCommitment, patch } = await prepareBurn(address, token.assetId, amount);
+        setStep("proving");
+        const burnProof = await proveCommitmentUpdate({
+          oldAmount: burnBefore.debt,
+          oldSalt: burnBefore.debtSalt,
+          newSalt: patch.debtSalt!,
+          oldCommitment: BigInt(oldCommitment),
+          newCommitment: BigInt(newCommitment),
+          delta: amount,
+          isIncrease: false,
+          assetId: BigInt(token.assetId),
+        });
+        setStep("submitting");
         const hash = await writeContractAsync({
           address: latensCDP.address,
           abi: latensCDP.abi,
           functionName: "burn",
-          args: [amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)]],
+          args: [amount, BigInt(newCommitment), burnProof.proof, burnProof.publicInputs],
           gas: CDP_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
@@ -174,10 +201,37 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
         if (collateralAssetId === undefined || !collateralAsset || !collateralPrice) {
           throw new Error("Supply collateral before minting.");
         }
+        const mintBefore = local;
         const { oldCommitment, newCommitment, patch } = await prepareMint(address, token.assetId, amount);
         const currentCollateralCommitment = positionTuple![1];
         const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
         const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
+
+        setStep("proving");
+        const debtProof = await proveCommitmentUpdate({
+          oldAmount: mintBefore.debt,
+          oldSalt: mintBefore.debtSalt,
+          newSalt: patch.debtSalt!,
+          oldCommitment: BigInt(oldCommitment),
+          newCommitment: BigInt(newCommitment),
+          delta: amount,
+          isIncrease: true,
+          assetId: BigInt(token.assetId),
+        });
+        const solvencyProof = await proveSolvency({
+          collateralAmount: mintBefore.collateral,
+          collateralSalt: mintBefore.collateralSalt,
+          debtAmount: patch.debt!,
+          debtSalt: patch.debtSalt!,
+          collateralCommitment: BigInt(currentCollateralCommitment),
+          debtCommitment: BigInt(newCommitment),
+          collateralPriceE8,
+          debtPriceE8: STABLECOIN_PRICE_E8,
+          collateralIndexRay: RAY,
+          debtIndexRay: RAY,
+          thresholdBps: BigInt(ltvBps),
+        });
+        setStep("submitting");
 
         const hash = await writeContractAsync({
           address: latensCDP.address,
@@ -186,10 +240,10 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           args: [
             amount,
             BigInt(newCommitment),
-            "0x",
-            [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)],
-            "0x",
-            [currentCollateralCommitment, BigInt(newCommitment), collateralPriceE8, STABLECOIN_PRICE_E8, RAY, RAY, BigInt(ltvBps)],
+            debtProof.proof,
+            debtProof.publicInputs,
+            solvencyProof.proof,
+            solvencyProof.publicInputs,
           ],
           gas: CDP_CALL_GAS,
         });
@@ -202,10 +256,45 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
         if (hasDebt && (!collateralAsset || !collateralPrice)) {
           throw new Error("Still loading solvency data. Try again in a moment.");
         }
+        const withdrawBefore = local;
         const { oldCommitment, newCommitment, patch } = await prepareWithdraw(address, token.assetId, amount);
         const debtCommitment = positionTuple[2];
         const ltvBps = collateralAsset ? (collateralAsset as { ltvBps: number }).ltvBps : 0;
         const collateralPriceE8 = collateralPrice ? (collateralPrice as readonly [bigint, bigint])[0] : 0n;
+
+        setStep("proving");
+        const withdrawProof = await proveCommitmentUpdate({
+          oldAmount: withdrawBefore.collateral,
+          oldSalt: withdrawBefore.collateralSalt,
+          newSalt: patch.collateralSalt!,
+          oldCommitment: BigInt(oldCommitment),
+          newCommitment: BigInt(newCommitment),
+          delta: amount,
+          isIncrease: false,
+          assetId: BigInt(token.assetId),
+        });
+        // Unlike LatensPool, LatensCDP's withdraw does not force a full repay first — its
+        // solvency branch is only skipped, not made unreachable, so a real proof is only
+        // needed when hasDebt actually is true; a debt-free position gets empty solvency args.
+        const solvencyProof = hasDebt
+          ? await proveSolvency({
+              // The reduced amount, not the pre-withdrawal one — collateral_commitment is
+              // bound to newCommitment below, and the circuit checks that it opens the
+              // (amount, salt) pair actually passed in, not whatever the position held before.
+              collateralAmount: patch.collateral!,
+              collateralSalt: patch.collateralSalt!,
+              debtAmount: withdrawBefore.debt,
+              debtSalt: withdrawBefore.debtSalt,
+              collateralCommitment: BigInt(newCommitment),
+              debtCommitment: BigInt(debtCommitment),
+              collateralPriceE8,
+              debtPriceE8: STABLECOIN_PRICE_E8,
+              collateralIndexRay: RAY,
+              debtIndexRay: RAY,
+              thresholdBps: BigInt(ltvBps),
+            })
+          : null;
+        setStep("submitting");
 
         const hash = await writeContractAsync({
           address: latensCDP.address,
@@ -214,10 +303,10 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           args: [
             amount,
             BigInt(newCommitment),
-            "0x",
-            [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)],
-            "0x",
-            [BigInt(newCommitment), debtCommitment, collateralPriceE8, STABLECOIN_PRICE_E8, RAY, RAY, BigInt(ltvBps)],
+            withdrawProof.proof,
+            withdrawProof.publicInputs,
+            solvencyProof?.proof ?? "0x",
+            solvencyProof?.publicInputs ?? [],
           ],
           gas: CDP_CALL_GAS,
         });
@@ -339,9 +428,11 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
                       ? "Approving…"
                       : step === "refreshingPrices"
                         ? "Refreshing price feed…"
-                        : step === "submitting"
-                          ? "Confirming…"
-                          : `Confirm ${ACTION_LABEL[mode]}, sign a private proof`}
+                        : step === "proving"
+                          ? "Generating proof…"
+                          : step === "submitting"
+                            ? "Confirming…"
+                            : `Confirm ${ACTION_LABEL[mode]}, sign a private proof`}
                   </button>
                   {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}
                   <p className="mt-3 text-center text-[11.5px] text-ink-faint">Your position details are never broadcast in the clear.</p>

@@ -24,6 +24,7 @@ import { useSupplyRateRay } from "@/lib/useSupplyRateRay";
 import { useViewingKey } from "@/lib/viewingKeyContext";
 import { encryptNote } from "@/lib/viewingKey";
 import { useFreshPrices } from "@/lib/useFreshPrices";
+import { proveCommitmentUpdate, proveSolvency } from "@/lib/proving/client";
 
 export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
 
@@ -50,7 +51,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
   const queryClient = useQueryClient();
   const { enabled: viewingKeyEnabled, ensure: ensureViewingKey } = useViewingKey();
   const ensureFreshPrices = useFreshPrices();
-  const [step, setStep] = useState<"idle" | "approving" | "refreshingPrices" | "submitting" | "done" | "error">("idle");
+  const [step, setStep] = useState<"idle" | "approving" | "refreshingPrices" | "proving" | "submitting" | "done" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   // Ticked in an effect: the interest fee is a function of elapsed time, and reading the
@@ -265,12 +266,25 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
       setStep("submitting");
 
       if (mode === "supply") {
+        const supplyBefore = local;
         const { oldCommitment, newCommitment, shareDelta, patch } = await prepareSupply(address, token.assetId, amount, depositIndexRay);
+        setStep("proving");
+        const supplyProof = await proveCommitmentUpdate({
+          oldAmount: supplyBefore.supplied,
+          oldSalt: supplyBefore.suppliedSalt,
+          newSalt: patch.suppliedSalt!,
+          oldCommitment: BigInt(oldCommitment),
+          newCommitment: BigInt(newCommitment),
+          delta: shareDelta,
+          isIncrease: true,
+          assetId: BigInt(token.assetId),
+        });
+        setStep("submitting");
         const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
           functionName: "supplyCollateral",
-          args: [BigInt(token.assetId), amount, BigInt(newCommitment), "0x", [BigInt(oldCommitment), BigInt(newCommitment), shareDelta, 1n, BigInt(token.assetId)]],
+          args: [BigInt(token.assetId), amount, BigInt(newCommitment), supplyProof.proof, supplyProof.publicInputs],
           gas: POOL_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
@@ -302,11 +316,35 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         // failure looks like the button doing nothing at all. The pool locks collateral
         // while a debt is open precisely so this clamp is never the binding constraint, but
         // a position left over from before that rule can still be short.
-        const collateralShares = get(address, collateralAssetId).supplied;
+        const debtBefore = local;
+        const collateralBefore = get(address, collateralAssetId);
         const feeShares = (feeInCollateral * RAY) / collateralIndexRayForRepay;
-        const burnShares = feeShares < collateralShares ? feeShares : collateralShares;
+        const burnShares = feeShares < collateralBefore.supplied ? feeShares : collateralBefore.supplied;
         const burnAmount = (burnShares * collateralIndexRayForRepay) / RAY;
         const collateralUpdate = await prepareWithdraw(address, collateralAssetId, burnAmount, collateralIndexRayForRepay);
+
+        setStep("proving");
+        const debtProof = await proveCommitmentUpdate({
+          oldAmount: debtBefore.borrowed,
+          oldSalt: debtBefore.borrowedSalt,
+          newSalt: patch.borrowedSalt!,
+          oldCommitment: BigInt(oldCommitment),
+          newCommitment: BigInt(newCommitment),
+          delta: amount,
+          isIncrease: false,
+          assetId: BigInt(token.assetId),
+        });
+        const collateralProof = await proveCommitmentUpdate({
+          oldAmount: collateralBefore.supplied,
+          oldSalt: collateralBefore.suppliedSalt,
+          newSalt: collateralUpdate.patch.suppliedSalt!,
+          oldCommitment: BigInt(collateralUpdate.oldCommitment),
+          newCommitment: BigInt(collateralUpdate.newCommitment),
+          delta: collateralUpdate.shareDelta,
+          isIncrease: false,
+          assetId: BigInt(collateralAssetId),
+        });
+        setStep("submitting");
 
         const hash = await writeContractAsync({
           address: latensPool.address,
@@ -315,11 +353,11 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           args: [
             amount,
             BigInt(newCommitment),
-            "0x",
-            [BigInt(oldCommitment), BigInt(newCommitment), amount, 0n, BigInt(token.assetId)],
+            debtProof.proof,
+            debtProof.publicInputs,
             BigInt(collateralUpdate.newCommitment),
-            "0x",
-            [BigInt(collateralUpdate.oldCommitment), BigInt(collateralUpdate.newCommitment), collateralUpdate.shareDelta, 0n, BigInt(collateralAssetId)],
+            collateralProof.proof,
+            collateralProof.publicInputs,
             // Clearing the flag is what unlocks the collateral again, so it has to be set
             // exactly when this repayment leaves nothing owed.
             amount >= local.borrowed,
@@ -333,14 +371,41 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         publishViewingNoteInBackground(token.assetId, true, patch.borrowed!, patch.borrowedSalt!);
         setTxHash(hash);
       } else if (mode === "borrow") {
-        if (collateralAssetId === undefined || !collateralAsset || !collateralPrice || !debtPrice) {
+        if (collateralAssetId === undefined || !collateralAsset || !collateralPrice || !debtPrice || !collateralLocal) {
           throw new Error("Supply collateral before borrowing.");
         }
-        const { oldCommitment, newCommitment, patch } = await prepareBorrow(address, token.assetId, amount);
+        const debtBefore = local;
+        const { oldCommitment, newCommitment, shareDelta, patch } = await prepareBorrow(address, token.assetId, amount);
         const currentCollateralCommitment = positionTuple![2];
         const ltvBps = (collateralAsset as { ltvBps: number }).ltvBps;
         const collateralPriceE8 = (collateralPrice as readonly [bigint, bigint])[0];
         const debtPriceE8 = (debtPrice as readonly [bigint, bigint])[0];
+
+        setStep("proving");
+        const debtProof = await proveCommitmentUpdate({
+          oldAmount: debtBefore.borrowed,
+          oldSalt: debtBefore.borrowedSalt,
+          newSalt: patch.borrowedSalt!,
+          oldCommitment: BigInt(oldCommitment),
+          newCommitment: BigInt(newCommitment),
+          delta: shareDelta,
+          isIncrease: true,
+          assetId: BigInt(token.assetId),
+        });
+        const solvencyProof = await proveSolvency({
+          collateralAmount: collateralLocal.supplied,
+          collateralSalt: collateralLocal.suppliedSalt,
+          debtAmount: patch.borrowed!,
+          debtSalt: patch.borrowedSalt!,
+          collateralCommitment: BigInt(currentCollateralCommitment),
+          debtCommitment: BigInt(newCommitment),
+          collateralPriceE8,
+          debtPriceE8,
+          collateralIndexRay: collateralIndexRayForBorrow,
+          debtIndexRay: RAY,
+          thresholdBps: BigInt(ltvBps),
+        });
+        setStep("submitting");
 
         const hash = await writeContractAsync({
           address: latensPool.address,
@@ -350,10 +415,10 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             BigInt(token.assetId),
             amount,
             BigInt(newCommitment),
-            "0x",
-            [BigInt(oldCommitment), BigInt(newCommitment), amount, 1n, BigInt(token.assetId)],
-            "0x",
-            [currentCollateralCommitment, BigInt(newCommitment), collateralPriceE8, debtPriceE8, collateralIndexRayForBorrow, RAY, BigInt(ltvBps)],
+            debtProof.proof,
+            debtProof.publicInputs,
+            solvencyProof.proof,
+            solvencyProof.publicInputs,
           ],
           gas: POOL_CALL_GAS,
         });
@@ -364,28 +429,32 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         setTxHash(hash);
       } else {
         if (!positionTuple) throw new Error("No position found.");
-        const hasDebt = positionTuple[7];
-        if (hasDebt && (!collateralAsset || !collateralPrice || !debtPrice)) {
-          throw new Error("Still loading solvency data. Try again in a moment.");
-        }
+        // LatensPool refuses any withdrawal outright while hasDebt is set (repay first) — by
+        // the time a withdrawal could reach the pool's own solvency check, hasDebt is
+        // guaranteed false, which makes that check permanently unreachable. So this only
+        // ever proves the collateral commitment update; the solvency proof arg is vestigial
+        // and passed empty, matching what the pool actually verifies.
+        const withdrawBefore = local;
         const { oldCommitment, newCommitment, shareDelta, patch } = await prepareWithdraw(address, token.assetId, amount, tokenIndexRay);
-        const debtCommitment = positionTuple[3];
-        const ltvBps = collateralAsset ? (collateralAsset as { ltvBps: number }).ltvBps : 0;
-        const collateralPriceE8 = collateralPrice ? (collateralPrice as readonly [bigint, bigint])[0] : 0n;
-        const debtPriceE8 = debtPrice ? (debtPrice as readonly [bigint, bigint])[0] : 0n;
+
+        setStep("proving");
+        const withdrawProof = await proveCommitmentUpdate({
+          oldAmount: withdrawBefore.supplied,
+          oldSalt: withdrawBefore.suppliedSalt,
+          newSalt: patch.suppliedSalt!,
+          oldCommitment: BigInt(oldCommitment),
+          newCommitment: BigInt(newCommitment),
+          delta: shareDelta,
+          isIncrease: false,
+          assetId: BigInt(token.assetId),
+        });
+        setStep("submitting");
 
         const hash = await writeContractAsync({
           address: latensPool.address,
           abi: latensPool.abi,
           functionName: "withdrawCollateral",
-          args: [
-            amount,
-            BigInt(newCommitment),
-            "0x",
-            [BigInt(oldCommitment), BigInt(newCommitment), shareDelta, 0n, BigInt(token.assetId)],
-            "0x",
-            [BigInt(newCommitment), debtCommitment, collateralPriceE8, debtPriceE8, tokenIndexRay, RAY, BigInt(ltvBps)],
-          ],
+          args: [amount, BigInt(newCommitment), withdrawProof.proof, withdrawProof.publicInputs, "0x", []],
           gas: POOL_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
@@ -559,9 +628,11 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
                       ? "Approving…"
                       : step === "refreshingPrices"
                         ? "Refreshing price feed…"
-                        : step === "submitting"
-                          ? "Confirming…"
-                          : `Confirm ${ACTION_LABEL[mode]}, sign a private proof`}
+                        : step === "proving"
+                          ? "Generating proof…"
+                          : step === "submitting"
+                            ? "Confirming…"
+                            : `Confirm ${ACTION_LABEL[mode]}, sign a private proof`}
                   </button>
                   {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}
                   <p className="mt-3 text-center text-[11.5px] text-ink-faint">Your position details are never broadcast in the clear.</p>

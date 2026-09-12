@@ -96,6 +96,20 @@ async function main() {
     ])
   );
 
+  // Real Honk verifiers + Noir*Verifier adapters only exist once
+  // script/deployRealVerifiersTestnet.js has been run (it records their addresses under
+  // deployment.verifiers) — skip silently otherwise so this script keeps working before that
+  // migration and after it without needing two separate entry points.
+  if (deployment.verifiers) {
+    const v = deployment.verifiers;
+    results.push(await verify("CommitmentHonkVerifier", v.CommitmentHonkVerifier.address, []));
+    results.push(await verify("NoirCommitmentVerifier", v.NoirCommitmentVerifier.address, [v.CommitmentHonkVerifier.address]));
+    results.push(await verify("SolvencyHonkVerifier", v.SolvencyHonkVerifier.address, []));
+    results.push(await verify("NoirSolvencyVerifier", v.NoirSolvencyVerifier.address, [v.SolvencyHonkVerifier.address]));
+    results.push(await verify("LiquidationHonkVerifier", v.LiquidationHonkVerifier.address, []));
+    results.push(await verify("NoirLiquidationVerifier", v.NoirLiquidationVerifier.address, [v.LiquidationHonkVerifier.address]));
+  }
+
   const ok = results.filter(Boolean).length;
   console.log(`\n${ok}/${results.length} verified.`);
   if (ok !== results.length) process.exitCode = 1;
