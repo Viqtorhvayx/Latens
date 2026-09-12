@@ -158,6 +158,10 @@ async function main() {
       LatensCDP: { address: await cdp.getAddress(), abi: abiOf("core/LatensCDP.sol/LatensCDP.json") },
       LatensDollar: { address: await latensDollar.getAddress(), abi: abiOf("core/LatensDollar.sol/LatensDollar.json") },
       SupplyRewards: { address: await rewards.getAddress(), abi: abiOf("core/SupplyRewards.sol/SupplyRewards.json") },
+      // Recorded so script/verifyTestnet.js and script/deployRealVerifiersTestnet.js can
+      // always find this address, even after setVerifiers() has pointed the pools at real
+      // verifiers — reading it back off the pool at that point would return the wrong thing.
+      MockVerifier: { address: await verifier.getAddress() },
     },
     tokens: {
       ZEN: { address: await zen.getAddress(), symbol: "ZEN", decimals: 18, assetId: Number(zenAssetId) },

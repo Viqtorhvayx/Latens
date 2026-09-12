@@ -3914,6 +3914,9 @@
           "type": "function"
         }
       ]
+    },
+    "MockVerifier": {
+      "address": "0xa8A313929323A8bD31CB45FEf2e66547577Dc471"
     }
   },
   "tokens": {
@@ -3940,6 +3943,26 @@
       "symbol": "USDC",
       "decimals": 6,
       "assetId": 3
+    }
+  },
+  "verifiers": {
+    "CommitmentHonkVerifier": {
+      "address": "0x74456Dca195CB1D0EbfB260cC51f2D62aDDc12d7"
+    },
+    "NoirCommitmentVerifier": {
+      "address": "0x9b2365a05777E84Da83Ddc9AEa983EFd064aa788"
+    },
+    "SolvencyHonkVerifier": {
+      "address": "0xcd4d9e6D6348e0e431EC355DFaEDbd8d10769419"
+    },
+    "NoirSolvencyVerifier": {
+      "address": "0xDeeCF2B77977163Bf439e1b6e41E45429A8956A3"
+    },
+    "LiquidationHonkVerifier": {
+      "address": "0x8C70fCA03bBf7Fa4F54E97145D54662537132A09"
+    },
+    "NoirLiquidationVerifier": {
+      "address": "0xCB7712734eF90ddf3FE5D7008CD61aF29Fd5730b"
     }
   }
 }

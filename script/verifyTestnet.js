@@ -6,10 +6,14 @@
 //
 //   npx hardhat run script/verifyTestnet.js --network horizenTestnet
 //
-// Constructor arguments are reconstructed here rather than recorded at deploy time, and the
-// two addresses deployment.json doesn't carry (the shared MockVerifier and the treasury,
-// which the frontend never needs) are read back off the deployed contracts themselves, so
-// this stays correct without deployTestnet.js having to hand anything over.
+// Constructor arguments are reconstructed here rather than recorded at deploy time. The
+// treasury address (which the frontend never needs) is read back off the pool itself, since
+// that never changes. MockVerifier's address is NOT read back the same way — once
+// setVerifiers() has pointed the pools at real verifiers, pool.commitmentVerifier() returns
+// the new verifier, not MockVerifier, and MockVerifier's original address becomes otherwise
+// unrecoverable except by decoding the pool's own creation-transaction calldata. So it's
+// deployment.json's contracts.MockVerifier.address, recorded by deployTestnet.js at deploy
+// time, that's authoritative here — never a live contract read.
 //
 // "Already verified" is a success, not a failure: Blockscout matches by bytecode, so
 // contracts that share it (the four MockERC20s) get picked up the moment the first one
@@ -47,7 +51,14 @@ async function main() {
   const c = deployment.contracts;
 
   const pool = await ethers.getContractAt("LatensPool", c.LatensPool.address);
-  const verifierAddress = await pool.commitmentVerifier();
+  if (!c.MockVerifier?.address) {
+    throw new Error(
+      "deployment.json has no contracts.MockVerifier.address — this deployment predates that field. " +
+        "Recover it by decoding LatensPool's creation-transaction calldata (see this file's header comment) " +
+        "and add it to deployment.json by hand before running this script."
+    );
+  }
+  const verifierAddress = c.MockVerifier.address;
   const treasuryAddress = await pool.treasury();
   const treasury = await ethers.getContractAt("ProtocolTreasury", treasuryAddress);
   const stakingPoolAddress = await treasury.zenStakingPool();

@@ -40,9 +40,12 @@ async function main() {
     throw new Error(`Signer ${deployer.address} is not LatensCDP's owner (${cdpOwner}) — refusing to deploy verifiers that couldn't be wired.`);
   }
 
-  let nonce = await ethers.provider.getTransactionCount(deployer.address, "pending");
-  const nextNonce = () => ({ nonce: nonce++ });
-
+  // No manual nonce tracking here: deployHonkVerifier() below sends multiple transactions
+  // per verifier (two libraries, then the verifier itself) without taking a nonce override,
+  // so a locally-incremented counter drifts out of sync with the provider's real pending
+  // count the moment those calls run — confirmed the hard way (a live "nonce too low" on
+  // Horizen testnet) before this comment was written. Let ethers manage nonces automatically
+  // for every transaction in this script instead.
   console.log("Deploying CommitmentHonkVerifier + libraries...");
   const commitmentHonk = await deployHonkVerifier("CommitmentHonkVerifier", "CommitmentHonkVerifier");
   await commitmentHonk.waitForDeployment();
@@ -74,9 +77,9 @@ async function main() {
   console.log("  NoirLiquidationVerifier:", liquidationVerifierAddr, "(wraps", await liquidationHonk.getAddress(), ")");
 
   console.log("\nWiring LatensPool.setVerifiers()...");
-  await (await pool.connect(deployer).setVerifiers(commitmentVerifierAddr, solvencyVerifierAddr, liquidationVerifierAddr, nextNonce())).wait();
+  await (await pool.connect(deployer).setVerifiers(commitmentVerifierAddr, solvencyVerifierAddr, liquidationVerifierAddr)).wait();
   console.log("Wiring LatensCDP.setVerifiers()...");
-  await (await cdp.connect(deployer).setVerifiers(commitmentVerifierAddr, solvencyVerifierAddr, liquidationVerifierAddr, nextNonce())).wait();
+  await (await cdp.connect(deployer).setVerifiers(commitmentVerifierAddr, solvencyVerifierAddr, liquidationVerifierAddr)).wait();
 
   const poolNowCommitment = await pool.commitmentVerifier();
   const cdpNowCommitment = await cdp.commitmentVerifier();
