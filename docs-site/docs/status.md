@@ -34,13 +34,14 @@ stating plainly rather than leaving a reader to infer it.
   verifiers for all three circuits, confirming byte-for-byte compatibility, not just internal
   self-consistency. See [The circuits](./circuits)'s "Client-side proving is real, end to
   end" section.
-- **The publicly deployed testnet instance may still be on the permissive mock verifier**,
-  independent of whether client-side proving exists. Switching the live deployment to the
-  real verifiers is a separate, explicit step —
-  `script/deployRealVerifiersTestnet.js` deploys the real verifiers and calls
-  `setVerifiers()` on the already-live pool and CDP — and is not implied by this code
-  existing. Check [Deployment](./deployment) for whether that step has been run against the
-  current addresses there.
+- **The live testnet deployment has been switched to the real verifiers.**
+  `script/deployRealVerifiersTestnet.js` deployed the real Honk verifiers and called
+  `setVerifiers()` on the already-live `LatensPool` and `LatensCDP`, without redeploying
+  either pool. A full supply → borrow → repay → withdraw cycle was then driven against the
+  live pool with a fresh wallet and real UltraHonk proofs (`frontend/scripts/genLiveE2EProofs.mjs`
+  + `script/liveE2ETestnet.js`), confirming client-side proving and the real verifiers work
+  together for an actual user flow, not just in isolation. See [The circuits](./circuits)'s
+  "Confirmed live" section.
 - **The mock verifier must never reach mainnet.** There is no on-chain guard preventing a
   misconfigured deployment from using it; that gate belongs to the deploy process and to
   milestone-acceptance review, not to the contract itself.

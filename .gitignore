@@ -9,3 +9,7 @@ coverage.json
 
 # Noir/Barretenberg build output — regenerate with the commands in circuits/README.md
 circuits/*/target/
+
+# Single-use proof plan for script/liveE2ETestnet.js — regenerate with
+# frontend/scripts/genLiveE2EProofs.mjs before each run, never reused across runs.
+frontend/scripts/.e2e-plan.json

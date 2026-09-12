@@ -161,3 +161,28 @@ positions and commitments are untouched). Run it with an owner key:
 ```
 DEPLOYER_PRIVATE_KEY=<owner key> npx hardhat run script/deployRealVerifiersTestnet.js --network horizenTestnet
 ```
+
+This has been run against the live Horizen testnet deployment — both `LatensPool` and
+`LatensCDP` now verify through the real Honk verifiers, not `MockVerifier`.
+
+## Confirmed live: a full real-proof cycle on Horizen testnet
+
+`frontend/scripts/genLiveE2EProofs.mjs` (Phase A) + `script/liveE2ETestnet.js` (Phase B)
+together drove a complete supply → borrow → repay → withdraw cycle through the live
+`LatensPool` on Horizen testnet, using a brand-new wallet and real UltraHonk proofs generated
+by the exact noir_js + bb.js pipeline the browser runs — not a local Hardhat network, the
+actual deployed contracts, submitted as real transactions and checked against real
+post-transaction on-chain state. All four steps succeeded, twice: supply with a fresh-deposit
+commitment_update proof, borrow gated by a real solvency proof (verified against real oracle
+prices and the live supply index), a full repay that closed the debt and paid its interest fee
+out of collateral shares via a second commitment_update proof, and a partial withdrawal
+requiring no solvency proof once debt-free (the `OutstandingDebt` gate makes that branch dead,
+as documented in `LatensPool.withdrawCollateral`). This is the end-to-end confirmation that
+client-side proving and the live verifier switch actually work together for a real user flow,
+not just in isolation.
+
+Regenerate and re-run with:
+```
+cd frontend && node scripts/genLiveE2EProofs.mjs && cd ..
+DEPLOYER_PRIVATE_KEY=<owner key> npx hardhat run script/liveE2ETestnet.js --network horizenTestnet
+```

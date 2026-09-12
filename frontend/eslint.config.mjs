@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Standalone Node scripts, not part of the Next.js app — eslint-plugin-react's version
+    // detection crashes on them when targeted directly (no bundler context to inspect), and
+    // React/browser lint rules don't apply to them anyway.
+    "scripts/**",
   ]),
 ]);
 
