@@ -5,6 +5,7 @@ import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 import { assetRegistry, latensPool, priceOracle, tokenList, type TokenSymbol } from "@/lib/contracts";
 import { usePositionStore, sharesToReal, RAY } from "@/lib/positionStore";
+import { usePositionRole } from "@/lib/positionRole";
 import { usdValueE8, formatUsd, formatApr, supplyRateRayFrom, formatRateRay } from "@/lib/valuation";
 import { MaskedValue } from "@/components/MaskedValue";
 import { PositionActionModal, type ActionMode } from "@/components/PositionActionModal";
@@ -98,6 +99,7 @@ export default function MarketsPage() {
   const debtAmount = debtToken ? get(address, debtToken.assetId).borrowed : 0n;
   const hasActivePosition = Boolean(positionTuple?.[6]);
   const hasDebt = Boolean(positionTuple?.[7]);
+  const role = usePositionRole(address, collateralAssetId);
 
   const tvlE8 = tokenList.reduce((sum, t, i) => {
     const asset = assets?.[i]?.result as AssetStruct | undefined;
@@ -115,8 +117,9 @@ export default function MarketsPage() {
 
       {address && !positionLoading && !hasActivePosition && (
         <p className="mb-6 rounded-xl border border-line bg-surface px-4 py-3 text-[13px] text-ink-muted">
-          Two ways in: supply a market to earn Supply APY and that same supply becomes the collateral you can borrow against. Or go straight to Borrow, which takes the collateral deposit first, then let you
-          draw against it.
+          Two ways in. <strong className="font-semibold text-ink">Supply</strong> to lend: you earn Supply APY, and what you lend doubles as collateral if you later want to borrow against it.
+          <strong className="font-semibold text-ink"> Borrow</strong> to take a loan: it deposits collateral first, in one of the other assets, and hands you the loan against it. Either way the deposit has to
+          be worth more than the loan drawn against it, which is what the LTV column caps.
         </p>
       )}
 
@@ -128,7 +131,7 @@ export default function MarketsPage() {
         {address && (
           <>
             <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
-              <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">Your collateral</span>
+              <span className="text-[11.5px] font-semibold tracking-wide text-ink-faint uppercase">{role === "borrower" ? "Collateral deposited" : "You're lending"}</span>
               {positionLoading ? (
                 <Skeleton width={120} height={22} />
               ) : (

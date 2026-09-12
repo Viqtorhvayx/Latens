@@ -18,6 +18,7 @@ import { sanitizeAmountInput } from "@/lib/amountInput";
 import { usdValueE8, formatUsd, formatRateRay } from "@/lib/valuation";
 import { borrowCapacity } from "@/lib/borrow";
 import { projectSupplyIndexRay } from "@/lib/supplyIndex";
+import { recordPositionRole } from "@/lib/positionRole";
 import { projectedRepayFee } from "@/lib/repayFee";
 import { useSupplyRateRay } from "@/lib/useSupplyRateRay";
 import { useViewingKey } from "@/lib/viewingKeyContext";
@@ -274,6 +275,9 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         });
         await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
+        // Came in through Supply, so this is a lender. The balance is identical either way;
+        // the role is only about how the position was opened. See lib/positionRole.ts.
+        recordPositionRole(address, token.assetId, "lender");
         appendActivity(address, { kind: "collateral", isIncrease: true, assetId: token.assetId, amount, transactionHash: hash });
         publishViewingNoteInBackground(token.assetId, false, patch.supplied!, patch.suppliedSalt!);
         setTxHash(hash);

@@ -14,6 +14,7 @@ import { useViewingKey } from "@/lib/viewingKeyContext";
 import { encryptNote } from "@/lib/viewingKey";
 import { borrowCapacity } from "@/lib/borrow";
 import { projectSupplyIndexRay } from "@/lib/supplyIndex";
+import { recordPositionRole } from "@/lib/positionRole";
 import { useSupplyRateRay } from "@/lib/useSupplyRateRay";
 import { formatUsd } from "@/lib/valuation";
 import { TokenIcon } from "./TokenIcon";
@@ -147,6 +148,9 @@ export function BorrowCollateralStep({
       });
       await waitForConfirmation(publicClient, hash);
       commit(address, token.assetId, patch);
+      // Opened through the Borrow flow, so this is a borrower posting collateral rather than
+      // a lender putting capital to work. See lib/positionRole.ts.
+      recordPositionRole(address, token.assetId, "borrower");
       appendActivity(address, { kind: "collateral", isIncrease: true, assetId: token.assetId, amount, transactionHash: hash });
 
       if (viewingKeyEnabled) {
@@ -268,7 +272,8 @@ export function BorrowCollateralStep({
       </button>
       {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}
       <p className="mt-3 text-center text-[11.5px] text-ink-faint">
-        Step 1 of 2 · always worth more than what it backs, so the position stays liquidatable if the market turns · your position details are never broadcast in the clear.
+        Step 1 of 2 · a deposit always has to be worth more than the loan it backs{collateralAsset ? `, at least ${(1_000_000 / collateralAsset.ltvBps).toFixed(0)}% of it here` : ""}, which is what keeps the position
+        liquidatable if the market turns · your position details are never broadcast in the clear.
       </p>
     </>
   );

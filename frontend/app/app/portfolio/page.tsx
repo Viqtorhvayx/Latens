@@ -5,6 +5,7 @@ import { useAccount, useChainId, useReadContract, useReadContracts } from "wagmi
 import { formatUnits } from "viem";
 import { assetRegistry, latensPool, priceOracle, tokenList } from "@/lib/contracts";
 import { usePositionStore, sharesToReal, RAY } from "@/lib/positionStore";
+import { usePositionRole } from "@/lib/positionRole";
 import { MaskedValue } from "@/components/MaskedValue";
 import { HealthGauge } from "@/components/HealthGauge";
 import { ExportDisclosureModal } from "@/components/ExportDisclosureModal";
@@ -149,6 +150,7 @@ export default function PortfolioPage() {
   // position were unwound at today's prices.
   const netWorthE8 = walletValueE8 + collateralValueE8 - debtValueE8;
   const [valuesRevealed, setValuesRevealed] = useState(false);
+  const role = usePositionRole(address, collateralAssetId);
 
   const zone = (() => {
     if (!collateralToken || !debtToken || debtAmount === 0n || !collateralAsset || !collateralPrice || !debtPrice) return "safe" as const;
@@ -237,7 +239,7 @@ export default function PortfolioPage() {
 
           <div className="flex flex-col gap-8 md:flex-row md:gap-12">
             <div className="flex-1">
-              <div className="mb-3.5 text-xs font-semibold tracking-wide text-ink-faint uppercase">Supplying</div>
+              <div className="mb-3.5 text-xs font-semibold tracking-wide text-ink-faint uppercase">{role === "borrower" ? "Collateral deposited" : "Lending"}</div>
               {positionLoading ? (
                 <p className="text-sm text-ink-faint">Loading…</p>
               ) : collateralToken && collateralAmount > 0n ? (
@@ -258,6 +260,13 @@ export default function PortfolioPage() {
                 </div>
               ) : (
                 <p className="text-sm text-ink-faint">Nothing supplied yet.</p>
+              )}
+              {collateralToken && collateralAmount > 0n && (
+                <p className="mt-3 text-[11.5px] text-ink-faint">
+                  {role === "borrower"
+                    ? "Deposited to borrow against. It earns Supply APY while it sits here, and it stays locked until the loan is repaid."
+                    : "Lent to the market and earning Supply APY. It also doubles as the collateral you can borrow against, in any asset other than this one."}
+                </p>
               )}
             </div>
             <div className="w-px bg-line" />
