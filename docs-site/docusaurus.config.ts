@@ -56,7 +56,6 @@ const config: Config = {
         docs: {
           routeBasePath: "/",
           sidebarPath: "./sidebars.ts",
-          editUrl: "https://github.com/Viqtorhvayx/Latens/tree/main/docs-site/",
         },
         blog: false,
         theme: {
