@@ -9,13 +9,22 @@ stating plainly rather than leaving a reader to infer it.
 
 ## What's real
 
+- **The live testnet deployment verifies real proofs.** The machine-generated Honk verifiers
+  are deployed on Horizen testnet and wired into `LatensPool` and `LatensCDP` via
+  `setVerifiers()` — `MockVerifier` no longer gates anything there. A full
+  supply → borrow → repay → withdraw cycle has been driven against the live pool with a
+  fresh wallet and genuine proofs, verified on-chain.
+- **Proofs are generated client-side, in the browser.** `frontend/lib/proving/` runs real
+  UltraHonk proving in a Web Worker (`@noir-lang/noir_js` for witness generation,
+  `@aztec/bb.js` for proving), wired into every user-facing action. Its output was
+  cross-checked against the deployed Solidity verifiers for all three circuits — byte-for-byte
+  compatible, not merely self-consistent.
+- **All three circuits exist** and are proven working against real proofs, including a real
+  `LatensPool.borrow()` gated by a genuine solvency proof and a real `LatensPool.liquidate()`
+  gated by a genuine liquidation proof, each also confirmed to reject a tampered public
+  input. See [The circuits](./circuits) and [Proof system](./proofs).
 - **The pool's accounting, access control, pausability, and proof-binding logic** are
-  written and tested against `MockVerifier`.
-- **All three circuits exist**, and real on-chain verifiers for all three are wired,
-  tested, and proven working against real proofs. See [The circuits](./circuits) and
-  [Proof system](./proofs). This includes a real `LatensPool.borrow()` call gated by a
-  genuine solvency proof and a real `LatensPool.liquidate()` call gated by a genuine
-  liquidation proof, each also confirmed to reject a tampered public input.
+  covered by a full test suite.
 - **Interest is real and utilization-driven**, and **supplier yield genuinely compounds**
   through a per-asset index rather than a placeholder number. See
   [Interest, yield & minting](./economics).
@@ -27,21 +36,8 @@ stating plainly rather than leaving a reader to infer it.
 - **No independent security audit has been done.** A security self-review exists in the
   repository (`contracts/SECURITY_REVIEW.md`). It is a genuine review, written by the same
   author as the code, and is explicitly not a substitute for an independent one.
-- **Client-side proof generation now exists**: `frontend/lib/proving/` runs real UltraHonk
-  proving in a Web Worker (`@noir-lang/noir_js` for witness generation, `@aztec/bb.js`'s
-  `UltraHonkBackend` for proving), wired into every action that previously submitted a mock
-  `"0x"` proof. Its output has been cross-checked against the real, deployed Solidity
-  verifiers for all three circuits, confirming byte-for-byte compatibility, not just internal
-  self-consistency. See [The circuits](./circuits)'s "Client-side proving is real, end to
-  end" section.
-- **The live testnet deployment has been switched to the real verifiers.**
-  `script/deployRealVerifiersTestnet.js` deployed the real Honk verifiers and called
-  `setVerifiers()` on the already-live `LatensPool` and `LatensCDP`, without redeploying
-  either pool. A full supply → borrow → repay → withdraw cycle was then driven against the
-  live pool with a fresh wallet and real UltraHonk proofs (`frontend/scripts/genLiveE2EProofs.mjs`
-  + `script/liveE2ETestnet.js`), confirming client-side proving and the real verifiers work
-  together for an actual user flow, not just in isolation. See [The circuits](./circuits)'s
-  "Confirmed live" section.
+- **Nothing is on mainnet.** Everything above is testnet. Real deposits, real users, and the
+  operational lessons that only come from those are still ahead.
 - **The mock verifier must never reach mainnet.** There is no on-chain guard preventing a
   misconfigured deployment from using it; that gate belongs to the deploy process and to
   milestone-acceptance review, not to the contract itself.

@@ -19,9 +19,10 @@ pieces fit together. It is written for anyone evaluating the protocol: users, au
 integrators, and grant reviewers alike.
 
 :::warning[Testnet build]
-The currently deployed instance verifies proofs with a permissive mock, not the real
-zero-knowledge circuits, and has not undergone an independent security audit. See
-[Status and limits](./status) before drawing conclusions from anything else in these docs.
+Latens runs on Horizen testnet today, not mainnet, and has not undergone an independent
+security audit — don't put real value behind it yet. Every proof it verifies is real: the
+live deployment checks them through the machine-generated zero-knowledge verifiers, not a
+mock. See [Status and limits](./status) for the full picture of what is and isn't done.
 :::
 
 ## Why confidentiality matters here

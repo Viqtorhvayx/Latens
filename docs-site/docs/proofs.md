@@ -22,11 +22,12 @@ Each interface's public-input layout matches its circuit in `circuits/` field fo
 
 ## Verifier contracts
 
-`MockVerifier` is the development and testnet stand-in: it accepts any proof unless deployed
-in `strict` mode. It must never be deployed anywhere but local development and testnets used
-for exactly that purpose. There is no on-chain guard preventing a misconfigured mainnet
-deployment from using it, so that gate belongs to the deploy process and any milestone
-acceptance review, not the contract itself.
+`MockVerifier` is the local-development stand-in: it accepts any proof unless deployed in
+`strict` mode, which makes it useful for exercising contract logic without paying proving
+time. It no longer gates the live testnet deployment (see below), and must never reach
+mainnet. There is no on-chain guard preventing a misconfigured deployment from using it, so
+that gate belongs to the deploy process and any milestone acceptance review, not the
+contract itself.
 
 The real path is a set of machine-generated Solidity verifiers, one per proof, produced by
 Aztec's Barretenberg toolchain from the compiled Noir circuits (`bb write_solidity_verifier`).
