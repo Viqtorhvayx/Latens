@@ -127,9 +127,7 @@ export default function RewardsPage() {
       </div>
 
       {address && !positionLoading && !hasActivePosition && (
-        <p className="mb-6 rounded-xl border border-line bg-surface px-4 py-3 text-[13px] text-ink-muted">
-          Supply collateral in any market first, since checking in requires an active position.
-        </p>
+        <p className="mb-6 rounded-xl border border-line bg-surface px-4 py-3 text-[13px] text-ink-muted">Supply collateral in any market first, since checking in requires an active position.</p>
       )}
 
       {!address ? (

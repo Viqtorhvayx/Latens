@@ -257,10 +257,7 @@ export default function Home() {
                   with the page's own background so it reads as a silhouette rather than an
                   object: invisible except where it cuts the light behind it, which is
                   exactly what draws the crisp limb. */}
-              <div
-                className="absolute inset-0 rounded-full bg-canvas"
-                style={{ boxShadow: "0 0 calc(var(--d) * 0.073) calc(var(--d) * 0.009) rgba(201,167,92,0.12)" }}
-              />
+              <div className="absolute inset-0 rounded-full bg-canvas" style={{ boxShadow: "0 0 calc(var(--d) * 0.073) calc(var(--d) * 0.009) rgba(201,167,92,0.12)" }} />
             </div>
           </div>
         </div>
@@ -406,8 +403,8 @@ export default function Home() {
           <p className="text-xs font-semibold tracking-[0.16em] text-gold uppercase">Ecosystem alignment</p>
           <h2 className="mt-3 mb-5 font-display text-[30px] font-medium">Building inside the Horizen cluster</h2>
           <p className="text-[15.5px] leading-relaxed text-ink-muted">
-            Latens is grounded in Horizen&apos;s own assets. ZEN and the natively-issued ZUSD stablecoin sit alongside bridged majors as collateral, with the same confidential machinery covering lending, borrowing
-            and minting the protocol&apos;s own stablecoin.
+            Latens is grounded in Horizen&apos;s own assets. ZEN and the natively-issued ZUSD stablecoin sit alongside bridged majors as collateral, with the same confidential machinery covering lending, borrowing and
+            minting the protocol&apos;s own stablecoin.
           </p>
         </Reveal>
       </div>
@@ -438,13 +435,7 @@ export default function Home() {
                 <span className="text-xs font-semibold tracking-[0.12em] text-ink-faint uppercase">{col.heading}</span>
                 {col.links.map((link) =>
                   link.external ? (
-                    <a
-                      key={link.label}
-                      href={link.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[13.5px] text-ink-muted transition-colors hover:text-ink"
-                    >
+                    <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" className="text-[13.5px] text-ink-muted transition-colors hover:text-ink">
                       {link.label}
                     </a>
                   ) : (

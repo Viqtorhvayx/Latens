@@ -38,15 +38,7 @@ type PriceTuple = readonly [bigint, bigint];
 // position can't be its own collateral and LTV is bounded well under 100% specifically so
 // collateral value always sits above debt value even before the liquidation buffer, which is
 // what keeps a bearish move liquidatable instead of the pool taking a loss.
-export function BorrowCollateralStep({
-  fixedSymbol,
-  excludeSymbol,
-  onDeposited,
-}: {
-  fixedSymbol?: TokenSymbol;
-  excludeSymbol: TokenSymbol;
-  onDeposited: () => void;
-}) {
+export function BorrowCollateralStep({ fixedSymbol, excludeSymbol, onDeposited }: { fixedSymbol?: TokenSymbol; excludeSymbol: TokenSymbol; onDeposited: () => void }) {
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const queryClient = useQueryClient();
@@ -213,9 +205,7 @@ export function BorrowCollateralStep({
                     setChosen(t.symbol as TokenSymbol);
                     setAmountInput("");
                   }}
-                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors ${
-                    active ? "border-gold bg-gold/10" : "border-line hover:bg-surface-hover"
-                  }`}
+                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors ${active ? "border-gold bg-gold/10" : "border-line hover:bg-surface-hover"}`}
                 >
                   <TokenIcon symbol={t.symbol} size={24} />
                   <span className="min-w-0 flex-1">

@@ -237,14 +237,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           address: latensCDP.address,
           abi: latensCDP.abi,
           functionName: "mint",
-          args: [
-            amount,
-            BigInt(newCommitment),
-            debtProof.proof,
-            debtProof.publicInputs,
-            solvencyProof.proof,
-            solvencyProof.publicInputs,
-          ],
+          args: [amount, BigInt(newCommitment), debtProof.proof, debtProof.publicInputs, solvencyProof.proof, solvencyProof.publicInputs],
           gas: CDP_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
@@ -300,14 +293,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           address: latensCDP.address,
           abi: latensCDP.abi,
           functionName: "withdrawCollateral",
-          args: [
-            amount,
-            BigInt(newCommitment),
-            withdrawProof.proof,
-            withdrawProof.publicInputs,
-            solvencyProof?.proof ?? "0x",
-            solvencyProof?.publicInputs ?? [],
-          ],
+          args: [amount, BigInt(newCommitment), withdrawProof.proof, withdrawProof.publicInputs, solvencyProof?.proof ?? "0x", solvencyProof?.publicInputs ?? []],
           gas: CDP_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);

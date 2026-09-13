@@ -24,9 +24,7 @@ type ProveRequest = {
   inputs: Record<string, string | boolean>;
 };
 
-type ProveResponse =
-  | { id: number; type: "result"; proof: string; publicInputs: string[] }
-  | { id: number; type: "error"; message: string };
+type ProveResponse = { id: number; type: "result"; proof: string; publicInputs: string[] } | { id: number; type: "error"; message: string };
 
 // Both the compiled circuit JSON (one fetch per circuit, ~100KB) and the Barretenberg WASM
 // instance (the expensive part — a multi-megabyte module) are memoized for the worker's

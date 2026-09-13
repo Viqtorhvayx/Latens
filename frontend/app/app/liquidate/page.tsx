@@ -237,8 +237,8 @@ export default function LiquidatePage() {
       <div className="mb-8 max-w-[640px]">
         <span className="font-display text-[28px]">Liquidate</span>
         <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-muted">
-          Paste a position&apos;s disclosure file to check eligibility and liquidate it if it&apos;s genuinely insolvent. This isn&apos;t a shortcut. An independent keeper has no way to see a confidential
-          position&apos;s real amounts otherwise, which is exactly why this is the one place privacy has to give way.
+          Paste a position&apos;s disclosure file to check eligibility and liquidate it if it&apos;s genuinely insolvent. This isn&apos;t a shortcut. An independent keeper has no way to see a confidential position&apos;s
+          real amounts otherwise, which is exactly why this is the one place privacy has to give way.
         </p>
       </div>
 
@@ -318,13 +318,7 @@ export default function LiquidatePage() {
                     disabled={!address || submitting || isPending}
                     className="w-full rounded-[10px] bg-gold py-3.5 text-[15px] font-semibold text-canvas transition-colors hover:bg-gold-strong disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {!address
-                      ? "Connect your wallet to continue"
-                      : phase === "proving"
-                        ? "Generating proof…"
-                        : submitting || isPending
-                          ? "Confirming…"
-                          : "Liquidate"}
+                    {!address ? "Connect your wallet to continue" : phase === "proving" ? "Generating proof…" : submitting || isPending ? "Confirming…" : "Liquidate"}
                   </button>
                 )}
                 {errorMessage && <p className="mt-3 text-center text-xs text-danger">{errorMessage}</p>}

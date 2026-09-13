@@ -200,16 +200,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
     });
   })();
 
-  const available =
-    mode === "withdraw"
-      ? sharesToReal(local.supplied, tokenIndexRay)
-      : mode === "repay"
-        ? maxRepayable
-        : mode === "supply"
-          ? walletBalance
-          : mode === "borrow"
-            ? borrowMax
-            : undefined;
+  const available = mode === "withdraw" ? sharesToReal(local.supplied, tokenIndexRay) : mode === "repay" ? maxRepayable : mode === "supply" ? walletBalance : mode === "borrow" ? borrowMax : undefined;
   const exceedsAvailable = (available !== undefined && amount > available) || (mode === "repay" && amount + projectedFee > walletBalance);
 
   // Borrow has two ways in. If this position already has collateral with headroom — which
@@ -307,8 +298,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         // a floor, so erring high costs the borrower dust while erring low reverts.
         const feeInDebt = projectedRepayFee(amount, borrowRateBps, debtElapsed);
         const feeValueE8 = usdValueE8(feeInDebt, token.decimals, (debtPrice as readonly [bigint, bigint])[0]);
-        const feeInCollateral =
-          (feeValueE8 * 10n ** BigInt(collateralTokenForCap.decimals)) / (collateralPrice as readonly [bigint, bigint])[0];
+        const feeInCollateral = (feeValueE8 * 10n ** BigInt(collateralTokenForCap.decimals)) / (collateralPrice as readonly [bigint, bigint])[0];
 
         // Clamped to what this position's collateral actually holds. prepareWithdraw throws
         // rather than returns when asked to burn more shares than exist, and an uncaught
@@ -411,15 +401,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           address: latensPool.address,
           abi: latensPool.abi,
           functionName: "borrow",
-          args: [
-            BigInt(token.assetId),
-            amount,
-            BigInt(newCommitment),
-            debtProof.proof,
-            debtProof.publicInputs,
-            solvencyProof.proof,
-            solvencyProof.publicInputs,
-          ],
+          args: [BigInt(token.assetId), amount, BigInt(newCommitment), debtProof.proof, debtProof.publicInputs, solvencyProof.proof, solvencyProof.publicInputs],
           gas: POOL_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
@@ -486,9 +468,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         className="relative w-full max-w-[440px] rounded-[20px] border border-line-strong bg-surface p-7 shadow-[0_32px_80px_rgba(0,0,0,0.55)]"
       >
         <div className="mb-6 flex items-center justify-between">
-          <span className="font-display text-xl capitalize">
-            {showCollateralStep ? "Add collateral" : `${mode} ${symbol}`}
-          </span>
+          <span className="font-display text-xl capitalize">{showCollateralStep ? "Add collateral" : `${mode} ${symbol}`}</span>
           <button onClick={onClose} className="text-ink-muted transition-colors hover:text-ink">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -504,11 +484,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             </button>
           </div>
         ) : showCollateralStep ? (
-          <BorrowCollateralStep
-            fixedSymbol={hasActivePosition ? (collateralTokenForCap?.symbol as TokenSymbol | undefined) : undefined}
-            excludeSymbol={symbol}
-            onDeposited={() => setCollateralOverride(false)}
-          />
+          <BorrowCollateralStep fixedSymbol={hasActivePosition ? (collateralTokenForCap?.symbol as TokenSymbol | undefined) : undefined} excludeSymbol={symbol} onDeposited={() => setCollateralOverride(false)} />
         ) : (
           <>
             <div className="mb-2 flex items-baseline justify-between">

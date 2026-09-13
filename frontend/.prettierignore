@@ -1,3 +1,8 @@
 .next
 node_modules
 lib/deployment.json
+
+# Generated artifacts, not hand-written source: compiled Noir circuits copied from
+# circuits/*/target, and the single-use proof plan genLiveE2EProofs.mjs writes.
+public/circuits
+scripts/.e2e-plan.json

@@ -7,19 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 // plus its locked/free breakdown) drive them off one shared reveal state with a single
 // button, instead of each figure showing its own "Reveal" control. Omit both for the
 // original standalone behavior: its own state, its own button.
-export function MaskedValue({
-  value,
-  fontSize = 20,
-  className = "",
-  revealed: revealedProp,
-  onToggle,
-}: {
-  value: string;
-  fontSize?: number;
-  className?: string;
-  revealed?: boolean;
-  onToggle?: () => void;
-}) {
+export function MaskedValue({ value, fontSize = 20, className = "", revealed: revealedProp, onToggle }: { value: string; fontSize?: number; className?: string; revealed?: boolean; onToggle?: () => void }) {
   const [internalRevealed, setInternalRevealed] = useState(false);
   const isControlled = revealedProp !== undefined;
   const revealed = isControlled ? revealedProp : internalRevealed;

@@ -14,9 +14,7 @@
 // hairline at 96px, so this is weighted for the 96-200px range the outline is used at.
 export function Logo({ size = 32, variant }: { size?: number; variant?: "filled" | "outline" }) {
   const outlined = variant ? variant === "outline" : size >= 64;
-  const paint = outlined
-    ? { fill: "none", stroke: "#C9A75C", strokeWidth: 34, strokeLinejoin: "round" as const, strokeLinecap: "round" as const }
-    : { fill: "#C9A75C", stroke: "none" };
+  const paint = outlined ? { fill: "none", stroke: "#C9A75C", strokeWidth: 34, strokeLinejoin: "round" as const, strokeLinecap: "round" as const } : { fill: "#C9A75C", stroke: "none" };
 
   return (
     <svg width={size} height={size} viewBox="0 0 333.534368 251.890812" xmlns="http://www.w3.org/2000/svg">

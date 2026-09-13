@@ -90,7 +90,7 @@ async function main() {
       "function borrowRateBps(uint256) view returns (uint256)",
       "function getAsset(uint256) view returns (tuple(address token,bool isSupported,uint16 ltvBps,uint16 liquidationThresholdBps,uint16 liquidationBonusBps,uint16 reserveFactorBps,uint256 totalSupplied,uint256 totalBorrowed,uint16 baseRateBps,uint16 slope1Bps,uint16 slope2Bps,uint16 kinkBps))",
     ],
-    provider
+    provider,
   );
   const oracle = new ethers.Contract(deployment.contracts.MockPriceOracle.address, ["function getPrice(address) view returns (uint256,uint256)"], provider);
 
@@ -103,7 +103,18 @@ async function main() {
   const [zusdPriceE8] = await oracle.getPrice(deployment.tokens.ZUSD.address);
   const zusdBorrowRateBps = await registry.borrowRateBps(zusdAssetId);
 
-  console.log("Live config: collateralIndexRay =", collateralIndexRay.toString(), "zenPriceE8 =", zenPriceE8.toString(), "zusdPriceE8 =", zusdPriceE8.toString(), "zenLtvBps =", zenAsset.ltvBps, "zusdBorrowRateBps =", zusdBorrowRateBps.toString());
+  console.log(
+    "Live config: collateralIndexRay =",
+    collateralIndexRay.toString(),
+    "zenPriceE8 =",
+    zenPriceE8.toString(),
+    "zusdPriceE8 =",
+    zusdPriceE8.toString(),
+    "zenLtvBps =",
+    zenAsset.ltvBps,
+    "zusdBorrowRateBps =",
+    zusdBorrowRateBps.toString(),
+  );
 
   const bbApi = await Barretenberg.new();
 
@@ -161,7 +172,7 @@ async function main() {
   const worstCaseFeeInDebt = (borrowAmountRaw * zusdBorrowRateBps * worstCaseElapsedSeconds * 2n) / (10000n * 31536000n);
   const feeValueE8 = (worstCaseFeeInDebt * zusdPriceE8) / 10n ** 18n;
   const feeInCollateral = (feeValueE8 * 10n ** 18n) / zenPriceE8;
-  const burnDelta = feeInCollateral * RAY / collateralIndexRay + 1000000000000n; // + a flat floor in case the above rounds to ~0
+  const burnDelta = (feeInCollateral * RAY) / collateralIndexRay + 1000000000000n; // + a flat floor in case the above rounds to ~0
   console.log("Repay fee buffer (collateral shares, worst-case 1hr elapsed x2):", burnDelta.toString(), "vs total collateral shares:", shareDelta1.toString());
   if (burnDelta >= shareDelta1) throw new Error("Fee buffer is implausibly large relative to collateral — refusing to proceed.");
 

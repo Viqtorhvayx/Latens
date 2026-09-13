@@ -28,11 +28,6 @@ export function repayInterestFee(amount: bigint, borrowRateBps: bigint, elapsedS
 
 // The fee to approve for: what is owed now, plus what will accrue while the transaction is
 // being signed and mined.
-export function projectedRepayFee(
-  amount: bigint,
-  borrowRateBps: bigint,
-  elapsedSeconds: bigint,
-  projectionSeconds = REPAY_FEE_PROJECTION_SECONDS,
-): bigint {
+export function projectedRepayFee(amount: bigint, borrowRateBps: bigint, elapsedSeconds: bigint, projectionSeconds = REPAY_FEE_PROJECTION_SECONDS): bigint {
   return repayInterestFee(amount, borrowRateBps, (elapsedSeconds > 0n ? elapsedSeconds : 0n) + projectionSeconds);
 }

@@ -17,12 +17,7 @@ export function MarketingNav() {
         <Link href="/#protocol" className="text-sm font-medium text-ink-muted transition-colors hover:text-ink">
           Protocol
         </Link>
-        <a
-          href={DOCS_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
-        >
+        <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm font-medium text-ink-muted transition-colors hover:text-ink">
           Docs
           <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
             <path d="M3 11 L11 3 M11 3 H5 M11 3 V9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />

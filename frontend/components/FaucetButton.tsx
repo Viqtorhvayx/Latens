@@ -17,17 +17,7 @@ const FAUCET_AMOUNTS: Record<TokenSymbol, string> = {
 
 const MINT_GAS = 150_000n;
 
-export function FaucetButton({
-  address,
-  symbol,
-  decimals,
-  variant = "button",
-}: {
-  address: `0x${string}`;
-  symbol: string;
-  decimals: number;
-  variant?: "button" | "menuItem";
-}) {
+export function FaucetButton({ address, symbol, decimals, variant = "button" }: { address: `0x${string}`; symbol: string; decimals: number; variant?: "button" | "menuItem" }) {
   const { address: account } = useAccount();
   const { writeContractAsync, isPending } = useWriteContract();
   const publicClient = usePublicClient();

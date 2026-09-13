@@ -103,8 +103,8 @@ export function ExportDisclosureModal({
               </div>
 
               <p className="mb-5 text-[11.5px] text-ink-faint">
-                This is a one-time snapshot signed by your wallet. It isn&apos;t a standing key and re-exporting after your position changes is on you. Nothing is sent anywhere; the file only leaves your device when
-                you share it.
+                This is a one-time snapshot signed by your wallet. It isn&apos;t a standing key and re-exporting after your position changes is on you. Nothing is sent anywhere; the file only leaves your device when you
+                share it.
               </p>
 
               <button

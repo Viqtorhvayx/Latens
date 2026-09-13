@@ -15,10 +15,7 @@ export function TokenIcon({ symbol, size = 32 }: { symbol: string; size?: number
   }
 
   return (
-    <div
-      className="flex shrink-0 items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-gold"
-      style={{ width: size, height: size, fontSize: size * 0.35 }}
-    >
+    <div className="flex shrink-0 items-center justify-center rounded-full border border-line-strong bg-canvas-raised font-mono text-gold" style={{ width: size, height: size, fontSize: size * 0.35 }}>
       {symbol[0]}
     </div>
   );

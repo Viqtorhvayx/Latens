@@ -143,8 +143,7 @@ export default function PortfolioPage() {
   });
 
   const walletValueE8 = holdings.reduce((sum, h) => sum + (h.valueE8 ?? 0n), 0n);
-  const collateralValueE8 =
-    collateralToken && collateralPrice ? usdValueE8(collateralAmount, collateralToken.decimals, collateralPrice[0]) : 0n;
+  const collateralValueE8 = collateralToken && collateralPrice ? usdValueE8(collateralAmount, collateralToken.decimals, collateralPrice[0]) : 0n;
   const debtValueE8 = debtToken && debtPrice ? usdValueE8(debtAmount, debtToken.decimals, debtPrice[0]) : 0n;
   // Supplied collateral is still yours; drawn debt is not. Net worth is what is left if the
   // position were unwound at today's prices.
