@@ -2,11 +2,10 @@ import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 
-// The app itself is a separate Next.js project (../frontend) not yet deployed anywhere
-// real. https://latens.example is the same placeholder frontend/layout.tsx and
-// frontend/lib/wagmi.ts already use for that reason — replace all three together once a
-// domain exists.
-const APP_URL = "https://latens.example";
+// The app itself is a separate Next.js project (../frontend). Same real domain
+// frontend/layout.tsx and frontend/lib/wagmi.ts now use — keep all three in sync if it
+// ever changes.
+const APP_URL = "https://latens.site";
 
 const config: Config = {
   title: "Latens Documentation",
@@ -17,7 +16,7 @@ const config: Config = {
     v4: true,
   },
 
-  url: "https://docs.latens.example",
+  url: "https://docs.latens.site",
   baseUrl: "/",
 
   organizationName: "Viqtorhvayx",

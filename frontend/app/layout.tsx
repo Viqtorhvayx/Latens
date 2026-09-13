@@ -27,10 +27,8 @@ const description = "Confidential borrow-lend market for Horizen. Collateral, bo
 
 export const metadata: Metadata = {
   // Needed so the auto-generated opengraph-image/apple-icon resolve to absolute URLs in
-  // social-preview <meta> tags instead of Next's localhost fallback. Update this once this
-  // deployment has a real domain — see the homepage's own "Built for Horizen · Base L3" note
-  // about this being pre-mainnet.
-  metadataBase: new URL("https://latens.example"),
+  // social-preview <meta> tags instead of Next's localhost fallback.
+  metadataBase: new URL("https://latens.site"),
   title,
   description,
   // opengraph-image.tsx and apple-icon.tsx (both under app/) are picked up automatically by

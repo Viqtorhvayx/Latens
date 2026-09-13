@@ -36,10 +36,9 @@ const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 // app name's first initial) instead of Latens's own mark, in both its own modal and on the
 // connecting wallet's side (MetaMask's connection prompt, a mobile wallet's WC screen) —
 // this is the one place that icon is actually sourced from for the WalletConnect connector.
-// `url` doubles as the base the wallet resolves `icons` against, so it needs to be the same
-// placeholder as layout.tsx's `metadataBase` until there's a real domain — update both
-// together once one exists.
-const appUrl = "https://latens.example";
+// `url` doubles as the base the wallet resolves `icons` against, so it needs to stay the
+// same as layout.tsx's `metadataBase`.
+const appUrl = "https://latens.site";
 
 export const wagmiConfig = createConfig({
   chains: [horizenTestnet, sepolia, baseSepolia],
