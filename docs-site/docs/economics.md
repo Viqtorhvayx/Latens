@@ -4,6 +4,32 @@ title: Interest, yield & minting
 
 # Interest, yield, and minting
 
+## Revenue model
+
+Latens earns from two independent, usage-driven streams — both settle in real assets
+already moving through the protocol, not in emissions of a native token:
+
+1. **A reserve-factor share of borrower interest on `LatensPool`.** Every `repay` charges a
+   real, time-weighted interest fee; a configurable reserve-factor slice of it is swept to
+   `ProtocolTreasury`, and the rest compounds directly into suppliers' yield. See
+   [The fee is settled against collateral](#the-fee-is-settled-against-collateral-not-the-borrowed-asset) below.
+2. **A one-time origination fee on `LatensCDP`.** Charged when `LatensDollar` is minted
+   against posted collateral — the entire revenue mechanism on the minting side, since
+   individual minted amounts stay confidential and can't be metered any other way.
+
+`ProtocolTreasury.sweep()` is permissionless (any keeper can trigger it, so fees never sit
+idle waiting on an admin) and splits what it collects three ways, by configurable rate:
+
+| Destination | Default | Cap |
+|---|---|---|
+| ZEN staking rewards pool | 17.5% | 20% |
+| `SupplyRewards` top-up | 15% | 30% |
+| Protocol runway | remainder (~67.5% by default) | — |
+
+The `SupplyRewards` top-up is what keeps supplier incentives funded by real usage rather than
+counting down from a fixed initial grant — see [Supplier rewards funding](#supplier-rewards-funding)
+below for how that loop closes.
+
 ## Interest is utilization-driven
 
 `AssetRegistry` holds a kinked interest rate model per listed asset. `LatensPool.repay`
