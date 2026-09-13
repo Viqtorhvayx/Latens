@@ -4,9 +4,16 @@ title: Privacy model
 
 # Privacy model
 
-Latens's privacy guarantee is scoped precisely: it covers **who holds how much**, not the
-market as a whole. Being exact about that boundary matters more than claiming everything is
-hidden, so this page states each side of it explicitly.
+Confidentiality is not a feature Latens adds on top of a conventional lending protocol — it
+is the reason the protocol exists. Every collateral and debt amount is hidden from
+everyone but its owner, enforced not by access control or by trusting an operator, but by
+zero-knowledge proof: the chain never holds a number it could leak, only a cryptographic
+commitment and a proof that the arithmetic on the hidden value underneath was done correctly.
+
+That guarantee is scoped precisely: it covers **who holds how much**, not the market as a
+whole. Being exact about that boundary matters more than claiming everything is hidden, so
+this page states each side of it explicitly, then covers how the guarantee is actually
+enforced end to end.
 
 ## Private
 
@@ -53,3 +60,38 @@ trusting the numbers written inside it.
 
 The choice of when and to whom to disclose always belongs to the position owner. Hidden by
 default; provable the moment they decide it should be.
+
+## How the guarantee is actually enforced
+
+A privacy claim is only as strong as what stands behind it. Latens's stands on three things,
+each checkable independently rather than taken on trust:
+
+**Real proofs, generated where the private data lives.** Every proof is produced client-side,
+in the position owner's own browser — witness generation and UltraHonk proving run in a Web
+Worker, using the position's actual hidden amounts and salts, which never leave that browser.
+There is no server that sees a plaintext balance in order to prove something about it. See
+[Proof system](./proofs) for the exact pipeline.
+
+**Real on-chain verification, not a placeholder.** The proof a user submits is checked by a
+machine-generated Solidity verifier compiled directly from the Noir circuit — not approved by
+an operator, not rubber-stamped by a mock. `MockVerifier` exists only for local development
+and must never gate a production deployment; the live Horizen testnet deployment verifies
+through the real verifiers today, and that switch is itself something anyone can confirm
+on-chain by reading `LatensPool.commitmentVerifier()`.
+
+**Binding that can't be replayed or substituted.** Every proof is checked against values the
+contract itself computes or reads at call time — old and new commitments, deltas, live
+oracle prices, the live supply index — before the verifier is ever called, so a valid proof
+generated for one action can never be reused for a different one, a different asset, or a
+different position. Swapping which verifier contracts are trusted is gated to the protocol
+owner specifically because a malicious verifier could forge exactly this guarantee; that
+makes it as security-critical as upgrading the pool's logic itself.
+
+## Audit status
+
+An internal security self-review exists (`contracts/SECURITY_REVIEW.md`, in the repository)
+and documents, plainly, what was checked, what was found and fixed, and what was explicitly
+out of scope for that pass. It is written by the same people who wrote the code and is
+**not** a substitute for an independent audit — an independent review of both the Solidity
+contracts and the Noir circuits' cryptographic soundness (a genuinely different discipline
+from a Solidity review) is a funded milestone on the roadmap, not yet complete.
