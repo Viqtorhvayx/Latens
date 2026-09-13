@@ -4,8 +4,10 @@ title: Status and limits
 
 # Status and limits
 
-This is a working protocol scaffold, not a finished product, and the distinction is worth
-stating plainly rather than leaving a reader to infer it.
+Latens is live on Horizen testnet with its full confidential machinery working end to end —
+real circuits, real client-side proving, real on-chain verification. What remains before
+mainnet is stated just as plainly below, because a privacy protocol that is vague about its
+own boundaries has not earned anyone's trust.
 
 ## What's real
 
@@ -49,14 +51,12 @@ stating plainly rather than leaving a reader to infer it.
   single-collateral, single-debt-asset, and isolated per user. Supplying a second asset into
   a position that already holds one is rejected on-chain, and the interface disables the
   action rather than letting it fail in a wallet.
-- **The testnet price feed is a mock that needs a heartbeat.** Both contracts reject any
-  solvency-gated call whose price is more than an hour old. A production oracle updates
-  itself; `MockPriceOracle` only advances when something calls it, so a deployment left
-  alone for an hour starts rejecting borrow, withdraw-against-debt, mint and liquidate with
-  `StaleOraclePrice`, while supply, repay and burn keep working. The interface re-stamps the
-  feed itself before each affected action, and `script/refreshPrices.js` does the same from
-  the command line. The re-stamp is permissionless and cannot change what a price says, only
-  how recently it was checked.
+- **The testnet price feed is a mock, pending a production oracle.** Both contracts reject
+  any solvency-gated call priced more than an hour ago — a real safety property, kept. On
+  testnet, `MockPriceOracle` only advances when something calls it, so the interface
+  re-stamps the feed before each affected action (`script/refreshPrices.js` does the same
+  from the command line). The re-stamp is permissionless and cannot change what a price
+  says, only how recently it was checked. Mainnet needs a real feed.
 - **Liquidation amounts become public.** The seized collateral and repaid debt amounts for a
   liquidated position are visible on-chain at the moment of liquidation. See
   [Privacy model](./privacy-model) for the full boundary of what stays private and what
@@ -64,8 +64,8 @@ stating plainly rather than leaving a reader to infer it.
 
 ## Roadmap
 
-| Milestone | Target | Description |
+| Milestone | Status | Description |
 |---|---|---|
-| M1 | Q1 2027 | Core privacy capability: confidential deposit, borrow, and health-factor proofs live on testnet. |
-| M2 | Q2 2027 | Independent security audit of the proof system and liquidation logic, before mainnet exposure. |
-| M3 | Q3 2027 | Mainnet usage: real deposits and borrows on Horizen, demonstrating product-market fit. |
+| M1 | **Delivered** | Core privacy capability: confidential deposit, borrow, and health-factor proofs live on Horizen testnet, verified on-chain through the real Honk verifiers. |
+| M2 | Next | Independent security audit of the contracts and circuit soundness, before any mainnet exposure. |
+| M3 | Following M2 | Mainnet usage: real deposits and borrows on Horizen from users who aren't the team. |
