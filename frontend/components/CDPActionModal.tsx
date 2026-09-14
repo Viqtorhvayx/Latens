@@ -17,6 +17,7 @@ import { usdValueE8 } from "@/lib/valuation";
 import { waitForConfirmation } from "@/lib/waitForTx";
 import { proveCommitmentUpdate, proveSolvency } from "@/lib/proving/client";
 import { useFreshPrices } from "@/lib/useFreshPrices";
+import { APPROVE_GAS, SINGLE_PROOF_CALL_GAS, DOUBLE_PROOF_CALL_GAS } from "@/lib/gasLimits";
 
 export type CDPActionMode = "supply" | "withdraw" | "mint" | "burn";
 
@@ -28,9 +29,6 @@ const ACTION_LABEL: Record<CDPActionMode, string> = {
 };
 
 const STABLECOIN_PRICE_E8 = 100_000_000n;
-
-const APPROVE_GAS = 100_000n;
-const CDP_CALL_GAS = 600_000n;
 
 type CDPPositionTuple = readonly [bigint, bigint, bigint, bigint, boolean, boolean];
 
@@ -167,7 +165,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           abi: latensCDP.abi,
           functionName: "supplyCollateral",
           args: [BigInt(token.assetId), amount, BigInt(newCommitment), supplyProof.proof, supplyProof.publicInputs],
-          gas: CDP_CALL_GAS,
+          gas: SINGLE_PROOF_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
@@ -192,7 +190,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           abi: latensCDP.abi,
           functionName: "burn",
           args: [amount, BigInt(newCommitment), burnProof.proof, burnProof.publicInputs],
-          gas: CDP_CALL_GAS,
+          gas: SINGLE_PROOF_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
@@ -238,7 +236,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           abi: latensCDP.abi,
           functionName: "mint",
           args: [amount, BigInt(newCommitment), debtProof.proof, debtProof.publicInputs, solvencyProof.proof, solvencyProof.publicInputs],
-          gas: CDP_CALL_GAS,
+          gas: DOUBLE_PROOF_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
@@ -294,7 +292,7 @@ export function CDPActionModal({ symbol, mode, onClose }: { symbol: TokenSymbol;
           abi: latensCDP.abi,
           functionName: "withdrawCollateral",
           args: [amount, BigInt(newCommitment), withdrawProof.proof, withdrawProof.publicInputs, solvencyProof?.proof ?? "0x", solvencyProof?.publicInputs ?? []],
-          gas: CDP_CALL_GAS,
+          gas: DOUBLE_PROOF_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);

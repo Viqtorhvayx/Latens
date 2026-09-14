@@ -19,9 +19,7 @@ import { proveCommitmentUpdate } from "@/lib/proving/client";
 import { useSupplyRateRay } from "@/lib/useSupplyRateRay";
 import { formatUsd } from "@/lib/valuation";
 import { TokenIcon } from "./TokenIcon";
-
-const APPROVE_GAS = 100_000n;
-const POOL_CALL_GAS = 600_000n;
+import { APPROVE_GAS, SINGLE_PROOF_CALL_GAS, VIEWING_NOTE_GAS } from "@/lib/gasLimits";
 
 type AssetStruct = { ltvBps: number };
 type PriceTuple = readonly [bigint, bigint];
@@ -149,7 +147,7 @@ export function BorrowCollateralStep({ fixedSymbol, excludeSymbol, onDeposited }
         abi: latensPool.abi,
         functionName: "supplyCollateral",
         args: [BigInt(token.assetId), amount, BigInt(newCommitment), proof, publicInputs],
-        gas: POOL_CALL_GAS,
+        gas: SINGLE_PROOF_CALL_GAS,
       });
       await waitForConfirmation(publicClient, hash);
       commit(address, token.assetId, patch);
@@ -167,7 +165,7 @@ export function BorrowCollateralStep({ fixedSymbol, excludeSymbol, onDeposited }
             abi: latensPool.abi,
             functionName: "publishViewingNote",
             args: [BigInt(token.assetId), false, ciphertext],
-            gas: POOL_CALL_GAS,
+            gas: VIEWING_NOTE_GAS,
           });
         })().catch((err) => console.warn("Failed to publish viewing key note (non-fatal):", err));
       }

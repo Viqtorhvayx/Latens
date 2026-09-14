@@ -25,11 +25,9 @@ import { useViewingKey } from "@/lib/viewingKeyContext";
 import { encryptNote } from "@/lib/viewingKey";
 import { useFreshPrices } from "@/lib/useFreshPrices";
 import { proveCommitmentUpdate, proveSolvency } from "@/lib/proving/client";
+import { APPROVE_GAS, SINGLE_PROOF_CALL_GAS, DOUBLE_PROOF_CALL_GAS, VIEWING_NOTE_GAS } from "@/lib/gasLimits";
 
 export type ActionMode = "supply" | "withdraw" | "borrow" | "repay";
-
-const APPROVE_GAS = 100_000n;
-const POOL_CALL_GAS = 600_000n;
 
 const ACTION_LABEL: Record<ActionMode, string> = {
   supply: "supply",
@@ -224,7 +222,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
         abi: latensPool.abi,
         functionName: "publishViewingNote",
         args: [BigInt(assetId), isDebt, ciphertext],
-        gas: POOL_CALL_GAS,
+        gas: VIEWING_NOTE_GAS,
       });
     })().catch((err) => console.warn("Failed to publish viewing key note (non-fatal):", err));
   }
@@ -276,7 +274,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           abi: latensPool.abi,
           functionName: "supplyCollateral",
           args: [BigInt(token.assetId), amount, BigInt(newCommitment), supplyProof.proof, supplyProof.publicInputs],
-          gas: POOL_CALL_GAS,
+          gas: SINGLE_PROOF_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
@@ -352,7 +350,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
             // exactly when this repayment leaves nothing owed.
             amount >= local.borrowed,
           ],
-          gas: POOL_CALL_GAS,
+          gas: DOUBLE_PROOF_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
@@ -402,7 +400,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           abi: latensPool.abi,
           functionName: "borrow",
           args: [BigInt(token.assetId), amount, BigInt(newCommitment), debtProof.proof, debtProof.publicInputs, solvencyProof.proof, solvencyProof.publicInputs],
-          gas: POOL_CALL_GAS,
+          gas: DOUBLE_PROOF_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
@@ -437,7 +435,7 @@ export function PositionActionModal({ symbol, mode, onClose }: { symbol: TokenSy
           abi: latensPool.abi,
           functionName: "withdrawCollateral",
           args: [amount, BigInt(newCommitment), withdrawProof.proof, withdrawProof.publicInputs, "0x", []],
-          gas: POOL_CALL_GAS,
+          gas: DOUBLE_PROOF_CALL_GAS,
         });
         await waitForConfirmation(publicClient, hash);
         commit(address, token.assetId, patch);
